@@ -25,8 +25,8 @@ Hash-based signatures are the most conservative post-quantum option for Ethereum
 Implementations have diverged:
 
 - One derives keys from the phrase's BIP-39 entropy, with Keccak-256 over application-specific labels.
-- Another derives them through hardened [BIP-32](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0032.mediawiki) paths under `m/44'/60'/a'`.
-- A third runs BIP-39's PBKDF2 over the phrase a second time, with its own salt in place of `"mnemonic"`.
+- Another runs BIP-39's PBKDF2 over the phrase a second time, with its own salt in place of `"mnemonic"`.
+- A third runs HMAC-SHA512 over the BIP-39 seed, under its own label.
 
 The same phrase therefore gives different keys in different wallets, and a phrase restored elsewhere does not restore the keys.
 
@@ -36,7 +36,7 @@ A standard derivation lets a user:
 - add hash-based keys to an existing phrase without a new backup;
 - move to a new parameter set, for example the one a future protocol upgrade fixes, by deriving a new key from the same phrase.
 
-Derivations through BIP-32 have a further problem. Every BIP-32 node has an elliptic-curve public key. Given an extended public key, a quantum adversary can compute the node's private key, and with its chain code every hardened child. Hardened derivation protects against classical leaks, not quantum ones. Hash-based keys should not depend on any value that an elliptic-curve public key can reveal.
+A wallet that already has [BIP-32](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0032.mediawiki) might derive these keys through it. That would bring a problem of its own. Every BIP-32 node has an elliptic-curve public key. Given an extended public key, a quantum adversary can compute the node's private key, and with its chain code every hardened child. Hardened derivation protects against classical leaks, not quantum ones. Hash-based keys should not depend on any value that an elliptic-curve public key can reveal.
 
 ## Specification
 
@@ -217,7 +217,7 @@ Every derivation of this ERC applies to such a root unchanged. A random root has
 
 ## Backwards Compatibility
 
-No standard derivation exists for hash-based keys, so nothing breaks. Keys made by earlier, implementation-specific derivations, such as derivation from BIP-39 entropy or through BIP-32 paths under `m/44'/60'`, are not keys of this ERC. A wallet can derive keys of this ERC from the same phrase and have the earlier key sign them.
+No standard derivation exists for hash-based keys, so nothing breaks. Keys made by earlier, implementation-specific derivations, such as derivation from BIP-39 entropy or under an implementation's own label, are not keys of this ERC. A wallet can derive keys of this ERC from the same phrase and have the earlier key sign them.
 
 The BIP-39 seed this ERC uses is the same one BIP-32 wallets use, so a phrase can hold ECDSA and hash-based keys at once.
 
