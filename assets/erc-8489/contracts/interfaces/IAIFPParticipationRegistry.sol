@@ -5,6 +5,12 @@ pragma solidity ^0.8.20;
 /// @notice Role bindings: who holds which role bits, in which scope of which channel, on what basis, for
 ///         how long. Every grant creates a `bindingId`; suspension and revocation address a binding, never
 ///         a subject in general. Evaluation is a pure function of the registry state at a timepoint.
+///         Every management event names the caller (`by`), on what grounds the caller was authorized
+///         (`authorityKind`: 0 channel authority, 1 governance executor, 2 a holder of the management role,
+///         3 the subject of the binding itself) and, for kind 2, the role binding relied on
+///         (`authorizingBinding`), so that a reader of the log can check the action against the role history
+///         in log order without a call trace. `RoleReinstated` is authorized by having imposed the
+///         suspension, which the `RoleSuspended` log already shows.
 interface IAIFPParticipationRegistry {
     // Stored states; Pending (re-admission required) and Expired are derived, not stored.
     enum BindingState {
@@ -45,12 +51,40 @@ interface IAIFPParticipationRegistry {
         bytes32 ruleVersion,
         uint48 validFrom,
         uint48 validUntil,
-        bytes32 onBehalfOf
+        bytes32 onBehalfOf,
+        address by,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
     );
-    event RoleSuspended(bytes32 indexed channelId, bytes32 indexed bindingId, address indexed suspendedBy, bytes32 reasonRef, uint48 at);
+    event RoleSuspended(
+        bytes32 indexed channelId,
+        bytes32 indexed bindingId,
+        address indexed suspendedBy,
+        bytes32 reasonRef,
+        uint48 at,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
+    );
     event RoleReinstated(bytes32 indexed channelId, bytes32 indexed bindingId, address indexed by, uint48 at);
-    event RoleRevoked(bytes32 indexed channelId, bytes32 indexed bindingId, address indexed by, bytes32 reasonRef, uint48 at);
-    event RoleReadmitted(bytes32 indexed channelId, bytes32 indexed bindingId, uint32 epoch, bytes32 ruleVersion, uint8 outcome);
+    event RoleRevoked(
+        bytes32 indexed channelId,
+        bytes32 indexed bindingId,
+        address indexed by,
+        bytes32 reasonRef,
+        uint48 at,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
+    );
+    event RoleReadmitted(
+        bytes32 indexed channelId,
+        bytes32 indexed bindingId,
+        uint32 epoch,
+        bytes32 ruleVersion,
+        uint8 outcome,
+        address by,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
+    );
     event AdmissionEvaluated(bytes32 indexed channelId, bytes32 indexed subject, uint16 role, bytes32 scopeRef, uint8 outcome);
 
     error AIFP_NotAuthorized(bytes32 channelId, address caller);

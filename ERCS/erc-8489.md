@@ -333,13 +333,17 @@ interface IAIFPChannelRegistry {
     event ChannelOpened(bytes32 indexed channelId, bytes32 indexed paradigmId,
         address indexed authority, bytes32 parent, string metadataURI);
     event ParadigmAdopted(bytes32 indexed channelId, bytes32 indexed paradigmId,
-        uint48 effectiveAt, bool requiresReadmission, bytes32 authorizationRef, uint256 adoptionIndex);
+        uint48 effectiveAt, bool requiresReadmission, bytes32 authorizationRef, uint256 adoptionIndex,
+        address by, uint8 authorityKind, bytes32 authorizingBinding);
     event BindingDeclared(bytes32 indexed channelId, bytes32 indexed bindingId, uint8 kind,
         bytes32 target, bytes32 version, uint32 capabilities, uint32 effectScope,
-        uint8 adoptionMode, bytes32 authorizationRef);
-    event BindingRevoked(bytes32 indexed channelId, bytes32 indexed bindingId);
+        uint8 adoptionMode, bytes32 authorizationRef,
+        address by, uint8 authorityKind, bytes32 authorizingBinding);
+    event BindingRevoked(bytes32 indexed channelId, bytes32 indexed bindingId,
+        address by, uint8 authorityKind, bytes32 authorizingBinding);
     event DisclosureRecorded(bytes32 indexed channelId, bytes32 indexed objectRef, uint8 kind,
-        bytes32 audienceRef, bytes32 authorizationRef, uint48 at, uint256 recordIndex);
+        bytes32 audienceRef, bytes32 authorizationRef, uint48 at, uint256 recordIndex,
+        address by, uint8 authorityKind, bytes32 authorizingBinding);
     event ChannelStateChanged(bytes32 indexed channelId, ChannelState state);
     event AuthorityTransferred(bytes32 indexed channelId,
         address indexed previousAuthority, address indexed newAuthority);
@@ -401,6 +405,8 @@ interface IAIFPChannelRegistry {
 | `recordDisclosure` | the channel authority; a subject holding `MANAGE_DISCLOSURE` for the whole channel; an executor with the disclosure effect |
 | `setState`, `transferAuthority` | the channel authority |
 
+Every management event of the two registries (`ParadigmAdopted`, `BindingDeclared`, `BindingRevoked`, `DisclosureRecorded`, `RoleGranted`, `RoleSuspended`, `RoleRevoked`, `RoleReadmitted`) names the caller (`by`), the grounds on which the caller was authorized (`authorityKind`: 0 the channel authority - or the opener, for the records that `openChannel` writes -, 1 a governance executor with the required effect, 2 a subject holding the management role, 3 the subject of the binding acting for itself) and, when the grounds are a management role, the role binding relied on (`authorizingBinding`; zero otherwise). The grounds are examined in that order, so a channel authority that also holds the role is reported as the authority. `RoleReinstated` is authorized by having imposed the suspension, which the `RoleSuspended` log already shows. Events are not part of the interface identifiers of Section 15.
+
 ### 9. Participation registry
 
 ```solidity
@@ -416,14 +422,18 @@ interface IAIFPParticipationRegistry {
 
     event RoleGranted(bytes32 indexed channelId, bytes32 indexed subject, bytes32 indexed bindingId,
         uint16 roles, bytes32 scopeRef, uint8 basisKind, bytes32 basisRef, uint8 outcomeAtGrant,
-        bytes32 ruleVersion, uint48 validFrom, uint48 validUntil, bytes32 onBehalfOf);
+        bytes32 ruleVersion, uint48 validFrom, uint48 validUntil, bytes32 onBehalfOf,
+        address by, uint8 authorityKind, bytes32 authorizingBinding);
     event RoleSuspended(bytes32 indexed channelId, bytes32 indexed bindingId,
-        address indexed suspendedBy, bytes32 reasonRef, uint48 at);
+        address indexed suspendedBy, bytes32 reasonRef, uint48 at,
+        uint8 authorityKind, bytes32 authorizingBinding);
     event RoleReinstated(bytes32 indexed channelId, bytes32 indexed bindingId, address indexed by, uint48 at);
     event RoleRevoked(bytes32 indexed channelId, bytes32 indexed bindingId,
-        address indexed by, bytes32 reasonRef, uint48 at);
+        address indexed by, bytes32 reasonRef, uint48 at,
+        uint8 authorityKind, bytes32 authorizingBinding);
     event RoleReadmitted(bytes32 indexed channelId, bytes32 indexed bindingId,
-        uint32 epoch, bytes32 ruleVersion, uint8 outcome);
+        uint32 epoch, bytes32 ruleVersion, uint8 outcome,
+        address by, uint8 authorityKind, bytes32 authorizingBinding);
     event AdmissionEvaluated(bytes32 indexed channelId, bytes32 indexed subject,
         uint16 role, bytes32 scopeRef, uint8 outcome);
 
@@ -496,7 +506,7 @@ Rules are applied to the interaction process, not to isolated messages. The time
 - **Re-admission.** When an adoption requires re-admission, bindings granted before it took effect are pending from `effectiveAt` (Section 9.1) and evaluate to `UNDETERMINABLE` until re-admitted or confirmed; they are neither revoked nor treated as `NOT_SATISFIED`.
 - **Decisions within a timepoint.** Acceptance is decided when the transaction executes, against the state recorded up to that position in the chain, whereas a later read of `evaluate(..., t)` reflects every change recorded for `t`, including changes recorded later within `t` itself (Section 4). A contribution accepted at `t` whose author's binding is revoked later at the same timepoint is the typical case: after the revocation `evaluate(..., t)` is `NOT_SATISFIED` (unless the author holds another binding), and the acceptance was authorized all the same. The converse also occurs: a read can be `SATISFIED` for a timepoint within which an action was refused, because the binding was granted, reinstated or re-admitted later within it. The evidence of an acceptance is therefore the record written when it was accepted, not a later re-evaluation.
 - **Records of accepted actions.** A contract that records accepted actions SHOULD record, together with the clock value at which it accepts, the identifier of a binding that satisfied its check (`evaluateWithBinding`, Section 9.5), as the event-anchor profile does (Section 13.1), and SHOULD make no state-changing call between the check and the record, so that the position of the record's log is the position of the decision. A record is evidence for the timepoint of the block that carries it and for no other. It is authorized if the binding it names belongs to the record's subject and channel, covers the role and the scope the action needs, and is applicable and `SATISFIED` at the record's timepoint when only the state changes recorded before the record are taken into account. The grant of the binding is itself one of those changes; changes recorded at earlier timepoints all precede the record; changes recorded at later timepoints do not reach its timepoint; and for changes recorded at the record's own timepoint the order is that of the corresponding logs in the chain (block number, transaction index, log index). The rule is applied by replaying the events of the registries, each with the clock value of the block that carries it: the events of a grant and of a re-admission do not state the timepoint at which they were recorded. A contract cannot apply it on chain and relies on the recorder; a transport that accepts off chain has no position in the chain and records the block whose state it read together with the binding.
-- **Management actions.** The registries' own management functions are decided in the same way: `grant`, `suspend`, `revoke`, `confirmReadmission`, `adoptParadigm`, `declareBinding`, `revokeBinding` and `recordDisclosure` accept a caller who is authorized at that position in the chain. Their events name the action and, for suspension, reinstatement and revocation, the caller; they do not name the basis on which the caller was authorized. For those actions the evidence is the transaction that carries the log - its sender, or its call trace when the caller is a contract - and the same ordering of logs.
+- **Management actions.** The registries' own management functions are decided in the same way: `grant`, `suspend`, `revoke`, `confirmReadmission`, `adoptParadigm`, `declareBinding`, `revokeBinding` and `recordDisclosure` accept a caller who is authorized at that position in the chain, and their events name the caller, the grounds and, for a caller authorized by a management role, the binding relied on (Section 8.4). The same rule applies to them as to records of accepted actions: a management event is authorized if the binding it names belongs to its caller's subject and channel, covers the management role and the scope, and is applicable and `SATISFIED` at the event's timepoint counting only the changes recorded before it in log order; for the channel authority and for an executor the grounds are the `AuthorityTransferred`, `ChannelOpened`, `BindingDeclared` and `BindingRevoked` logs recorded before it. A reader of the log therefore needs no call trace, which matters when the caller is a contract account.
 
 ### 11. Disclosure monotonicity
 

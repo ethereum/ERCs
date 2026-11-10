@@ -6,6 +6,7 @@ import {IERC6372} from "./interfaces/IERC6372.sol";
 import {IAIFPChannelRegistry} from "./interfaces/IAIFPChannelRegistry.sol";
 import {IAIFPParadigmRegistry} from "./interfaces/IAIFPParadigmRegistry.sol";
 import {IAIFPParticipationRegistry} from "./interfaces/IAIFPParticipationRegistry.sol";
+import {AIFPBasis} from "./libraries/AIFPBasis.sol";
 import {AIFPBindings} from "./libraries/AIFPBindings.sol";
 import {AIFPRoles} from "./libraries/AIFPRoles.sol";
 import {AIFPOutcomes} from "./libraries/AIFPOutcomes.sol";
@@ -97,9 +98,10 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
             })
         );
         emit ChannelOpened(channelId, paradigmId, authority, parent, metadataURI);
-        emit ParadigmAdopted(channelId, paradigmId, clock(), false, bytes32(0), 0);
+        // The opener writes the opening records; it is reported as the channel's authority of that moment.
+        emit ParadigmAdopted(channelId, paradigmId, clock(), false, bytes32(0), 0, msg.sender, AIFPBasis.AUTHORITY_CHANNEL, bytes32(0));
         for (uint256 i = 0; i < bindings.length; i++) {
-            _declareBinding(channelId, bindings[i]);
+            _declareBinding(channelId, bindings[i], AIFPBasis.AUTHORITY_CHANNEL, bytes32(0));
         }
     }
 
@@ -111,7 +113,7 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
         bytes32 authorizationRef
     ) external {
         _requireActive(channelId);
-        if (!_canChangeRules(channelId, msg.sender)) revert AIFP_NotAuthorized(channelId, msg.sender);
+        (uint8 kind, bytes32 under) = _authority(channelId, msg.sender, AIFPBindings.EFFECT_RULES, AIFPRoles.MANAGE_RULES);
         if (!paradigmRegistry.exists(paradigmId)) revert IAIFPParadigmRegistry.AIFP_UnknownParadigm(paradigmId);
         uint48 now_ = clock();
         if (effectiveAt < now_) revert AIFP_EffectiveInPast(effectiveAt, now_);
@@ -125,22 +127,22 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
                 authorizationRef: authorizationRef
             })
         );
-        emit ParadigmAdopted(channelId, paradigmId, effectiveAt, requiresReadmission, authorizationRef, list.length - 1);
+        emit ParadigmAdopted(channelId, paradigmId, effectiveAt, requiresReadmission, authorizationRef, list.length - 1, msg.sender, kind, under);
     }
 
     function declareBinding(bytes32 channelId, BindingDecl calldata decl) external returns (bytes32 bindingId) {
         _requireActive(channelId);
-        if (!_canChangeRules(channelId, msg.sender)) revert AIFP_NotAuthorized(channelId, msg.sender);
-        bindingId = _declareBinding(channelId, decl);
+        (uint8 kind, bytes32 under) = _authority(channelId, msg.sender, AIFPBindings.EFFECT_RULES, AIFPRoles.MANAGE_RULES);
+        bindingId = _declareBinding(channelId, decl, kind, under);
     }
 
     function revokeBinding(bytes32 channelId, bytes32 bindingId) external {
         _requireNotClosed(channelId);
-        if (!_canChangeRules(channelId, msg.sender)) revert AIFP_NotAuthorized(channelId, msg.sender);
+        (uint8 kind, bytes32 under) = _authority(channelId, msg.sender, AIFPBindings.EFFECT_RULES, AIFPRoles.MANAGE_RULES);
         BindingDecl storage b = _bindings[channelId][bindingId];
         if (!b.active) revert AIFP_InvalidBinding();
         b.active = false;
-        emit BindingRevoked(channelId, bindingId);
+        emit BindingRevoked(channelId, bindingId, msg.sender, kind, under);
     }
 
     function recordDisclosure(bytes32 channelId, uint8 kind, bytes32 objectRef, bytes32 audienceRef, bytes32 authorizationRef)
@@ -148,11 +150,11 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
     {
         if (!_exists[channelId]) revert AIFP_UnknownChannel(channelId);
         if (kind > AIFPBindings.DISCLOSURE_RESTRICTED) revert AIFP_InvalidBinding();
-        if (!_canDisclose(channelId, msg.sender)) revert AIFP_NotAuthorized(channelId, msg.sender);
+        (uint8 authorityKind, bytes32 under) = _authority(channelId, msg.sender, AIFPBindings.EFFECT_DISCLOSURE, AIFPRoles.MANAGE_DISCLOSURE);
         uint48 now_ = clock();
         Disclosure[] storage list = _disclosures[channelId];
         list.push(Disclosure({kind: kind, objectRef: objectRef, audienceRef: audienceRef, authorizationRef: authorizationRef, at: now_}));
-        emit DisclosureRecorded(channelId, objectRef, kind, audienceRef, authorizationRef, now_, list.length - 1);
+        emit DisclosureRecorded(channelId, objectRef, kind, audienceRef, authorizationRef, now_, list.length - 1, msg.sender, authorityKind, under);
     }
 
     function setState(bytes32 channelId, ChannelState state) external {
@@ -271,7 +273,10 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
         }
     }
 
-    function _declareBinding(bytes32 channelId, BindingDecl calldata decl) internal returns (bytes32 bindingId) {
+    function _declareBinding(bytes32 channelId, BindingDecl calldata decl, uint8 authorityKind, bytes32 under)
+        internal
+        returns (bytes32 bindingId)
+    {
         if (decl.kind > AIFPBindings.MAX_KIND || decl.adoptionMode > AIFPBindings.ADOPTION_CONFIRMED) revert AIFP_InvalidBinding();
         if (decl.kind == AIFPBindings.KIND_TRANSPORT && decl.effectScope != 0) revert AIFP_InvalidBinding();
         bytes32[] storage ids = _bindingIds[channelId];
@@ -287,7 +292,18 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
         b.authorizationRef = decl.authorizationRef;
         b.active = true;
         emit BindingDeclared(
-            channelId, bindingId, decl.kind, decl.target, decl.version, decl.capabilities, decl.effectScope, decl.adoptionMode, decl.authorizationRef
+            channelId,
+            bindingId,
+            decl.kind,
+            decl.target,
+            decl.version,
+            decl.capabilities,
+            decl.effectScope,
+            decl.adoptionMode,
+            decl.authorizationRef,
+            msg.sender,
+            authorityKind,
+            under
         );
     }
 
@@ -301,20 +317,23 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
         if (_channels[channelId].state == ChannelState.Closed) revert AIFP_ChannelClosed(channelId);
     }
 
-    function _canChangeRules(bytes32 channelId, address caller) internal view returns (bool) {
-        if (caller == _channels[channelId].authority) return true;
-        if (isGovernanceExecutor(channelId, caller, AIFPBindings.EFFECT_RULES)) return true;
-        return _holdsRole(channelId, caller, AIFPRoles.MANAGE_RULES);
-    }
-
-    function _canDisclose(bytes32 channelId, address caller) internal view returns (bool) {
-        if (caller == _channels[channelId].authority) return true;
-        if (isGovernanceExecutor(channelId, caller, AIFPBindings.EFFECT_DISCLOSURE)) return true;
-        return _holdsRole(channelId, caller, AIFPRoles.MANAGE_DISCLOSURE);
-    }
-
-    function _holdsRole(bytes32 channelId, address caller, uint16 role) internal view returns (bool) {
-        if (address(participationRegistry) == address(0)) return false;
-        return participationRegistry.evaluateNow(channelId, AIFPSubject.self(caller), role, bytes32(0)) == AIFPOutcomes.SATISFIED;
+    /// @dev The grounds on which `caller` may act, in the order of Section 8.4: the channel authority, a
+    ///      governance executor with `effect`, a whole-channel binding of `role` (named in the result).
+    ///      Reverts with AIFP_NotAuthorized otherwise. The participation registry is consulted only once it
+    ///      has been linked.
+    function _authority(bytes32 channelId, address caller, uint32 effect, uint16 role)
+        internal
+        view
+        returns (uint8 authorityKind, bytes32 under)
+    {
+        if (caller == _channels[channelId].authority) return (AIFPBasis.AUTHORITY_CHANNEL, bytes32(0));
+        if (isGovernanceExecutor(channelId, caller, effect)) return (AIFPBasis.AUTHORITY_EXECUTOR, bytes32(0));
+        if (address(participationRegistry) != address(0)) {
+            uint8 outcome;
+            (outcome, under) =
+                participationRegistry.evaluateWithBinding(channelId, AIFPSubject.self(caller), role, bytes32(0), clock());
+            if (outcome == AIFPOutcomes.SATISFIED) return (AIFPBasis.AUTHORITY_ROLE, under);
+        }
+        revert AIFP_NotAuthorized(channelId, caller);
     }
 }

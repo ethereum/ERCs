@@ -86,7 +86,7 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         if (!AIFPRoles.isDefined(roles)) revert AIFP_InvalidRole(roles);
         if (basisKind > AIFPBasis.MAX_KIND || basisKind == AIFPBasis.PREDICATE) revert AIFP_InvalidRole(roles);
         _requireActive(channelId);
-        if (!_isManager(channelId, msg.sender, scopeRef)) revert AIFP_NotAuthorized(channelId, msg.sender);
+        Authority memory auth = _managerAuthority(channelId, msg.sender, scopeRef);
         uint48 now_ = clock();
         if (validFrom == 0) validFrom = now_;
         if (validFrom < now_) revert AIFP_ValidFromInPast(validFrom, now_);
@@ -103,7 +103,8 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
                 outcome: AIFPOutcomes.SATISFIED,
                 validFrom: validFrom,
                 validUntil: validUntil
-            })
+            }),
+            auth
         );
     }
 
@@ -138,7 +139,8 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
                 outcome: outcome,
                 validFrom: now_,
                 validUntil: validUntil
-            })
+            }),
+            Authority({by: msg.sender, kind: AIFPBasis.AUTHORITY_SUBJECT, bindingId: bytes32(0)})
         );
     }
 
@@ -163,14 +165,14 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
     function suspend(bytes32 bindingId, bytes32 reasonRef) external {
         RoleBinding storage b = _binding(bindingId);
         if (b.state != BindingState.Granted) revert AIFP_BindingNotActive(bindingId);
-        if (!_isManager(b.channelId, msg.sender, b.scopeRef)) revert AIFP_NotAuthorized(b.channelId, msg.sender);
+        Authority memory auth = _managerAuthority(b.channelId, msg.sender, b.scopeRef);
         uint48 now_ = clock();
         _suspensions[bindingId].push(Suspension({from: now_, to: 0, by: msg.sender}));
         b.suspendedAt = now_;
         b.reinstatedAt = 0;
         b.suspendedBy = msg.sender;
         b.state = BindingState.Suspended;
-        emit RoleSuspended(b.channelId, bindingId, msg.sender, reasonRef, now_);
+        emit RoleSuspended(b.channelId, bindingId, msg.sender, reasonRef, now_, auth.kind, auth.bindingId);
     }
 
     function reinstate(bytes32 bindingId) external {
@@ -188,7 +190,7 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
     function revoke(bytes32 bindingId, bytes32 reasonRef) external {
         RoleBinding storage b = _binding(bindingId);
         if (b.state == BindingState.Revoked) revert AIFP_BindingNotActive(bindingId);
-        if (!_isManager(b.channelId, msg.sender, b.scopeRef)) revert AIFP_NotAuthorized(b.channelId, msg.sender);
+        Authority memory auth = _managerAuthority(b.channelId, msg.sender, b.scopeRef);
         uint48 now_ = clock();
         if (b.state == BindingState.Suspended) {
             Suspension storage s = _suspensions[bindingId][_suspensions[bindingId].length - 1];
@@ -197,7 +199,7 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         }
         b.revokedAt = now_;
         b.state = BindingState.Revoked;
-        emit RoleRevoked(b.channelId, bindingId, msg.sender, reasonRef, now_);
+        emit RoleRevoked(b.channelId, bindingId, msg.sender, reasonRef, now_, auth.kind, auth.bindingId);
     }
 
     function readmit(bytes32 bindingId, bytes calldata predicate, bytes[] calldata evidence) external {
@@ -212,7 +214,7 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         uint8 outcome = _evaluatePredicate(b.channelId, b.subject, b.roles, b.scopeRef, predicate, evidence);
         if (outcome != AIFPOutcomes.SATISFIED) _revertWith(outcome);
         b.basisRef = expected;
-        _recordAdmission(bindingId, b, now_, outcome);
+        _recordAdmission(bindingId, b, now_, outcome, Authority({by: msg.sender, kind: AIFPBasis.AUTHORITY_SUBJECT, bindingId: bytes32(0)}));
     }
 
     function confirmReadmission(bytes32 bindingId) external {
@@ -220,10 +222,10 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         _requireActive(b.channelId); // like a grant: not accepted in a frozen or closed channel
         if (b.state == BindingState.Revoked) revert AIFP_BindingNotActive(bindingId);
         if (b.basisKind == AIFPBasis.PREDICATE) revert AIFP_NotAuthorized(b.channelId, msg.sender);
-        if (!_isManager(b.channelId, msg.sender, b.scopeRef)) revert AIFP_NotAuthorized(b.channelId, msg.sender);
+        Authority memory auth = _managerAuthority(b.channelId, msg.sender, b.scopeRef);
         uint48 now_ = clock();
         if (!_isPendingAt(bindingId, now_)) revert AIFP_NotPending(bindingId);
-        _recordAdmission(bindingId, b, now_, AIFPOutcomes.SATISFIED);
+        _recordAdmission(bindingId, b, now_, AIFPOutcomes.SATISFIED, auth);
     }
 
     // ---------------------------------------------------------------- evaluation
@@ -342,7 +344,15 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         uint48 validUntil;
     }
 
-    function _create(NewBinding memory n) internal returns (bytes32 bindingId) {
+    /// @dev Who called a management function and on what grounds (AIFPBasis.AUTHORITY_*); `bindingId` is the
+    ///      role binding relied on when the grounds are a management role, zero otherwise.
+    struct Authority {
+        address by;
+        uint8 kind;
+        bytes32 bindingId;
+    }
+
+    function _create(NewBinding memory n, Authority memory auth) internal returns (bytes32 bindingId) {
         bytes32[] storage ids = _idsOf[n.channelId][n.subject];
         if (ids.length >= MAX_BINDINGS_PER_SUBJECT) revert AIFP_TooManyBindings(n.channelId, n.subject);
         bindingId = keccak256(abi.encode(address(this), ++_nonce));
@@ -365,10 +375,10 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         _admissions[bindingId].push(Admission({epoch: epoch, at: now_}));
         _exists[bindingId] = true;
         ids.push(bindingId);
-        _emitGranted(bindingId, b);
+        _emitGranted(bindingId, b, auth);
     }
 
-    function _emitGranted(bytes32 bindingId, RoleBinding storage b) internal {
+    function _emitGranted(bytes32 bindingId, RoleBinding storage b, Authority memory auth) internal {
         emit RoleGranted(
             b.channelId,
             b.subject,
@@ -381,17 +391,20 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
             b.ruleVersion,
             b.validFrom,
             b.validUntil,
-            b.onBehalfOf
+            b.onBehalfOf,
+            auth.by,
+            auth.kind,
+            auth.bindingId
         );
     }
 
-    function _recordAdmission(bytes32 bindingId, RoleBinding storage b, uint48 now_, uint8 outcome) internal {
+    function _recordAdmission(bytes32 bindingId, RoleBinding storage b, uint48 now_, uint8 outcome, Authority memory auth) internal {
         uint32 epoch = channelRegistry.readmissionEpochAt(b.channelId, now_);
         b.admittedEpoch = epoch;
         b.ruleVersion = channelRegistry.paradigmAt(b.channelId, now_);
         b.outcomeAtGrant = outcome;
         _admissions[bindingId].push(Admission({epoch: epoch, at: now_}));
-        emit RoleReadmitted(b.channelId, bindingId, epoch, b.ruleVersion, outcome);
+        emit RoleReadmitted(b.channelId, bindingId, epoch, b.ruleVersion, outcome, auth.by, auth.kind, auth.bindingId);
     }
 
     function _expectedPredicate(bytes32 channelId, uint16 role, uint48 now_, bytes calldata predicate)
@@ -445,11 +458,21 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         revert AIFP_VerifierError();
     }
 
-    function _isManager(bytes32 channelId, address caller, bytes32 scopeRef) internal view returns (bool) {
-        IAIFPChannelRegistry.ChannelRecord memory c = channelRegistry.channel(channelId);
-        if (caller == c.authority) return true;
-        if (channelRegistry.isGovernanceExecutor(channelId, caller, AIFPBindings.EFFECT_PARTICIPATION)) return true;
-        return evaluate(channelId, AIFPSubject.self(caller), AIFPRoles.MANAGE_ADMISSION, scopeRef, clock()) == AIFPOutcomes.SATISFIED;
+    /// @dev The grounds on which `caller` may manage bindings in `scopeRef`, in the order of Section 9.2:
+    ///      the channel authority, a governance executor with the participation effect, a MANAGE_ADMISSION
+    ///      binding covering the scope (named in the result). Reverts with AIFP_NotAuthorized otherwise.
+    function _managerAuthority(bytes32 channelId, address caller, bytes32 scopeRef) internal view returns (Authority memory auth) {
+        auth.by = caller;
+        if (caller == channelRegistry.channel(channelId).authority) return auth; // AUTHORITY_CHANNEL
+        if (channelRegistry.isGovernanceExecutor(channelId, caller, AIFPBindings.EFFECT_PARTICIPATION)) {
+            auth.kind = AIFPBasis.AUTHORITY_EXECUTOR;
+            return auth;
+        }
+        (uint8 outcome, bytes32 managerBinding) =
+            evaluateWithBinding(channelId, AIFPSubject.self(caller), AIFPRoles.MANAGE_ADMISSION, scopeRef, clock());
+        if (outcome != AIFPOutcomes.SATISFIED) revert AIFP_NotAuthorized(channelId, caller);
+        auth.kind = AIFPBasis.AUTHORITY_ROLE;
+        auth.bindingId = managerBinding;
     }
 
     function _requireActive(bytes32 channelId) internal view {

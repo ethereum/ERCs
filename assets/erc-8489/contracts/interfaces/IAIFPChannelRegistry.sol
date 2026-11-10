@@ -41,10 +41,47 @@ interface IAIFPChannelRegistry {
     }
 
     event ChannelOpened(bytes32 indexed channelId, bytes32 indexed paradigmId, address indexed authority, bytes32 parent, string metadataURI);
-    event ParadigmAdopted(bytes32 indexed channelId, bytes32 indexed paradigmId, uint48 effectiveAt, bool requiresReadmission, bytes32 authorizationRef, uint256 adoptionIndex);
-    event BindingDeclared(bytes32 indexed channelId, bytes32 indexed bindingId, uint8 kind, bytes32 target, bytes32 version, uint32 capabilities, uint32 effectScope, uint8 adoptionMode, bytes32 authorizationRef);
-    event BindingRevoked(bytes32 indexed channelId, bytes32 indexed bindingId);
-    event DisclosureRecorded(bytes32 indexed channelId, bytes32 indexed objectRef, uint8 kind, bytes32 audienceRef, bytes32 authorizationRef, uint48 at, uint256 recordIndex);
+    // Management events name the caller, on what grounds it was authorized (`authorityKind`: 0 channel
+    // authority - or the opener, for the records written by `openChannel` -, 1 governance executor, 2 a holder
+    // of the management role) and, for kind 2, the role binding relied on (`authorizingBinding`).
+    event ParadigmAdopted(
+        bytes32 indexed channelId,
+        bytes32 indexed paradigmId,
+        uint48 effectiveAt,
+        bool requiresReadmission,
+        bytes32 authorizationRef,
+        uint256 adoptionIndex,
+        address by,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
+    );
+    event BindingDeclared(
+        bytes32 indexed channelId,
+        bytes32 indexed bindingId,
+        uint8 kind,
+        bytes32 target,
+        bytes32 version,
+        uint32 capabilities,
+        uint32 effectScope,
+        uint8 adoptionMode,
+        bytes32 authorizationRef,
+        address by,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
+    );
+    event BindingRevoked(bytes32 indexed channelId, bytes32 indexed bindingId, address by, uint8 authorityKind, bytes32 authorizingBinding);
+    event DisclosureRecorded(
+        bytes32 indexed channelId,
+        bytes32 indexed objectRef,
+        uint8 kind,
+        bytes32 audienceRef,
+        bytes32 authorizationRef,
+        uint48 at,
+        uint256 recordIndex,
+        address by,
+        uint8 authorityKind,
+        bytes32 authorizingBinding
+    );
     event ChannelStateChanged(bytes32 indexed channelId, ChannelState state);
     event AuthorityTransferred(bytes32 indexed channelId, address indexed previousAuthority, address indexed newAuthority);
 
