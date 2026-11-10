@@ -1,0 +1,366 @@
+---
+title: Institution-Managed User Payment Ledger
+description: User payment entries, spending limits, and account statements managed by institutions independently of fund settlement.
+author: Zhe Han (@iampkuhz) <hanzhe.hz@ant-intl.com>, Dasong Ji (@jidasong) <dasong.jds@ant-intl.com>, Yunyi Zhu (@CarlZhu93) <muyan.zyy@ant-intl.com>, Qinwei Fu (@fqwww) <tejia.fqw@ant-intl.com>, Xiaoyu Liu (@elizabethxiaoyu) <jiushi.lxy@ant-intl.com>, Shenglong chen (@bladechen) <shenglong.chensl@ant-intl.com>
+discussions-to: <discussion-url>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-10-13
+requires: 8439
+---
+
+## Abstract
+
+This proposal defines an interface for an institution-managed user payment ledger. It records debits and credits by account and institution, constrains available spending capacity, and rolls up account periods to provide records for customer funds processing. It can operate independently or compose with the institution payment ledger in [ERC-8439](./eip-8439.md). Spending capacity is not an asset, and the ledger does not transfer funds.
+
+## Motivation
+
+Institutions providing payment services need to determine which debits and credits occurred on an account, how much the account can still spend, and which entries belong to the current user account period. **Available spending capacity alone cannot distinguish business entries from an institution's adjustments to spending capacity; institution-level totals cannot replace individual account records.** A user payment ledger standard lets an institution and its authorized callers apply common rules for recording entries, checking capacity, and rolling up user account periods. It can serve the institution's own business independently and provide reconcilable records for subsequent funds processing.
+
+When composed with ERC-8439, **the institution payment ledger handles inter-institution payment acceptance and aggregate accounting, while the user payment ledger handles entries and spending constraints for the accounts served by each institution.** The same on-chain business operation links the two layers, but each layer seals its own periods. Customer funds processing and inter-institution funds processing use the respective records and need not share a period.
+
+## Specification
+
+### 1. Participants and prerequisites
+
+Business roles retain the names and responsibilities used in ERC-8439. Independent use only needs the institutions and accounts that actually participate.
+
+| Participant | Responsibility |
+|---|---|
+| User | Uses the account and payment services provided by a Wallet and provides business authorization to it |
+| Merchant | Uses an Acquirer's acquiring services and provides order and refund grounds |
+| Wallet | Manages user relationships and authorization, verifies funding capacity, maintains user account records, and bears responsibility for the corresponding funds processing |
+| Acquirer | Manages merchant relationships and authorization, verifies business grounds, maintains merchant account records, and bears responsibility for the corresponding funds processing |
+
+**`institution` identifies the institution responsible for the account: typically a Wallet on the user side and an Acquirer on the merchant side.** `account` is an accounting identifier for a User or Merchant. Possession of its private key does not grant permission to write ledger entries. Both account types can adopt this standard; a Merchant is not redefined as a User.
+
+The user payment ledger contract checks caller permissions and amounts, stores current accounting state, and emits events. The account's institution manages customer relationships, task authorization, and actual funds-processing results. A funds-processing system is a means by which the institution fulfills its responsibilities, not a separate protocol participant; its deployment model is not prescribed.
+
+An authorized caller is a permission role, not an additional business participant. An institution address may be a contract wallet. Institution admission and caller authorization or revocation are implementation-defined; this proposal does not specify a governance ABI. Section 3.3 defines the entry-point conditions for direct recording and reuse of upstream duplicate prevention.
+
+When composed with ERC-8439, the Payment Network retains its business-acceptance role. The institution payment ledger contract may be an authorized caller. The network's signing address, the ledger contract, and the request submitter must not be conflated; network acceptance does not itself grant write access to this ledger. Independent use does not depend on a Payment Network or an institution payment ledger.
+
+### 2. User payment ledger model
+
+#### 2.1 Accounting scope, entry direction, and record layers
+
+**Accounting is isolated by `(account, institution)`.** A User or Merchant may use multiple account addresses. Even when an address is the same, its records and spending capacity at different institutions are not shared. Addresses are accounting identifiers; institutions manage their mapping to identities and tasks.
+
+`debit` and `credit` accumulate accepted business outflows and inflows for the account, respectively; the two totals need not be equal. For example, a payment is an outflow for the payer account and an inflow for the receiving merchant account; a refund reverses these directions. These directions do not indicate that funds have moved and do not define debit and credit across an institution's complete chart of accounts.
+
+The ledger links current state to history through three record layers:
+
+1. **Individual entry events**: `Debited` and `Credited` record each successful entry for reconstructing details and linking upstream business operations. Limit adjustments emit separate events and do not count as debits or credits.
+2. **Current user account period state**: `AccountState` stores unsealed debit and credit totals, the limit baseline, and the period identifier for amount checks and rollup.
+3. **Sealed period records**: `RolledUp` records both totals before rollup and the baseline change. Rollup resets the current totals and advances to the next period; earlier entry events and sealed records remain available for historical reconciliation.
+
+Events and totals must correspond to the same successful writes. Standard events must suffice to reconstruct ledger history. This interface does not provide queries for historical user account periods; upstream systems link business payloads and payment/refund relationships through operation identifiers.
+
+#### 2.2 Ledger overview
+
+![User payment ledger responsibilities](../assets/eip-user-payment-ledger/overview.svg)
+
+The diagram uses User–Wallet as an example; Merchant–Acquirer follows the same pattern. Arrows express institutional responsibilities. In a composed deployment, the authorized institution payment ledger contract may submit the actual debit and credit calls. The Wallet reads ledger records, reconciles existing funds-processing results, and arranges the outstanding processing; the ledger does not initiate funds transfers. Funds may be processed per entry or per user account period.
+
+A positive debit requires sufficient available capacity, which may come from a granted limit or recorded credits. A credit does not require a prior limit grant.
+
+#### 2.3 Entries and available spending capacity
+
+> **Spending capacity is not an asset.** Increasing or reducing a limit does not prove that funds have been frozen or transferred.
+
+**`limit` is the limit baseline; `debit` and `credit` are the current user account period's outflow and inflow totals; `available` is the spending capacity derived from all three.**
+
+| Field | Type | Meaning and updates |
+|---|---|---|
+| `limit` | `uint96` | Nonnegative baseline; adjusted by the institution and reset to available capacity on rollup |
+| `debit` | `uint96` | Current unsealed outflow total; increased by outflow entries and reset to zero on rollup |
+| `credit` | `uint96` | Current unsealed inflow total; increased by valid inflow entries and reset to zero on rollup |
+| `statementId` | `uint32` | Current user account period; initially 0 and incremented after successful rollup |
+| `available` | Derived `uint96` | Available capacity; not stored as a separate source of truth |
+
+```text
+available = limit + credit - debit
+0 <= limit, debit, credit, available <= type(uint96).max
+limit + credit >= debit
+```
+
+`limit`, `debit`, `credit`, `amount`, and `available` all use `uint96` and the same monetary unit and precision. Arithmetic first widens to `uint256`. To calculate available capacity, first check `limit + credit >= debit`, then subtract, check the upper bound, and convert. The intermediate sum may exceed the `uint96` upper bound, but each field and the final available capacity must remain within it. An out-of-range result reverts the entire operation.
+
+**The baseline may be reduced to zero, but a negative result from the available-capacity formula must be rejected, not hidden by clamping it to zero.** A zero baseline does not necessarily remove all available capacity: `limit=0, debit=0, credit=5` still provides capacity of 5. That net inflow must first be rolled into the baseline, which can then be reduced.
+
+#### 2.4 User account periods and task authorization
+
+`operationId` identifies one limit adjustment or debit/credit entry; `statementId` identifies the current period of an account. `rollup` takes only `expectedStatementId`, without a separate operation identifier. If two rollup requests both specify period 0, the second must be rejected after the first succeeds; it must not process period 1 instead.
+
+`expectedStatementId` does not lock a query snapshot. Entries recorded in the same period after a query but before rollup are also sealed. Only entries recorded after rollup belong to the new period. The institution must reconcile the sealed scope using the actual amounts in the successful event.
+
+A fixed requested amount is likewise checked against execution-time state. For example, after querying `limit=100, debit=0, credit=0`, the institution submits a reduction of 100. If an outflow of 30 occurs first, the reduction fails; if an inflow of 5 occurs first, the reduction still removes only 100 and leaves 5. The ledger has no registration, closure, or per-write `revision`; it does not automatically replace the submitted fixed amount with execution-time available capacity.
+
+**The end of a user account period is independent of the end of a task.** The account's institution may roll up periods as needed, without a fixed daily or monthly schedule. It may roll up multiple times during a continuing task, without changing available capacity. The institution and authorized callers check task authorization for each business operation. Historical inflows restore numerical capacity, not authorization for an ended task.
+
+#### 2.5 Relationship to the institution payment ledger
+
+ERC-8439's `networkState` and `institutionState` record network and institution accounting, with `flush` sealing an institution period. This proposal records each `(account, institution)` and seals its user account period through `rollup`. Institution-level totals cannot replace individual account records: multiple accounts at the same institution may roll up separately without waiting for the institution to call `flush`.
+
+**The two layers must remain consistent for the on-chain business operations integrated with them, while their periods remain independent.** User `rollup` does not clear institution totals, and institution `flush` does not clear user totals. Section 4.1 defines integration and atomicity requirements for the payer side, recipient side, or both.
+
+Cross-layer reconciliation must use the same business scope and combine sealed records with current totals in each layer. The two layers' current-period totals must not simply be required to equal one another.
+
+Composition may use one contract or separate contracts. `amount` and both debit and credit totals use `uint96`, matching ERC-8439. The same business amount is recorded in both integrated layers without rescaling or truncation. Each deployment uses one immutable currency and precision, and the two layers must use the same monetary unit. Integration must be rejected if units differ; changing units requires a new deployment. The two interfaces may share implementations of `currency()` and `decimals()`.
+
+Identical amount types do not imply identical account semantics: user totals represent account entries, while institution totals represent inter-institution accounting. Their state structures and sealed-period records are not interchangeable. `limit` is the nonnegative baseline specific to this proposal, not an ERC-8439 payment amount.
+
+### 3. Interface and execution rules
+
+#### 3.1 Complete declaration
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+/// @notice Current user period, entry totals, and baseline for one (account, institution); events reconstruct history.
+struct AccountState {
+    /// @notice Unsigned baseline; the baseline floors at zero on reduction, and increases above the uint96 bound revert.
+    uint96 limit;
+    /// @notice Current user-period outflow total; uint96 matches the ERC-8439 amount range.
+    uint96 debit;
+    /// @notice Current user-period inflow total; uint96 matches the ERC-8439 amount range.
+    uint96 credit;
+    /// @notice Current user period, incremented on rollup and independent of the institution period.
+    uint32 statementId;
+}
+
+/// @notice Institution-managed user payment ledger; institution scopes customer records, not institution-level totals.
+/// @dev Writes require nonzero account/institution. Incremental operations require a nonzero stable operationId,
+/// @dev unique per institution; the ledger or a controlled entry point covering all paths enforces this uniqueness.
+/// @dev amount is a positive uint96 in the deployment's currency/decimals unit; entries use the account's perspective.
+/// @dev Recording entries does not transfer assets.
+interface IInstitutionAccount {
+    /// @notice Amount added and resulting baseline; does not prove that funds were frozen.
+    event LimitAdded(
+        address indexed account, address indexed institution, bytes32 indexed operationId, uint96 amount, uint96 limit
+    );
+    /// @notice amount is the actual baseline reduction, possibly below the request or zero; limit is the new baseline.
+    event LimitSubtracted(
+        address indexed account, address indexed institution, bytes32 indexed operationId, uint96 amount, uint96 limit
+    );
+    /// @notice One account outflow in the current period; writer is the submitter of the call or composed execution.
+    event Debited(
+        address indexed account,
+        address indexed institution,
+        bytes32 indexed operationId,
+        uint96 amount,
+        uint32 statementId,
+        address writer
+    );
+    /// @notice One account inflow in the current period, also increasing available capacity.
+    event Credited(
+        address indexed account,
+        address indexed institution,
+        bytes32 indexed operationId,
+        uint96 amount,
+        uint32 statementId,
+        address writer
+    );
+    /// @notice Seals both totals of the old period; newLimit equals the unchanged available capacity.
+    /// @dev statementId identifies the old period; the event does not prove successful customer funds processing.
+    event RolledUp(
+        address indexed account,
+        address indexed institution,
+        uint32 indexed statementId,
+        uint96 previousLimit,
+        uint96 debit,
+        uint96 credit,
+        uint96 newLimit
+    );
+
+    /// @notice Immutable three-character uppercase ASCII ISO 4217 code.
+    function currency() external view returns (string memory);
+    /// @notice Immutable decimal precision; all amounts are in units of 10^-decimals.
+    function decimals() external view returns (uint8);
+    /// @notice Returns current amounts and period, not identity, task status, or historical funds-processing results.
+    /// @dev account and institution must be nonzero; queries with zero addresses revert.
+    /// @return state Current accounting state, all zero before any successful write; no separate initialization flag.
+    /// @dev Derive available as limit+credit-debit using wide unsigned arithmetic after checking coverage of debit.
+    /// @dev No redundant available-capacity field is returned.
+    function accountState(address account, address institution) external view returns (AccountState memory state);
+    /// @notice The account's institution provides spending capacity without registration or initialization.
+    /// @param amount Increment to limit and available only; does not change the period or entry totals.
+    function addLimit(address account, address institution, bytes32 operationId, uint96 amount) external;
+    /// @notice The account's institution withdraws unused capacity without erasing recorded entries.
+    /// @param amount Requested baseline reduction; floor the baseline at zero, and revert if new limit+credit<debit.
+    /// @dev A zero baseline yields zero actual reduction; success still emits an event and consumes operationId.
+    /// @dev Success does not guarantee zero available capacity.
+    function subLimit(address account, address institution, bytes32 operationId, uint96 amount) external;
+    /// @notice Records outflow through deployment-authorized entry points, checked against execution-time available.
+    /// @param amount Outflow amount; must not exceed available capacity, and the cumulative total must remain in range.
+    function debit(address account, address institution, bytes32 operationId, uint96 amount) external;
+    /// @notice Records inflow through deployment-authorized entry points, including accounts with zero capacity.
+    /// @param amount Inflow amount, increasing credit and available without changing limit.
+    function credit(address account, address institution, bytes32 operationId, uint96 amount) external;
+    /// @notice The institution seals a nonempty user period, resets limit, and clears debit/credit without changing available.
+    /// @param expectedStatementId Current user period to process; reject a mismatch at execution.
+    function rollup(address account, address institution, uint32 expectedStatementId) external;
+}
+```
+
+#### 3.2 User-period rollup and funds processing
+
+![User-period rollup and funds processing](../assets/eip-user-payment-ledger/rollup.svg)
+
+The Wallet in the diagram reads the event from the successful receipt; this is not an additional ABI return value. An Acquirer follows the same process for user-period rollup. The institution reconciles the actual sealed scope and the portion already processed, and independently retains funds-processing results. Individual funds operations need not wait for rollup.
+
+> **Rollup does not mean funds processing is complete.** `RolledUp` establishes the sealed user account period and amounts; funds-processing results require separate reconciliation.
+
+#### 3.3 Common parameters, permissions, and atomicity
+
+Every write requires nonzero `account` and `institution`. The four incremental operations require a nonzero, stable `operationId` and a positive `uint96` `amount`. **Only the account's institution may call `addLimit`, `subLimit`, and `rollup`; `debit` and `credit` follow the deployment's declared recording-entry authorization.**
+
+**Within one ledger deployment, the duplicate-prevention key is `(institution, operationId)`.** After a limit adjustment or entry succeeds, the same identifier must not execute again by changing the function, account, amount, caller, or period. A duplicate request must revert. Failure does not consume the identifier. If the outcome is unknown, first check successful records; do not use a new identifier to repeat the entry.
+
+One business operation may produce multiple ledger operations; its business identifier is not the identifier of every entry. If a payment debits a user and credits a merchant at the same institution, the two entries must use distinct, stable operation identifiers. Identifiers must distinguish source deployments, business domains, and entries, and must also be isolated from institution management instructions. Adopters define the encoding. Identifiers may be derived from existing business identifiers; no additional business identifier or identifier-mapping storage is required.
+
+Duplicate prevention may be implemented in either of the following ways. **The interface parameters and identifier-uniqueness requirements do not change with the implementation.**
+
+1. **Independent direct recording**: the institution or its authorized caller submits entries directly, and the user payment ledger stores and checks successful identifiers.
+2. **Controlled composition entry points**: only controlled entry points covering all integrated paths may trigger entries, reusing their existing business-level duplicate prevention. An entry point must bind each entry's account, amount, and stable identifier, and ensure that each entry is recorded at most once. Public debit/credit methods and internal hooks must not leave paths that bypass business validation; institutional identity does not automatically permit direct writes around that validation. Management instructions and business entries must remain unique across entry points, so an identifier cannot become valid again through another entry point. Replacing or upgrading an entry point must not bypass history. If these conditions cannot be met, the ledger must enforce duplicate prevention itself.
+
+The second approach ensures at-most-once execution of the entire controlled business path. It does not require the user payment ledger to store a second set of per-entry duplicate-prevention state, nor does the ledger independently protect against erroneous repeated calls made by that controlled entry point itself. Merely finding an existing upstream business identifier does not prove that the current entry is being recorded for the first time. The standard adds no caller-selectable option to skip duplicate prevention.
+
+`rollup` prevents repeated sealing through the current-period check and increment for `(account, institution, expectedStatementId)`; it does not consume an incremental-operation identifier. Amounts, state, duplicate-prevention updates, and events must all commit or all revert. Implementations choose their error encodings.
+
+#### 3.4 addLimit and subLimit: adjusting capacity
+
+**Limit adjustments change only `limit`, without rewriting existing entries or changing the user account period.** After the common checks:
+
+- `addLimit`: set `limit += amount`, increasing available capacity by the same amount. Neither the new baseline nor the new available capacity may exceed the `uint96` upper bound. Emit `LimitAdded` on success.
+- `subLimit`: set `newLimit = max(0, limit - amount)`. If `newLimit + credit < debit`, revert the entire operation. Otherwise update the baseline and emit `LimitSubtracted` on success.
+
+The `amount` in `subLimit` is the requested reduction. **The actual reduction is the old baseline minus the new baseline, and available capacity decreases by that actual amount.** `LimitSubtracted.amount` must record the actual reduction, not misreport the requested amount as executed. If the baseline is already zero, the actual reduction is zero; a positive request may still succeed, emit an event, and consume its operation identifier. Success means the instruction has been processed, not that available capacity has decreased or reached zero.
+
+For example, with `limit=100, debit=90, credit=0`, available capacity is 10. A requested reduction of 20 would leave a baseline of 80 that cannot cover the outflow and must revert. A requested reduction of 10 yields a baseline of 90 and available capacity of 0. With `limit=10, debit=0, credit=5`, a requested reduction of 100 actually removes only 10, leaving the capacity of 5 contributed by net inflow.
+
+Removing all available capacity requires checking the actual result. If the baseline is zero but net inflow remains, roll up first, then reduce the baseline. Concurrent entries may cause a request to fail or leave residual capacity; a fixed requested amount does not guarantee zero capacity. A fabricated business debit must not substitute for a capacity reduction.
+
+#### 3.5 debit and credit: recording business entries
+
+**Entries change only the current totals, not the baseline.**
+
+- `debit`: require `amount <= available`, set `debit += amount`, reduce available capacity by the same amount, and emit `Debited` on success.
+- `credit`: set `credit += amount`, increase available capacity by the same amount, and emit `Credited` on success.
+
+Both cumulative totals and the new available capacity must remain within their bounds.
+
+Rollup can free space in the cumulative totals, but it does not reduce `available`. If there is insufficient headroom for available capacity, the operation must be rejected or capacity must be reduced according to legitimate business needs. Fabricated reverse entries must not bypass the upper bound.
+
+#### 3.6 rollup: fully sealing a user account period
+
+**Rollup clears both totals, resets the baseline, and preserves `available`.** `expectedStatementId` must equal the execution-time current period, and incrementing the period identifier must not wrap. `debit` and `credit` must not both be zero; equal nonzero totals may still be sealed.
+
+```text
+Save the old limit, debit, credit, and statementId
+limit' = limit + credit - debit = available
+debit' = 0
+credit' = 0
+statementId' = statementId + 1
+available' = available
+```
+
+`RolledUp` records the old period, the three old amounts, and the new baseline. State stores the next period; new entries belong to it and do not rewrite earlier events. `limit` may increase; the three amounts need not all decrease or all become zero.
+
+For example, `limit=100, debit=5, credit=30` gives available capacity of 125. After rollup, `limit=125` and both totals are zero, while capacity remains 125. The sealed net outflow is -25.
+
+The period's net outflow is calculated as a signed amount: `net outflow = debit - credit`; limit adjustments are excluded. Positive values mean net outflow, negative values mean net inflow, and zero still preserves both sides' business records. This net amount is a reconciliation input, not an automatic debit or refund instruction, and is not the amount necessarily outstanding for funds processing.
+
+### 4. Business integration, history, and funds boundaries
+
+#### 4.1 Independent use and payment composition
+
+| Business function | Upstream business step | Account operation |
+|---|---|---|
+| Provide capacity | Verify authorization and funding or credit arrangements | `addLimit` |
+| Payment | Validate the business operation and atomically record payment and entries | `debit` for the integrated payer side; `credit` for the integrated recipient side |
+| Refund | Validate the original payment and refund conditions, and atomically record the refund and reverse entries | `debit` for the integrated original recipient; `credit` for the integrated original payer |
+| Process a user account period | Reconcile the period and sealed scope, then arrange funds-processing tasks | `rollup` |
+| End a task | Stop authorization for new business and reduce capacity or roll up as needed | `subLimit`, `rollup` |
+
+The payment and refund steps above use integration with an on-chain payment protocol as an example. When serving the institution's own business independently, the institution or authorized caller verifies business facts before recording entries. No prior deployment of an institution payment ledger is required, and no shared rollback of off-chain services and on-chain entries is promised.
+
+For integration with an on-chain payment protocol, the adopter identifies which payer-side, recipient-side, or both sets of accounts are covered. **All single, batch, and refund entry points for integrated accounts must commit the integrated on-chain payment/refund state and corresponding user entries together in one transaction, or revert them together.** Implementations must not omit credit paths, retain on-chain entry points that bypass user entries, or weaken upstream signature or refund checks. When composed with [ERC-8439](./eip-8439.md), that transaction also covers its institution/network accounting. These requirements apply whether the ledgers share a contract or use separate contracts.
+
+**When both sides of one business operation are integrated, record `debit` first and `credit` second according to the actual funds-flow direction; for a refund, the original recipient is the debit side.** Even if both sides use the same account and institution, retain two entries instead of netting them. Batch user entries must be checked and executed in input order; a later credit must not satisfy an earlier debit. All upstream authorizations must be completed before accounting writes. An implementation may first simulate user state in that order, then commit atomically. ERC-8439 institution/network accounting continues to update using batch totals.
+
+When reusing ERC-8439 duplicate prevention, payments rely on successful `paymentId` state and refunds on each successful `refundId`; the original `paymentId` alone cannot distinguish multiple partial refunds. Entry identifiers may be derived from the source ledger, business type, business identifier, and stable entry index. Function type is not part of this ledger's duplicate-prevention key; entries from one business operation must be distinct across the entire institution scope.
+
+Refunds must validate the original payment, source, cumulative refund limit, and original account relationship, and must use the original account and its institution. A payer-side refund records `credit` once, without an additional `addLimit`. A merchant-side refund requires sufficient available capacity; otherwise the entire operation reverts, and that side must not be temporarily omitted. The institution may provide additional capacity according to legitimate business and funding arrangements before retrying.
+
+#### 4.2 Historical refunds after task completion: a continuous example
+
+For a payer account, the institution grants 100, records an outflow of 30, and then stops authorizing new business for the task. State is `limit=100, debit=30, credit=0, available=70`. Reducing unused capacity by 70 leaves `limit=30, available=0`, while preserving the recorded outflow. Rolling up period 0 sets all three amounts to zero and advances to period 1; the sealed record retains the outflow of 30.
+
+An upstream-validated refund of 5 from the original business operation subsequently credits the original account's current period: `limit=0, debit=0, credit=5, available=5`. To return capacity to zero, the institution first rolls up period 1, sealing the inflow of 5 and obtaining `limit=5, debit=0, credit=0, available=5` in period 2. It then reduces the baseline by 5, returning all three amounts to zero. Reducing an already-zero baseline cannot remove this inflow's capacity; the old period-0 record remains unchanged.
+
+The refund restores available capacity, but the institution and authorized callers must still reject new business under the ended task. If period-0 funds processing has already occurred, subsequent inflows must be reconciled for adjustments. If it has not occurred or its outcome is unknown, first reconcile existing results; net inflow in a new period alone is not a reason to pay again.
+
+If the refund arrives before the first rollup, it belongs to that period's sealed scope and is not added again retroactively. Removing all capacity contributed by net inflow requires first rolling it into the baseline and then reducing the baseline; these operations cannot generally be reordered. Institutions manage address-to-task relationships and address-reuse policies.
+
+#### 4.3 Event reconstruction and actual funds processing
+
+Reconstruct individual entries in chain-log order and by event period, and reconcile them against `RolledUp` totals. Retain source chain, deployment, institution, account, period, and log locations. A log position does not replace a business identifier; reorganizations and indexing gaps must be handled.
+
+**Each funds-processing task must identify which entries it covers, and retries must retain the same processing scope.** Source deployment, institution, account, user account period, and action type are association dimensions, not by themselves a unique task key: one account may have multiple processing tasks in the same period. Entries already processed individually must not be processed again when handling a period. `RolledUp` totals do not automatically equal the amount still outstanding.
+
+Through its funds-processing system, the account's institution reconciles amounts at their original precision, net amounts, amounts already processed, and actual results. Completed debits, unprocessed debits, and unknown outcomes require distinct reconciliation. An unknown result must be reconciled first; a negative net amount alone must not trigger another payment. **On-chain rollup and actual funds execution do not have cross-system atomicity.** The institution defines task-identifier encoding, storage, rounding, compensation, and dispute procedures.
+
+## Rationale
+
+### Separating business entries from limit adjustments
+
+Available capacity alone cannot distinguish business entries from institutional adjustments or reconstruct entries within a user account period. The ledger therefore retains both cumulative totals, a baseline, and individual events. The five operation types have different meanings and permissions, so they use separate entry points. Input amounts must be positive; after the baseline is floored at zero, the reduction is recorded according to its actual effect. A zero actual reduction still consumes the identifier, preventing an already-processed instruction from taking effect again after a later baseline increase.
+
+### Full sealing and user account periods
+
+Offsetting only the smaller cumulative total would preserve capacity but leave the net amount already handled in current totals, requiring an additional processing boundary. Full sealing retains both sides' records and leaves only new business in the new totals. `statementId` prevents another old, not-yet-successful rollup request from processing the next period. This monotonic period condition already prevents duplicate rollup, so a separate operation identifier need not be stored for it.
+
+### Unified operation identifiers and duplicate-prevention placement
+
+Including function type in the duplicate-prevention key merely allows the same identifier to be reused across functions; it is not necessary. Institution-wide operation identifiers make at-most-once successful execution apply across all incremental entry points, with distinct identifiers for distinct entries of one business operation. Keeping an identifier parameter for operation lookup does not require storing a second copy of successful upstream business state. Reusing upstream duplicate prevention requires entries to pass through controlled entry points, and the ledger does not additionally guard against repeated entries emitted by those entry points themselves.
+
+### Unsigned baseline and external task authorization
+
+Using `uint96` throughout gives the baseline and entry totals the same monetary range, without a negative baseline or a baseline up to twice the upper bound. The tradeoff is that removing capacity from net inflow may first require rollup. When the baseline is at its upper bound, it also cannot be increased merely because available capacity still has headroom.
+
+Rejecting negative available capacity lets rollup seal totals without eliminating an implicit deficit. If the negative result for `limit=80, debit=90, credit=0` were clamped to zero, a refund of 5 before rollup would leave available capacity at 0, while the same refund after rollup would restore 5. Excluding that state avoids changing the capacity restored by a refund solely because of rollup timing.
+
+Zero capacity already rejects positive debits, but historical inflows can restore capacity; permanent task closure belongs in institutional authorization. Fixed increments are validated against execution-time state and do not require a per-write `revision`. Period rollup and task completion can occur independently.
+
+## Backwards Compatibility
+
+This proposal introduces an optional new interface without changing ERC-8439's existing entry points. Existing deployments do not become compatible automatically. Adopters must implement the user payment ledger and ensure that all integrated entry points meet the composition rules.
+
+## Reference Implementation
+
+The [reference implementation](../assets/eip-user-payment-ledger/InstitutionAccount.sol) implements the [interface](../assets/eip-user-payment-ledger/IInstitutionAccount.sol) for independent recording with local duplicate prevention. The [implementation notes](../assets/eip-user-payment-ledger/README.md) describe its scope and compilation. The example caller-authorization method is not part of the standard interface.
+
+## Security Considerations
+
+### Trusted recording and task authorization
+
+Trusted identity does not prove business truth. The account's institution and authorized callers must verify sources and task authorization, preventing fabricated credits or continued execution of ended tasks after historical refunds restore capacity.
+
+### Amount conversions
+
+All amount fields are `uint96`. Addition first widens to `uint256`; available capacity is computed only after checking that the sum covers outflow. Baseline subtraction uses a comparison to enforce the zero floor. Out-of-range fields or available capacity must revert; narrowing truncation, unsigned wraparound, or clamping negative capacity to zero must not bypass checks.
+
+### Replay and concurrency
+
+Incremental operations share institution-wide duplicate prevention; rollup checks the current period. Concurrent entries within the same period may be included in rollup, so the institution must use actual event amounts. If the outcome is unknown, reconcile it first rather than retrying with another identifier.
+
+### Composition and repeated funds processing
+
+Sharing a contract address does not itself ensure consistency. When upstream duplicate prevention is reused, repeated entries from a controlled entry point, bypass paths opened by upgrades, or identifier reuse across entry points can cause duplicate accounting. The conditions in Section 3.3 must continue to hold. Internal recording hooks are only for validated entry points and must not expose authorization bypasses. Log reorganizations, missed indexing, or unknown funds-processing outcomes may cause duplicate processing; reconcile sources, task coverage, and actual results.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
