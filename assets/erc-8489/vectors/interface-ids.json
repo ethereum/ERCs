@@ -122,8 +122,8 @@
     },
     {
       "name": "IAIFPParticipationRegistry",
-      "interfaceId": "0x14c97260",
-      "functionCount": 14,
+      "interfaceId": "0x1d84a105",
+      "functionCount": 15,
       "functions": [
         {
           "signature": "admit(bytes32,uint16,bytes32,bytes,bytes[],uint48)",
@@ -148,6 +148,10 @@
         {
           "signature": "evaluateNow(bytes32,bytes32,uint16,bytes32)",
           "selector": "0x9535dbba"
+        },
+        {
+          "signature": "evaluateWithBinding(bytes32,bytes32,uint16,bytes32,uint48)",
+          "selector": "0x094dd365"
         },
         {
           "signature": "grant(bytes32,bytes32,bytes32,uint16,bytes32,uint8,bytes32,uint48,uint48)",
@@ -185,12 +189,16 @@
     },
     {
       "name": "IAIFPCompositeVerifier",
-      "interfaceId": "0xa5913d6e",
-      "functionCount": 2,
+      "interfaceId": "0xe3fe3554",
+      "functionCount": 3,
       "functions": [
         {
           "signature": "evaluate(bytes32,bytes32,uint16,bytes32,bytes,bytes[])",
           "selector": "0xd9a84f23"
+        },
+        {
+          "signature": "leafGasLimit()",
+          "selector": "0x466f083a"
         },
         {
           "signature": "supportsKind(uint8)",

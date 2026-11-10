@@ -12,12 +12,16 @@ import {AIFPBasis} from "./libraries/AIFPBasis.sol";
 import {AIFPBindings} from "./libraries/AIFPBindings.sol";
 import {AIFPOutcomes} from "./libraries/AIFPOutcomes.sol";
 import {AIFPSubject} from "./libraries/AIFPSubject.sol";
+import {AIFPCalls} from "./libraries/AIFPCalls.sol";
 
 /// @title AIFPParticipationRegistry
 /// @notice Reference implementation of IAIFPParticipationRegistry. Each grant is a separately addressable
 ///         role binding; evaluation at a timepoint is a pure function of the registry state, with
-///         suspension intervals and re-admission epochs kept as history so that past timepoints evaluate
-///         the same way later as they did at the time.
+///         suspension intervals and re-admission epochs kept as history so that a timepoint the clock has
+///         passed evaluates the same way ever after. While the clock still reads a timepoint, each state
+///         change recorded at it applies from its position in transaction order; `evaluateWithBinding`
+///         names the binding a check relied on, so that a contract recording an accepted action can keep
+///         it as evidence of the decision it took at that position.
 contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6372 {
     struct Suspension {
         uint48 from;
@@ -146,11 +150,11 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         bytes calldata predicate,
         bytes[] calldata evidence
     ) external view returns (uint8 outcome) {
+        // The same checks as `admit`, in the same order: a preview reverts where an admission would be
+        // rejected, and reports an outcome only when the composite verifier returned one.
         if (!AIFPRoles.isSingle(role)) revert AIFP_InvalidRole(role);
-        bytes32 paradigmId = channelRegistry.paradigmAt(channelId, clock());
-        bytes32 expected = paradigmRegistry.rolePredicateHash(paradigmId, role);
-        if (expected == bytes32(0)) return AIFPOutcomes.NOT_SATISFIED;
-        if (keccak256(predicate) != expected) revert AIFP_PredicateMismatch(expected, keccak256(predicate));
+        _requireActive(channelId);
+        _expectedPredicate(channelId, role, clock(), predicate);
         return _evaluatePredicate(channelId, subject, role, scopeRef, predicate, evidence);
     }
 
@@ -198,6 +202,7 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
 
     function readmit(bytes32 bindingId, bytes calldata predicate, bytes[] calldata evidence) external {
         RoleBinding storage b = _binding(bindingId);
+        _requireActive(b.channelId); // re-admission is an admission: not accepted in a frozen or closed channel
         if (b.state == BindingState.Revoked) revert AIFP_BindingNotActive(bindingId);
         if (b.basisKind != AIFPBasis.PREDICATE) revert AIFP_NotAuthorized(b.channelId, msg.sender);
         if (AIFPSubject.self(msg.sender) != b.subject) revert AIFP_SubjectMismatch(b.subject, msg.sender);
@@ -212,6 +217,7 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
 
     function confirmReadmission(bytes32 bindingId) external {
         RoleBinding storage b = _binding(bindingId);
+        _requireActive(b.channelId); // like a grant: not accepted in a frozen or closed channel
         if (b.state == BindingState.Revoked) revert AIFP_BindingNotActive(bindingId);
         if (b.basisKind == AIFPBasis.PREDICATE) revert AIFP_NotAuthorized(b.channelId, msg.sender);
         if (!_isManager(b.channelId, msg.sender, b.scopeRef)) revert AIFP_NotAuthorized(b.channelId, msg.sender);
@@ -227,16 +233,26 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         view
         returns (uint8 outcome)
     {
+        (outcome,) = evaluateWithBinding(channelId, subject, role, scopeRef, timepoint);
+    }
+
+    /// @dev Bindings are examined in creation order, so the binding named for a SATISFIED outcome is the
+    ///      earliest-created one that is SATISFIED at the timepoint.
+    function evaluateWithBinding(bytes32 channelId, bytes32 subject, uint16 role, bytes32 scopeRef, uint48 timepoint)
+        public
+        view
+        returns (uint8 outcome, bytes32 bindingId)
+    {
         if (!AIFPRoles.isSingle(role)) revert AIFP_InvalidRole(role);
         uint32 epoch = channelRegistry.readmissionEpochAt(channelId, timepoint);
         bytes32[] storage ids = _idsOf[channelId][subject];
         bool pending;
         for (uint256 i = 0; i < ids.length; i++) {
             uint8 status = _statusAt(ids[i], role, scopeRef, timepoint, epoch);
-            if (status == AIFPOutcomes.SATISFIED) return AIFPOutcomes.SATISFIED;
+            if (status == AIFPOutcomes.SATISFIED) return (AIFPOutcomes.SATISFIED, ids[i]);
             if (status == AIFPOutcomes.UNDETERMINABLE) pending = true;
         }
-        return pending ? AIFPOutcomes.UNDETERMINABLE : AIFPOutcomes.NOT_SATISFIED;
+        return (pending ? AIFPOutcomes.UNDETERMINABLE : AIFPOutcomes.NOT_SATISFIED, bytes32(0));
     }
 
     function evaluateNow(bytes32 channelId, bytes32 subject, uint16 role, bytes32 scopeRef) external view returns (uint8) {
@@ -390,6 +406,15 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         if (actual != expected) revert AIFP_PredicateMismatch(expected, actual);
     }
 
+    /// @dev Evaluation through the deployment's composite verifier. An outcome is what a completed evaluation
+    ///      returns and nothing else: the call has to succeed and return exactly one word with a value of at
+    ///      most 3 (at most 32 bytes of what the verifier returns are ever copied). Every other result - a
+    ///      revert of any kind, gas exhausted in the verifier, a malformed answer - means that there is no
+    ///      outcome, and this function reverts instead of reporting VERIFIER_ERROR. `admit` in a transaction
+    ///      with a tight gas limit and `previewAdmission` over `eth_call` therefore do not disagree because of
+    ///      the gas forwarded to the evaluation: with too little there is a failed call, never a different
+    ///      answer. (What a transaction has already touched, and the gas charge on its sender's balance, can
+    ///      still reach a leaf verifier: see IAIFPPredicateVerifier.)
     function _evaluatePredicate(
         bytes32 channelId,
         bytes32 subject,
@@ -398,11 +423,20 @@ contract AIFPParticipationRegistry is IAIFPParticipationRegistry, IERC165, IERC6
         bytes calldata predicate,
         bytes[] calldata evidence
     ) internal view returns (uint8) {
-        try verifier.evaluate(channelId, subject, role, scopeRef, predicate, evidence) returns (uint8 outcome) {
-            return AIFPOutcomes.normalize(outcome);
-        } catch {
-            return AIFPOutcomes.VERIFIER_ERROR;
+        bytes memory data =
+            abi.encodeCall(IAIFPCompositeVerifier.evaluate, (channelId, subject, role, scopeRef, predicate, evidence));
+        (bool success, uint256 size, bytes32 word) = AIFPCalls.staticcallWord(address(verifier), data, gasleft());
+        if (success) {
+            if (size != 32 || uint256(word) > AIFPOutcomes.VERIFIER_ERROR) revert AIFP_EvaluationFailed(bytes4(0));
+            // The cast cannot truncate: the word is at most VERIFIER_ERROR (3).
+            // forge-lint: disable-next-line(unsafe-typecast)
+            return uint8(uint256(word));
         }
+        // The first four bytes of the revert data, zero-padded when it is shorter.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        bytes4 reason = bytes4(word);
+        if (size == 4 && reason == IAIFPCompositeVerifier.AIFP_InsufficientGas.selector) revert AIFP_InsufficientGas();
+        revert AIFP_EvaluationFailed(reason);
     }
 
     function _revertWith(uint8 outcome) internal pure {

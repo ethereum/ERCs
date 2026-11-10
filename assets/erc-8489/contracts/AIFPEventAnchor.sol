@@ -14,14 +14,29 @@ import {AIFPSubject} from "./libraries/AIFPSubject.sol";
 /// @title AIFPEventAnchor
 /// @notice Reference implementation of the optional event-anchor profile. The anchor checks, at the
 ///         registry clock, that the actor holds the role the action needs; it records the rule version in
-///         force; supersede and retract are accepted only from the subject that anchored the target object.
-///         A forward keeps the object reference unchanged; a derivation anchors a new object that points
-///         back to its source. Anchoring proves a declaration at a time, not delivery or truth.
+///         force and the role binding that satisfied the check; supersede and retract are accepted only from
+///         the subject that anchored the target object. A forward keeps the object reference unchanged; a
+///         derivation anchors a new object that points back to its source. Anchoring proves a declaration
+///         at a time, not delivery or truth.
+/// @dev The role check is a decision taken when the transaction executes. The record keeps the binding it
+///      relied on because that decision cannot always be recomputed afterwards: a binding revoked or
+///      suspended later within the same timepoint no longer evaluates as SATISFIED at that timepoint.
 contract AIFPEventAnchor is IAIFPEventAnchor, IERC165 {
     IAIFPChannelRegistry public immutable channelRegistry;
     IAIFPParticipationRegistry public immutable participationRegistry;
 
-    EventRecord[] private _records;
+    /// @dev Stored form of an `EventRecord`: the same fields, ordered so that `at` and `action` share a slot.
+    struct StoredRecord {
+        bytes32 channelId;
+        bytes32 subject;
+        bytes32 objectRef;
+        bytes32 ruleVersion;
+        bytes32 bindingId;
+        uint48 at;
+        uint8 action;
+    }
+
+    StoredRecord[] private _records;
     mapping(bytes32 => bytes32) private _anchoredBy; // objectRef => subject
     mapping(bytes32 => bytes32) private _anchoredIn; // objectRef => channelId
 
@@ -46,9 +61,9 @@ contract AIFPEventAnchor is IAIFPEventAnchor, IERC165 {
         bytes32 subject = AIFPSubject.self(msg.sender);
         uint48 now_ = IERC6372(address(channelRegistry)).clock();
         uint16 role = _roleFor(action);
-        if (participationRegistry.evaluate(channelId, subject, role, bytes32(0), now_) != AIFPOutcomes.SATISFIED) {
-            revert AIFP_RoleNotHeld(channelId, subject, role);
-        }
+        // The role is checked for the whole channel (scope zero), at the current clock value.
+        (uint8 outcome, bytes32 bindingId) = participationRegistry.evaluateWithBinding(channelId, subject, role, bytes32(0), now_);
+        if (outcome != AIFPOutcomes.SATISFIED) revert AIFP_RoleNotHeld(channelId, subject, role, outcome);
         if (action == AIFPEvents.ACTION_FORWARD) {
             // The same object enters another context: it must already be anchored and keeps its reference.
             if (_anchoredBy[objectRef] == bytes32(0)) revert AIFP_NotAnchoredBySubject(objectRef, bytes32(0));
@@ -65,10 +80,21 @@ contract AIFPEventAnchor is IAIFPEventAnchor, IERC165 {
 
         bytes32 ruleVersion = channelRegistry.paradigmAt(channelId, now_);
         _records.push(
-            EventRecord({channelId: channelId, subject: subject, action: action, objectRef: objectRef, ruleVersion: ruleVersion, at: now_})
+            StoredRecord({
+                channelId: channelId,
+                subject: subject,
+                objectRef: objectRef,
+                ruleVersion: ruleVersion,
+                bindingId: bindingId,
+                at: now_,
+                action: action
+            })
         );
         recordIndex = _records.length - 1;
-        emit EventAnchored(channelId, subject, objectRef, action, ruleVersion, now_, recordIndex);
+        // Between the role check above and this log the anchor makes no call that can change state
+        // (`paradigmAt` is a view, called statically), so no other contract can record anything in between:
+        // the position of this log in the chain is the position at which the action was accepted.
+        emit EventAnchored(channelId, subject, objectRef, action, ruleVersion, now_, recordIndex, bindingId);
         for (uint256 i = 0; i < relations.length; i++) {
             if (relations[i].kind > AIFPEvents.MAX_RELATION) revert AIFP_InvalidRelation(relations[i].kind);
             emit RelationAnchored(objectRef, relations[i].kind, relations[i].objectRef);
@@ -76,7 +102,16 @@ contract AIFPEventAnchor is IAIFPEventAnchor, IERC165 {
     }
 
     function record(uint256 recordIndex) external view returns (EventRecord memory) {
-        return _records[recordIndex];
+        StoredRecord storage r = _records[recordIndex];
+        return EventRecord({
+            channelId: r.channelId,
+            subject: r.subject,
+            action: r.action,
+            objectRef: r.objectRef,
+            ruleVersion: r.ruleVersion,
+            at: r.at,
+            bindingId: r.bindingId
+        });
     }
 
     function anchoredBy(bytes32 objectRef) external view returns (bytes32) {

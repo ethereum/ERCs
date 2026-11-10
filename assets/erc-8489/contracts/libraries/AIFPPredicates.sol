@@ -3,8 +3,9 @@ pragma solidity ^0.8.20;
 
 /// @title AIFPPredicates
 /// @notice ABI encoding of a predicate tree. A predicate is `abi.encode(Node[])`; node 0 is the root;
-///         the children of a composite node `i` are `nodes[childStart .. childStart + childCount)` and
-///         every child index is greater than `i` (the array is a pre-order forest, so it is acyclic).
+///         the children of a composite node `i` are `nodes[childStart .. childStart + childCount)`,
+///         every child index is greater than `i`, and every node other than the root is the child of
+///         exactly one composite: the array is a tree, so a node is evaluated at most once.
 ///         `predicateHash = keccak256(abi.encode(nodes))` is what a paradigm commits to per role.
 library AIFPPredicates {
     struct Node {
@@ -52,20 +53,40 @@ library AIFPPredicates {
     }
 
     /// @dev Structural validity: non-empty, bounded, composites have at least one child, children follow
-    ///      their parent, leaves have no children. Does not check that the kinds are supported.
+    ///      their parent, leaves have no children, the array is a tree - no node is the child of two
+    ///      composites and every node is reachable from the root - and no node lies deeper than `MAX_DEPTH`
+    ///      (the root has depth 0, a child one more than its parent). Without the tree condition a node shared
+    ///      by several composites would be evaluated once per path, and the number of leaf calls would not
+    ///      be bounded by the number of nodes. The depth is checked here, for the whole array, and not while
+    ///      evaluating: an evaluation that stops at a deciding child never visits the remaining branches, and
+    ///      whether a predicate is well formed must not depend on which branches an evaluation happens to visit.
+    ///      A node whose kind is not a composite kind is treated as a leaf; whether the kinds are supported is
+    ///      not checked here.
     function isWellFormed(Node[] memory nodes) internal pure returns (bool) {
         uint256 n = nodes.length;
         if (n == 0 || n > MAX_NODES) return false;
+        uint256 claimed = 1; // bit i is set once node i has a parent; the root needs none
+        uint256 depths; // four bits per node: the depth of node i, written when its parent is visited
         for (uint256 i = 0; i < n; i++) {
             Node memory node = nodes[i];
             if (isComposite(node.kind)) {
                 if (node.childCount == 0) return false;
                 if (node.childStart <= i) return false;
-                if (uint256(node.childStart) + node.childCount > n) return false;
+                uint256 end = uint256(node.childStart) + node.childCount;
+                if (end > n) return false;
+                uint256 children = ((uint256(1) << node.childCount) - 1) << node.childStart;
+                if (claimed & children != 0) return false; // a node with two parents
+                claimed |= children;
+                // A parent always precedes its children, so the depth of node i is final when i is visited.
+                uint256 childDepth = ((depths >> (4 * i)) & 0xf) + 1;
+                if (childDepth > MAX_DEPTH) return false;
+                for (uint256 c = node.childStart; c < end; c++) {
+                    depths |= childDepth << (4 * c);
+                }
             } else {
                 if (node.childCount != 0 || node.childStart != 0) return false;
             }
         }
-        return true;
+        return claimed == (uint256(1) << n) - 1; // every node has a parent, hence a path to the root
     }
 }

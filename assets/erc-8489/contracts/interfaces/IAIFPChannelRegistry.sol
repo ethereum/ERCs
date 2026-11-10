@@ -80,9 +80,11 @@ interface IAIFPChannelRegistry {
     function transferAuthority(bytes32 channelId, address newAuthority) external;
 
     function channel(bytes32 channelId) external view returns (ChannelRecord memory);
+    /// @notice `paradigmAt` at the current clock value, with the `effectiveAt` of the adoption in force.
     function currentParadigm(bytes32 channelId) external view returns (bytes32 paradigmId, uint48 effectiveSince);
-    /// @notice The paradigm in force at `timepoint`: the last adoption whose effectiveAt <= timepoint,
-    ///         ties resolved in favour of the later-recorded adoption; 0 before the first adoption.
+    /// @notice The paradigm in force at `timepoint`: that of the adoption with the latest effectiveAt not
+    ///         after `timepoint`, whatever the order in which adoptions were recorded; among adoptions with
+    ///         the same effectiveAt the later-recorded one; 0 before the first adoption.
     function paradigmAt(bytes32 channelId, uint48 timepoint) external view returns (bytes32 paradigmId);
     /// @notice Number of adoptions requiring re-admission with effectiveAt <= timepoint.
     function readmissionEpochAt(bytes32 channelId, uint48 timepoint) external view returns (uint32);

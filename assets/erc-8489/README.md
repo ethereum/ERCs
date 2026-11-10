@@ -10,7 +10,7 @@ is the admission check an agent passes before it may take part.
 | Path | Contents |
 | --- | --- |
 | `contracts/interfaces/` | `IAIFPParadigmRegistry`, `IAIFPChannelRegistry`, `IAIFPParticipationRegistry`, `IAIFPPredicateVerifier` (with `IAIFPCompositeVerifier` and `IAIFPSubjectSet`), `IAIFPEventAnchor`, `IERC165`, `IERC6372` |
-| `contracts/libraries/` | `AIFPRoles`, `AIFPOutcomes`, `AIFPSubject`, `AIFPPredicates`, `AIFPBindings`, `AIFPBasis`, `AIFPEvents` |
+| `contracts/libraries/` | `AIFPRoles`, `AIFPOutcomes`, `AIFPSubject`, `AIFPPredicates`, `AIFPBindings`, `AIFPBasis`, `AIFPEvents`, `AIFPCalls` |
 | `contracts/` | reference registries `AIFPParadigmRegistry`, `AIFPChannelRegistry`, `AIFPParticipationRegistry`, the `AIFPCompositeVerifier`, the `AIFPSubjectSet` roster, the optional `AIFPEventAnchor` profile |
 | `contracts/companions/` | `AIFPObjectionWindow` (absence semantics companion, not part of the kernel) |
 | `schemas/` | `paradigm-descriptor.schema.json`, `predicate.schema.json`, `binding-capabilities.schema.json`, `subject-ref.schema.json` |

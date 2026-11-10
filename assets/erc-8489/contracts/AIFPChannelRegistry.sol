@@ -34,6 +34,7 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
     mapping(bytes32 => bytes32[]) private _bindingIds;
     mapping(bytes32 => mapping(bytes32 => BindingDecl)) private _bindings;
     mapping(bytes32 => Disclosure[]) private _disclosures;
+    mapping(bytes32 => uint32) private _stateChanges;
 
     error AIFP_AlreadyInitialized();
     error AIFP_NotDeployer();
@@ -159,6 +160,7 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
         ChannelRecord storage c = _channels[channelId];
         if (msg.sender != c.authority) revert AIFP_NotAuthorized(channelId, msg.sender);
         if (c.state == ChannelState.Closed) revert AIFP_ChannelClosed(channelId);
+        if (c.state != state) _stateChanges[channelId]++;
         c.state = state;
         emit ChannelStateChanged(channelId, state);
     }
@@ -240,16 +242,31 @@ contract AIFPChannelRegistry is IAIFPChannelRegistry, IERC165, IERC6372 {
         return _exists[channelId];
     }
 
+    /// @notice Number of times the state of the channel has changed since it was opened (a call that sets
+    ///         the state it already has does not count). Like `channelExists`, this view is not part of
+    ///         IAIFPChannelRegistry. Two reads that return the same number, with the channel Active at one of
+    ///         them, show that the channel was Active at every position in the chain between the two: the
+    ///         interface exposes the current state only, and that is not enough to tell whether a channel
+    ///         was frozen and released in the meantime. The objection-window companion confirms the
+    ///         integrity of a window this way.
+    function stateChanges(bytes32 channelId) external view returns (uint32) {
+        if (!_exists[channelId]) revert AIFP_UnknownChannel(channelId);
+        return _stateChanges[channelId];
+    }
+
     // ---------------------------------------------------------------- internals
 
     function _paradigmAt(bytes32 channelId, uint48 timepoint) internal view returns (bytes32 paradigmId, uint48 effectiveSince) {
         if (!_exists[channelId]) revert AIFP_UnknownChannel(channelId);
         Adoption[] storage list = _adoptions[channelId];
-        // Later-recorded adoptions win ties, so scan in order and keep the last match.
+        // The adoption in force is the one with the latest effective timepoint not after `timepoint`;
+        // adoptions can be recorded out of effective order (a later one may be scheduled first), and among
+        // adoptions effective at the same timepoint the later-recorded one wins.
         for (uint256 i = 0; i < list.length; i++) {
-            if (list[i].effectiveAt <= timepoint) {
+            uint48 effectiveAt = list[i].effectiveAt;
+            if (effectiveAt <= timepoint && effectiveAt >= effectiveSince) {
                 paradigmId = list[i].paradigmId;
-                effectiveSince = list[i].effectiveAt;
+                effectiveSince = effectiveAt;
             }
         }
     }

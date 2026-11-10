@@ -2,8 +2,10 @@
 pragma solidity ^0.8.20;
 
 /// @title AIFPRoles
-/// @notice Role bits of a role binding. Each bit is granted, suspended and revoked separately;
-///         there is no "member" flag. Bits 11..15 are reserved for future versions of the paradigm.
+/// @notice Role bits of a role binding. Each bit is a separate role; there is no "member" flag. Suspension
+///         and revocation address a binding, so roles that have to be suspended or revoked independently of
+///         each other are granted in separate bindings. Bits 11..15 are reserved for future versions of the
+///         paradigm.
 library AIFPRoles {
     uint16 internal constant DISCOVER = 1 << 0; // may learn that the channel exists
     uint16 internal constant OBSERVE = 1 << 1; // may read objects within the scope
