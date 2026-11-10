@@ -1,0 +1,123 @@
+---
+title: Onchain URI Scheme
+description: A URI scheme that references onchain metadata values by key, with the contract and token taken from the document's context.
+author: Prem Makeig (@nxt3d)
+discussions-to:
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-09
+requires: 8048, 8049
+---
+
+## Abstract
+
+This ERC defines the `onchain` URI scheme. An `onchain` URI lets a JSON document reference an onchain metadata value stored under [ERC-8048](./eip-8048.md) or [ERC-8049](./eip-8049.md) by key. The contract and token ID are not written in the URI, they come from the context in which the URI appears.
+
+## Motivation
+
+[ERC-8048](./eip-8048.md) and [ERC-8049](./eip-8049.md) store metadata onchain as key-value pairs, but a JSON document has had no compact way to point at those values. A URL that names the contract, the chain, and the token ID repeats what the reader already knows and differs for every token. `onchain:image/png` is 17 bytes and works unchanged for every token.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+An `onchain` URI reads an onchain value by key.
+
+```json
+"image": "onchain:image/png"
+```
+
+The key defaults to the field name, so this URI reads the key `image`.
+
+```json
+"image": "onchain:image/png?key=hero"
+```
+
+The `key` parameter names the key, so this URI reads the key `hero`.
+
+### Syntax
+
+```
+onchain-uri = "onchain:" [ mediatype ] [ "?key=" enckey ]
+mediatype   = type "/" subtype *( ";" parameter )
+enckey      = *( pchar / "/" / "?" )
+```
+
+`type`, `subtype`, and `parameter` are as in a Content-Type value ([RFC 2045](https://www.rfc-editor.org/rfc/rfc2045)), with no whitespace. `pchar` is as defined in [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986).
+
+The media type and the `key` parameter are both optional, so a URI can take any of the following four forms. Each one is a valid RFC 3986 URI.
+
+- `onchain:` has neither a media type nor a `key` parameter.
+- `onchain:image/png` has a media type only.
+- `onchain:?key=seat` has a `key` parameter only.
+- `onchain:image/png?key=hero` has both.
+
+### Media type
+
+When the media type is present, clients MUST treat the resolved bytes as content of that type, as they would the payload of a `data:` URI with the same type. When the media type is a `text` type with no `charset` parameter, the bytes are UTF-8. When the media type is absent, the type is determined by the standard or the field in which the URI appears. When nothing determines a type, clients MUST treat the bytes as `application/octet-stream` and MUST NOT render them as HTML, SVG, or other active content.
+
+### Key
+
+When the `key` parameter is present, its value, percent-decoded once, is the key. Producers MUST percent-encode characters that RFC 3986 does not permit in a query, including `[` and `]`, and MUST percent-encode `%`, `&`, `=`, and `#`. For example, `onchain:?key=name%5Bmaria%5D` names the key `name[maria]`. Some producers will write brackets without encoding them, so clients SHOULD also accept that form. A client that does reads `onchain:?key=name[maria]` as the same key, `name[maria]`. The decoded key is matched exactly, so capitalization matters. For example, `Day` and `day` are different keys.
+
+The *top-level document* is the JSON document that the URI returned by `tokenURI`, `uri`, `contractURI`, or an equivalent URI function resolves to. When the `key` parameter is absent and the URI is the value of a direct member of the top-level document's root object, the key is that member's name. In every other position, including nested objects, arrays, JSON documents linked from another JSON document, and a URI returned directly by one of those functions, the `key` parameter is REQUIRED, and clients MUST treat a URI without it as absent. A key is a flat string with no path meaning, and a `.` in a key is only a character.
+
+For example, take this document returned by `tokenURI`.
+
+```json
+{
+  "image": "onchain:image/png",
+  "thumbnail": {
+    "small": "onchain:image/png?key=thumb.small",
+    "large": "onchain:image/png"
+  },
+  "gallery": [
+    "onchain:image/png?key=gallery.first"
+  ]
+}
+```
+
+| Member | Key read | Why |
+| --- | --- | --- |
+| `image` | `image` | A top-level member with no `key` parameter uses its own name. |
+| `thumbnail.small` | `thumb.small` | A nested member names its key with the `key` parameter. |
+| `thumbnail.large` | None, treated as absent | A nested member has no default key. |
+| `gallery[0]` | `gallery.first` | An array element names its key with the `key` parameter. |
+
+`thumb.small` is one flat key. The client does not look for a value called `thumb` and then for `small` inside it.
+
+`tokenURI` or `uri` can also return an `onchain` URI that links to the token's JSON document, for example `onchain:application/json?key=metadata_uri`. A URI returned this way has no member name, so the `key` parameter is REQUIRED. Any key works, and producers SHOULD use `metadata_uri` so that implementations share one name. The linked document is the top-level document, so `"image": "onchain:image/png"` as a direct member reads the key `image`. A JSON document linked from another JSON document is not, so every reference inside it names its key. Each asset is one onchain key, so swapping one asset writes one key.
+
+`metadata_uri` and `metadata_contract` are reserved names. `metadata_uri` holds the token's JSON document, and `metadata_contract` is the JSON property that names a metadata contract. Producers SHOULD NOT use either one as a custom key.
+
+### Context and resolution
+
+The contract is the one whose function returned the URI. If the root object of the top-level document has a `metadata_contract` property (the Onchain Metadata Contract Reference extension of [ERC-8048](./eip-8048.md) or [ERC-8049](./eip-8049.md)), the client reads from that contract instead, on the same chain. A `metadata_contract` property anywhere else has no effect.
+
+If the function that returned the URI takes a token ID, the client calls the [ERC-8048](./eip-8048.md) function `metadata(tokenId, key)`, with the ID the function was called with. If it takes no token ID, the client calls the [ERC-8049](./eip-8049.md) function `metadata(key)`.
+
+Zero-length bytes or a reverted call mean the referenced value is absent.
+
+A copy of a document served outside its context SHOULD include the chain, the contract, and any token ID, or SHOULD replace each `onchain` URI with a URI that works on its own, such as `data:` or `https`.
+
+### Nested documents
+
+A JSON document linked from another JSON document, by an `onchain` URI or any other URI, keeps the context of the document that linked it, token-level or contract-level, and resolves its own `onchain` URIs with the same contract, and with the same token ID when the context is token-level. Clients set their own limit on nesting depth, and SHOULD resolve at least 5 levels of linked documents.
+
+## Rationale
+
+The default type for untyped bytes is `application/octet-stream` rather than the `text/plain` default of `data:` URIs, because stored values are raw bytes and treating unknown bytes as text or markup invites injection. In the most common case, a direct member of the top-level document such as `image`, the key defaults to the member name so that the `key` parameter can be left out. In all other positions the `key` parameter is required, which avoids confusion and the need for a system that derives keys for nested objects and arrays. The scheme lives in its own proposal so that [ERC-8048](./eip-8048.md) and [ERC-8049](./eip-8049.md) stay contract interfaces and each document can advance on its own. One scheme serves both [ERC-8048](./eip-8048.md) and [ERC-8049](./eip-8049.md), because a separate scheme for each would be confusing, and the function that returned the URI already tells the client which read to call.
+
+## Backwards Compatibility
+
+- The scheme adds no contract surface. Existing [ERC-8048](./eip-8048.md) and [ERC-8049](./eip-8049.md) contracts support it with no change.
+- A client that does not resolve the scheme sees an unresolvable URI it can ignore, and a document that uses the scheme remains valid JSON for every client.
+
+## Security Considerations
+
+Clients should check that the declared media type suits the JSON member it appears in, for example an image type for `image`, and that the returned bytes decode as that type, and should not promote bytes to a more powerful type than the one declared. A `metadata_contract` makes the client read a contract chosen by the document, so clients should treat the returned bytes as untrusted, apply the same size limits and content handling as for content fetched over `https`, and show or verify the address as for any new contract interaction. A copy of a document served outside its context needs to name the `metadata_contract` address when the document has one, because a client that falls back to the token contract would read different values.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
