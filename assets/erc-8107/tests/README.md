@@ -4,7 +4,7 @@ This file lists what the reference tests check. The normative requirements are i
 [ERC-8107](https://eips.ethereum.org/EIPS/eip-8107); section names below refer to it.
 
 [`TrustRegistry.t.sol`](TrustRegistry.t.sol) is the reference suite and needs no network
-access. The files in [`continuity/`](continuity/) run on an Ethereum mainnet fork and are
+access. The files in [`continuity/`](continuity/ExecutionWindow.fork.t.sol) run on an Ethereum mainnet fork and are
 skipped without one.
 
 ## Attestation and authority
