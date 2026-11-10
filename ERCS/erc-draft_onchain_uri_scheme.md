@@ -55,7 +55,7 @@ The media type and the `key` parameter are both optional, so a URI can take any 
 
 ### Media type
 
-When the media type is present, clients MUST treat the resolved bytes as content of that type, as they would the payload of a `data:` URI with the same type. When the media type is a `text` type with no `charset` parameter, the bytes are UTF-8. When the media type is absent, the type is determined by the standard or the field in which the URI appears. When nothing determines a type, clients MUST treat the bytes as `application/octet-stream` and MUST NOT render them as HTML, SVG, or other active content.
+Producers SHOULD include the media type unless the field defines one. When the media type is present, clients MUST treat the resolved bytes as content of that type, as they would the payload of a `data:` URI with the same type. When the media type is a `text` type with no `charset` parameter, the bytes are UTF-8. When the media type is absent, the type is determined by the standard or the field in which the URI appears. When nothing determines a type, clients MUST treat the bytes as `application/octet-stream` and MUST NOT render them as HTML, SVG, or other active content.
 
 ### Key
 
@@ -99,7 +99,7 @@ If the function that returned the URI takes a token ID, the client calls the [ER
 
 Zero-length bytes or a reverted call mean the referenced value is absent.
 
-A copy of a document served outside its context SHOULD include the chain, the contract, and any token ID, or SHOULD replace each `onchain` URI with a URI that works on its own, such as `data:` or `https`.
+A copy of a document served outside its context SHOULD replace each `onchain` URI with a `data:` or `https` URI.
 
 ### Nested documents
 
@@ -116,7 +116,7 @@ The default type for untyped bytes is `application/octet-stream` rather than the
 
 ## Security Considerations
 
-Clients should check that the declared media type suits the JSON member it appears in, for example an image type for `image`, and that the returned bytes decode as that type, and should not promote bytes to a more powerful type than the one declared. A `metadata_contract` makes the client read a contract chosen by the document, so clients should treat the returned bytes as untrusted, apply the same size limits and content handling as for content fetched over `https`, and show or verify the address as for any new contract interaction. A copy of a document served outside its context needs to name the `metadata_contract` address when the document has one, because a client that falls back to the token contract would read different values.
+Clients should check that the declared media type suits the JSON member it appears in, for example an image type for `image`, and that the returned bytes decode as that type, and should not promote bytes to a more powerful type than the one declared. A `metadata_contract` makes the client read a contract chosen by the document, so clients should treat the returned bytes as untrusted, apply the same size limits and content handling as for content fetched over `https`, and show or verify the address as for any new contract interaction. A copy of a document served outside its context has no contract to read from, so its `onchain` URIs are replaced rather than resolved against whatever contract the reader guesses.
 
 ## Copyright
 
