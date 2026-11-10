@@ -14,13 +14,16 @@ pragma solidity ^0.8.24;
 ///         - call it with a fixed gas budget, and refuse to settle if the caller left less
 ///           than that budget (so the policy cannot be starved on purpose);
 ///         - if the call fails, or returns anything but one word no larger than `amount`,
-///           settle with no deduction and say so; settlement never stalls on the policy.
+///           settle with no deduction and say so; settlement never stalls on the policy;
+///         - fix each payout's payee before the payout; the payout never takes it as input.
 interface ISettlementDeductions {
     /// @notice Called by the escrow when a task is created. Reverting makes creation revert.
     /// @param amountPerSettlement Expected size of one payout, or zero if unknown.
     function onTaskCreated(uint256 taskId, address asset, uint256 amountPerSettlement) external;
 
     /// @notice Called by the escrow before every payout to `payee` on `taskId`.
+    /// @dev Runs on the escrow's fixed gas budget: makes no external calls, and should
+    ///      create no storage. Never answers more than `amount`.
     /// @return total The amount taken out of `amount`; the escrow pays `payee` the rest.
     function deductions(uint256 taskId, uint256 settlementId, address payee, uint256 amount)
         external returns (uint256 total);
@@ -39,6 +42,12 @@ interface ISettlementCredit {
     function creditOf(uint256 taskId, address account) external view returns (uint256);
 
     /// @notice Transfers the whole credit of `account` on `taskId` to `account`.
-    ///         Callable by anyone; pays only `account`.
+    ///         Callable by anyone; pays only `account`. May revert when there is none.
     function withdrawCredit(uint256 taskId, address account) external;
+
+    /// @notice The policy this escrow names for its lifetime, or zero if it has none.
+    function deductionPolicy() external view returns (address);
+
+    /// @notice The fixed gas budget G with which the escrow calls the policy.
+    function deductionGas() external view returns (uint256);
 }
