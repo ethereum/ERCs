@@ -139,7 +139,7 @@ struct LayerCheckpoint {
 }
 ```
 
-The subject's head record keeps the current state version, the current root, the number of records (cycle records and pulses), the last activity signal, the planning hint and the controller relation. The registry MUST keep the root of every state version (`rootAt`). The state version advances only when at least one layer commitment changes; a cycle that changes nothing does not advance it. Pulses never advance it.
+The subject's head record keeps the current state version, the current root, the number of records (cycle records and pulses), the last activity signal, the reported end of the last accepted cycle record (`lastCycleEndedAt`), the planning hint and the controller relation. The registry MUST keep the root of every state version (`rootAt`). The state version advances only when at least one layer commitment changes; a cycle that changes nothing does not advance it. Pulses never advance it.
 
 ### Cycle records
 
@@ -170,10 +170,10 @@ struct CycleReport {
 3. **Governing policy.** `policyVersion` exists for the subject; its effective-from timepoint is at or before `reportedStartedAt`; and, if a later version exists, `reportedStartedAt` is before that later version's effective-from timepoint. `layerMask` is a subset of the governing policy's `supportedLayers`, and the governing policy allows `trigger`.
 4. **Linkage.** `baseVersion` equals the subject's current state version and `preRoot` equals the current root.
 5. **Unscoped layers unchanged.** For every layer outside `layerMask`, `postCommitments[layer]` equals the current commitment.
-6. **Time ordering.** `reportedStartedAt <= reportedEndedAt <= clock()`; and for every layer in `completedLayers`, `reportedEndedAt` is strictly greater than that layer's `lastCompletedAt`.
+6. **Time ordering.** `reportedStartedAt <= reportedEndedAt <= clock()`; `reportedStartedAt` is at or after the subject's `lastCycleEndedAt`, so the cycle records of one subject are registered in the order of their ends and do not overlap; and for every layer in `completedLayers`, `reportedEndedAt` is strictly greater than that layer's `lastCompletedAt`.
 7. **Restore claim.** If `restoresVersion` is non-zero, it is smaller than the current state version and `rootAt(restoresVersion)` equals the root of `postCommitments`.
 
-On acceptance the registry: sets the commitment of every layer whose post commitment differs from its current commitment and, if any differs, increments the state version and stores the new root; for every layer in `completedLayers`, sets `lastCompletedAt = reportedEndedAt`, `lastCompletedRecordedAt = clock()` and `completedUnderPolicy = policyVersion`, and clears any outstanding demand for that layer whose `demandedAt` is at or before `reportedEndedAt`; increments the record count; sets the last activity signal to `clock()` and the planning hint to `nextPlannedAt`; and emits `CycleRecorded` with the derived `changedLayers` plus one `LayerCommitmentChanged` per changed layer.
+On acceptance the registry: sets the commitment of every layer whose post commitment differs from its current commitment and, if any differs, increments the state version and stores the new root; for every layer in `completedLayers`, sets `lastCompletedAt = reportedEndedAt`, `lastCompletedRecordedAt = clock()` and `completedUnderPolicy = policyVersion`, and clears any outstanding demand for that layer whose `demandedAt` is at or before `reportedEndedAt`; increments the record count; sets the last activity signal to `clock()`, the planning hint to `nextPlannedAt` and `lastCycleEndedAt` to `reportedEndedAt`; and emits `CycleRecorded` with the derived `changedLayers` plus one `LayerCommitmentChanged` per changed layer.
 
 A layer in scope but not in `completedLayers` MAY still change its commitment: a cycle that modified a layer and then failed registers what actually happened. A layer in `completedLayers` with an unchanged commitment registers that the routine ran and found nothing to change. A record with `opsMask == 0` is valid. The whole-cycle outcome and the per-layer results are distinct facts and are both recorded.
 
@@ -185,15 +185,15 @@ Rollback is a cycle like any other: the post state equals an earlier registered 
 
 ### Demand
 
-`demand(subject, layerMask, dueBy)` is callable by a controller holding `RIGHT_DEMAND`, with `dueBy` in the future. For each layer in `layerMask` it stores `(demandedAt = clock(), dueBy)`, replacing any earlier demand for that layer. An outstanding demand lowers the layer's deadline to `dueBy` in status derivation. It is cleared by a completion of the layer whose `reportedEndedAt` is at or after `demandedAt`, or by `withdrawDemand`. A demand requests maintenance; it does not perform it and does not change any state.
+`demand(subject, layerMask, dueBy)` is callable by a controller holding `RIGHT_DEMAND`, with `dueBy` in the future. Every layer in `layerMask` MUST be in the current policy's `supportedLayers`; a demand on a layer the subject does not maintain could never be satisfied and MUST be rejected. For each layer in `layerMask` the registry stores `(demandedAt = clock(), dueBy)`, replacing any earlier demand for that layer. An outstanding demand puts the layer on the clock: for a required layer it lowers the deadline to `dueBy`; for a supported layer without a timeliness requirement it is the deadline, so the layer is judged `FRESH`, `DUE` or `OVERDUE` against `dueBy` instead of reading `UNSCHEDULED`. A demand is cleared by a completion of the layer whose `reportedEndedAt` is at or after `demandedAt`, or by `withdrawDemand(subject, layerMask)`, which is callable by a controller holding `RIGHT_DEMAND` only. A demand requests maintenance; it does not perform it and does not change any state.
 
 ### Status derivation
 
 `layerStatus(subject, layer)` returns a status, the deadline it was judged against (0 if none) and whether the layer has never completed a routine since enrollment:
 
 - `NOT_ENROLLED` if the subject is not enrolled.
-- If the layer is not in the effective `requiredLayers`: `UNSCHEDULED` if it is in the policy's `supportedLayers`, otherwise `UNSUPPORTED`.
-- Otherwise let `anchor` be the layer's `lastCompletedAt`, or the enrollment time if the layer never completed; let `deadline = anchor + maxInterval[layer]`, lowered to `dueBy` when a demand is outstanding; then `OVERDUE` if `clock() >= deadline`, `DUE` if `clock() + dueWindow >= deadline`, else `FRESH`.
+- If the layer is not in the effective `requiredLayers` and no demand is outstanding for it: `UNSCHEDULED` if it is in the policy's `supportedLayers`, otherwise `UNSUPPORTED`.
+- Otherwise the layer has a deadline. For a required layer, let `anchor` be the layer's `lastCompletedAt`, or the enrollment time if the layer never completed, and `deadline = anchor + maxInterval[layer]`, lowered to `dueBy` when a demand is outstanding. For a layer that is not required, `deadline = dueBy` of its outstanding demand. Then `OVERDUE` if `clock() >= deadline`, `DUE` if `clock() + dueWindow >= deadline`, else `FRESH`.
 
 `FRESH` is a statement about the timeliness of registered maintenance only. It is not a statement about health, readiness or capability.
 
@@ -253,6 +253,7 @@ struct Head {
     uint48 enrolledAt;
     uint48 lastSignalAt;
     uint48 nextPlannedAt;
+    uint48 lastCycleEndedAt;   // reported end of the last accepted cycle record, 0 = none
 }
 
 struct Demand {
@@ -303,6 +304,8 @@ The policy document (`amm.policy/1`) and the cycle record document (`amm.cycle-r
 **Per-layer freshness.** Completing layer 0 today says nothing about layer 3. Status is therefore computed per layer from that layer's last completion, and a never-completed required layer counts from enrollment, so that enrollment alone never reads as recent maintenance.
 
 **Reported and recorded time.** ERC-6372 fixes the clock interface; it does not make a self-reported execution time trustworthy. Records carry both. Timeliness follows the reported completion time, after ordering checks that prevent a completion from being registered earlier than the previous one or later than now, so that a cycle submitted late keeps its real age; activity follows the recorded time. Applications that need proof of execution time add a start commitment or an external observation on top.
+
+**Cycles of one subject are sequential.** A cycle's reported start may not precede the reported end of the previously accepted cycle. The rule serves the policy pin: the version in effect at the reported start governs a cycle, and whoever holds report permission chooses the reported start, so without a lower bound a reporter could place a start before a policy change and be judged under the earlier version. With the bound, backdating is limited to the gap since the last accepted cycle. The rule also gives cycles a total order per subject, which is what consumers of the history need; routines that run concurrently are reported as one cycle with both layers in scope, or one after the other. Pulses carry no reported time and do not bound the start, so a long cycle can be accompanied by pulses.
 
 **The policy in effect at the start governs.** A cycle is interpreted under the policy version that was in effect when it started. The subject cannot lower its own bar mid-cycle, a policy update never resets completion times, and a new interval never turns a past overdue state into an on-time one, because the anchor of every deadline is a completion, not a rule change.
 
@@ -405,6 +408,9 @@ The reference test suite covers, among others, the following cases, each of whic
 11. A rollback registers a new state version whose root equals an earlier `rootAt`; a `restoresVersion` claim that does not match history is rejected.
 12. `signalStatus` and `layerStatus` are independent: a subject is silent and fresh at one time, present and overdue at another.
 13. The ERC-165 identifier `0x9c81b550` is the exclusive-or of the selectors of the 23 functions of `IAgentMeditation`.
+14. After the policy is tightened (for example to the `SCHEDULED` trigger only) and a cycle has been accepted under the new version, a record that claims the old version with a reported start before the tightening is rejected, because the start precedes the previously accepted cycle's end; with no cycle accepted since the last record, a start placed in the gap before the tightening still selects the old version, and the checkpoint records `completedUnderPolicy` accordingly.
+15. A controller that holds `RIGHT_FLOOR` but not `RIGHT_DEMAND` can neither issue nor withdraw a demand.
+16. A demand on a layer outside the current policy's `supportedLayers` is rejected; a demand on a supported layer without a timeliness requirement makes that layer read `FRESH`, `DUE` and then `OVERDUE` against `dueBy`, and a completion at or after the demand returns it to `UNSCHEDULED`.
 
 ## Reference Implementation
 
@@ -421,9 +427,9 @@ The reference implementation, tooling, schemas, examples and vectors are in the 
 
 **Commitments without content.** A commitment binds the subject to a document it can be asked to disclose; it reveals nothing until then. Content that could be guessed from public information is protected only by a non-zero salt. Disclosure of a document that matches its commitment proves consistency with the registration, not the correctness of the process that produced it. Operators of a registry should expect subjects to publish commitments to documents they never intend to disclose, and consumers should price that in through disclosure levels and the policies they accept.
 
-**Stale and late submissions.** Because timeliness follows the reported completion time, an old cycle submitted late does not look recent, and a completion can never be registered with a time earlier than the previous one. A subject can still delay submission to hide a failed cycle; the monotonic rule and the linkage rule only bound what the delayed record can claim.
+**Stale and late submissions.** Because timeliness follows the reported completion time, an old cycle submitted late does not look recent, a completion can never be registered with a time earlier than the previous one, and a cycle cannot be registered as having started before the previous accepted cycle ended. A subject can still delay submission to hide a failed cycle; the ordering rules and the linkage rule only bound what the delayed record can claim.
 
-**Policy manipulation.** A cycle is interpreted under the version in effect at its start, so the subject cannot relax its policy and then report under the relaxed rules, and policy updates never move completion anchors. What the subject can do is lower its own requirements for the future, which is visible in the policy history and bounded by the floor where a controller exists.
+**Policy manipulation.** A cycle is interpreted under the version in effect at its reported start, and the reported start is chosen by the reporter. The rule therefore protects the age of a late submission and the meaning of a policy change going forward; it does not protect against the reporter. After a policy is tightened, whoever holds report permission can place a cycle's start before the change and have it judged under the earlier version, as long as that start is not earlier than the previously accepted cycle's end. The lower bound limits this backdating to the gap since the last accepted cycle; it does not close the gap after a long silence, and a registry cannot tell a backdated start from a genuinely late report. Two things make the residue tolerable: every checkpoint records `completedUnderPolicy`, so a reader can see which version each completion was judged under and treat completions judged under a superseded version with the suspicion they deserve, and a start commitment registered before the cycle, which this version lists as an extension, closes the gap entirely. Subjects that need the stronger guarantee should adopt such an extension and rotate or revoke report permissions when they tighten their policy. What the subject can do on its own is lower its requirements for the future, which is visible in the policy history and bounded by the floor where a controller exists.
 
 **Controller abuse.** A controller can raise requirements and demand completions, which can make a subject overdue by construction. It cannot submit records, cannot change state, cannot grant itself operator rights and cannot grow its rights after appointment. The subject chose the controller and its rights at appointment; where that choice is made for the subject by its deployer, the subject's status reflects the deployer's requirements, which is the intended meaning.
 

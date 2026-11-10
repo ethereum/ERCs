@@ -74,6 +74,7 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
     error PreRootMismatch();
     error UnscopedLayerChanged(uint8 layer);
     error InvalidTimeOrder();
+    error StartBeforePreviousCycle();
     error CompletionNotMonotonic(uint8 layer);
     error InvalidRestore();
 
@@ -244,6 +245,7 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
             revert Unauthorized();
         }
         if (layerMask == 0 || layerMask & ~ALL_LAYERS != 0) revert InvalidLayerMask();
+        if (layerMask & ~_policies[subject][h.policyVersion].supportedLayers != 0) revert LayerNotSupported();
         uint48 now_ = clock();
         if (dueBy <= now_) revert InvalidDemand();
         Demand[4] storage ds = _demands[subject];
@@ -259,7 +261,9 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
     function withdrawDemand(address subject, uint8 layerMask) external override {
         Head storage h = _heads[subject];
         if (!h.enrolled) revert NotEnrolled();
-        if (msg.sender != h.controller || h.controller == address(0)) revert Unauthorized();
+        if (msg.sender != h.controller || h.controller == address(0) || h.controllerRights & RIGHT_DEMAND == 0) {
+            revert Unauthorized();
+        }
         if (layerMask == 0 || layerMask & ~ALL_LAYERS != 0) revert InvalidLayerMask();
         Demand[4] storage ds = _demands[subject];
         for (uint8 i = 0; i < 4; i++) {
@@ -286,6 +290,7 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         _checkLinkage(h, r);
 
         if (!(r.reportedStartedAt <= r.reportedEndedAt && r.reportedEndedAt <= now_)) revert InvalidTimeOrder();
+        if (r.reportedStartedAt < h.lastCycleEndedAt) revert StartBeforePreviousCycle();
 
         LayerCheckpoint[4] storage cps = _checkpoints[subject];
         uint8 changed = 0;
@@ -335,6 +340,7 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         seq = ++h.recordCount;
         h.lastSignalAt = now_;
         h.nextPlannedAt = r.nextPlannedAt;
+        h.lastCycleEndedAt = r.reportedEndedAt;
 
         emit CycleRecorded(subject, seq, r.baseVersion, newVersion, r, changed, now_, msg.sender);
     }
@@ -421,15 +427,20 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         Requirements memory req = requirementsOf(subject);
         LayerCheckpoint storage cp = _checkpoints[subject][layer];
         neverCompleted = cp.lastCompletedAt == 0;
-        if (req.requiredLayers & (1 << layer) == 0) {
-            status =
-                req.supportedLayers & (1 << layer) != 0 ? MaintenanceStatus.UNSCHEDULED : MaintenanceStatus.UNSUPPORTED;
-            return (status, 0, neverCompleted);
-        }
-        uint48 anchor = neverCompleted ? h.enrolledAt : cp.lastCompletedAt;
-        deadline = _saturatingAdd(anchor, req.maxInterval[layer]);
         Demand storage d = _demands[subject][layer];
-        if (d.demandedAt != 0 && d.dueBy < deadline) deadline = d.dueBy;
+        if (req.requiredLayers & (1 << layer) == 0) {
+            if (d.demandedAt == 0) {
+                status = req.supportedLayers & (1 << layer) != 0
+                    ? MaintenanceStatus.UNSCHEDULED
+                    : MaintenanceStatus.UNSUPPORTED;
+                return (status, 0, neverCompleted);
+            }
+            deadline = d.dueBy; // an outstanding demand puts an otherwise unscheduled layer on the clock
+        } else {
+            uint48 anchor = neverCompleted ? h.enrolledAt : cp.lastCompletedAt;
+            deadline = _saturatingAdd(anchor, req.maxInterval[layer]);
+            if (d.demandedAt != 0 && d.dueBy < deadline) deadline = d.dueBy;
+        }
         uint48 now_ = clock();
         if (now_ >= deadline) {
             status = MaintenanceStatus.OVERDUE;

@@ -720,6 +720,11 @@
             "name": "nextPlannedAt",
             "type": "uint48",
             "internalType": "uint48"
+          },
+          {
+            "name": "lastCycleEndedAt",
+            "type": "uint48",
+            "internalType": "uint48"
           }
         ]
       }
@@ -1827,6 +1832,11 @@
   {
     "type": "error",
     "name": "PreRootMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "StartBeforePreviousCycle",
     "inputs": []
   },
   {

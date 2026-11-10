@@ -107,6 +107,7 @@ interface IAgentMeditation {
         uint48 enrolledAt;
         uint48 lastSignalAt;
         uint48 nextPlannedAt;
+        uint48 lastCycleEndedAt; // reported end of the last accepted cycle record (0 = none yet)
     }
 
     /// @notice Outstanding controller demand for one layer.
@@ -190,9 +191,11 @@ interface IAgentMeditation {
     function setFloor(address subject, Floor calldata floor) external;
 
     /// @notice Demand completion of `layerMask` by `dueBy`; callable by a controller holding RIGHT_DEMAND.
+    ///         Every layer in `layerMask` must be supported by the current policy. A demand puts the layer on the
+    ///         clock until a completion at or after the demand clears it, whether or not the layer is required.
     function demand(address subject, uint8 layerMask, uint48 dueBy) external;
 
-    /// @notice Withdraw outstanding demands for `layerMask`; callable by the controller.
+    /// @notice Withdraw outstanding demands for `layerMask`; callable by a controller holding RIGHT_DEMAND.
     function withdrawDemand(address subject, uint8 layerMask) external;
 
     // ---------------------------------------------------------------------
