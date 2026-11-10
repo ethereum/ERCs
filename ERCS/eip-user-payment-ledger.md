@@ -2,7 +2,7 @@
 title: Institution-Managed User Payment Ledger
 description: User payment entries, spending limits, and account statements managed by institutions independently of fund settlement.
 author: Zhe Han (@iampkuhz) <hanzhe.hz@ant-intl.com>, Dasong Ji (@jidasong) <dasong.jds@ant-intl.com>, Yunyi Zhu (@CarlZhu93) <muyan.zyy@ant-intl.com>, Qinwei Fu (@fqwww) <tejia.fqw@ant-intl.com>, Xiaoyu Liu (@elizabethxiaoyu) <jiushi.lxy@ant-intl.com>, Shenglong chen (@bladechen) <shenglong.chensl@ant-intl.com>
-discussions-to: <discussion-url>
+discussions-to: https://ethereum-magicians.org/t/proposal-institution-managed-user-payment-ledger/30329
 status: Draft
 type: Standards Track
 category: ERC
