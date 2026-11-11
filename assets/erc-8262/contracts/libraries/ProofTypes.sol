@@ -44,8 +44,8 @@ library ProofTypes {
         if (proofType == NON_MEMBERSHIP) return 5;
         // compliance_signed: compliance fields + signer_pubkey_hash + chain_id + oracle_address
         if (proofType == COMPLIANCE_SIGNED) return 9;
-        // risk_score_signed: risk_score fields + signer_pubkey_hash + chain_id + oracle_address
-        if (proofType == RISK_SCORE_SIGNED) return 11;
+        // risk_score_signed: risk_score fields + timestamp + signer_pubkey_hash + chain_id + oracle_address
+        if (proofType == RISK_SCORE_SIGNED) return 12;
         // compliance_multi_signed: compliance fields + threshold_m + 5 signer_pubkey_hash slots + chain_id + oracle_address
         if (proofType == COMPLIANCE_MULTI_SIGNED) return 14;
         revert InvalidProofType(proofType);
