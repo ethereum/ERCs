@@ -1,0 +1,35 @@
+{
+  "description": "recordId = keccak256(abi.encode(chainId, target, id)); the same anchor on another chain is another record.",
+  "cases": [
+    {
+      "chainId": 1,
+      "target": "0x1111111111111111111111111111111111111111",
+      "id": "42",
+      "recordId": "0x0d08c6fa2c6a5ae5c13bc57518a49b424023de0ef0cd02b9ea602037047a6db1"
+    },
+    {
+      "chainId": 8453,
+      "target": "0x1111111111111111111111111111111111111111",
+      "id": "42",
+      "recordId": "0xc245c99190db0ed5821479618eb82b3becdc274dca6acddaf3078000f199f22f"
+    },
+    {
+      "chainId": 11155111,
+      "target": "0xA62059A498E40C4Ae4aF926E2B00C1Ff122bDdb7",
+      "id": "8",
+      "recordId": "0x196b785435977455f45eafe87dfaac5e1ae4fa99f4d82e2fd9c40610dc82ddbb"
+    },
+    {
+      "chainId": 11155111,
+      "target": "0x2222222222222222222222222222222222222222",
+      "id": "0",
+      "recordId": "0xa88c79ac8e1d8dbae0dbc845c75506143ba90b04f2a66da265038f84c19cc37a"
+    },
+    {
+      "chainId": 11155111,
+      "target": "0x6666666666666666666666666666666666666666",
+      "id": "113121475975165909900932156712680151072694951570286427139054365066607513296234",
+      "recordId": "0xe68358d6e25242257412d494395e4e310d8227ca9ab4ae17676c31f23d5888c1"
+    }
+  ]
+}
