@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<UDDF version="3.2.3">
+    <generator>
+        <manufacturer id="erc8260-test"/>
+        <name>ERC-8260 test fixture</name>
+        <version>1</version>
+        <datetime>2026-11-11T17:00:00</datetime>
+    </generator>
+    <diver id="diver1">
+        <personal>
+            <firstname>Test</firstname>
+            <lastname>Diver</lastname>
+            <sex>male</sex>
+            <birthdate><date><year>1990</year><month>1</month><day>1</day></date></birthdate>
+            <address><street>1 Test St</street><city>Testville</city><postcode>00000</postcode><country>XX</country></address>
+        </personal>
+        <equipment>
+            <divecomputer id="dc1">
+                <name>Test Computer</name>
+                <model>TC-1</model>
+            </divecomputer>
+        </equipment>
+    </diver>
+    <divesite id="site1">
+        <name>Minimal Test Site</name>
+        <geography><location>test basin</location></geography>
+    </divesite>
+    <profiledata>
+        <repetitiongroup id="rg1">
+            <dive id="dive1">
+                <informationbeforedive>
+                    <link ref="site1"/>
+                    <datetime>2026-05-14T13:00:00</datetime>
+                    <surfaceintervalbeforedive>
+                        <infinity/>
+                    </surfaceintervalbeforedive>
+                    <apparatus><name>open-scuba</name></apparatus>
+                </informationbeforedive>
+                <samples>
+                    <waypoint><depth>0.0</depth><time>0.0</time></waypoint>
+                    <waypoint><depth>18.2</depth><time>120.0</time></waypoint>
+                    <waypoint><depth>18.2</depth><time>1500.0</time></waypoint>
+                    <waypoint><depth>0.0</depth><time>1860.0</time></waypoint>
+                </samples>
+                <informationafterdive>
+                    <greatestdepth>18.2</greatestdepth>
+                    <averagedepth>11.4</averagedepth>
+                    <diveduration>1860.0</diveduration>
+                </informationafterdive>
+            </dive>
+        </repetitiongroup>
+    </profiledata>
+</UDDF>
