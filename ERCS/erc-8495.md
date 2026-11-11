@@ -1,8 +1,9 @@
 ---
+eip: 8495
 title: Token Metadata JSON Schema
 description: Specifies the JSON that token URIs resolve to, including media fields, traits, and a way for later proposals to extend it.
 author: Devin Finzer (@dfinzer), Alex Atallah (@alexanderatallah), Ryan Ghods (@ryanio)
-discussions-to: https://ethereum-magicians.org/t/erc-token-metadata-json-schema/30339
+discussions-to: https://ethereum-magicians.org/t/erc-8495-token-metadata-json-schema/30339
 status: Draft
 type: Standards Track
 category: ERC
