@@ -40,7 +40,8 @@ interface IAgentMemoryState {
     );
 
     /// @notice Register a new namespace. A relayer may submit a controller signature.
-    /// @dev An empty signature is accepted only when `msg.sender == controller`.
+    /// @dev An empty signature is accepted on a direct controller call or when the controller's
+    /// ERC-1271 policy approves the registration digest and empty bytes.
     function registerSpace(
         bytes32 spaceId,
         address controller,
