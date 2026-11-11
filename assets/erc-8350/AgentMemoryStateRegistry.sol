@@ -327,8 +327,10 @@ contract AgentMemoryStateRegistry is IAgentMemoryState {
         (bool success, bytes memory result) = signer.staticcall(
             abi.encodeWithSelector(_ERC1271_MAGIC_VALUE, digest, signature)
         );
+        // Decode a full word so dirty bytes4 padding fails validation without
+        // reverting before the ECDSA fallback. Trailing return data is ignored.
         return success && result.length >= 32
-            && abi.decode(result, (bytes4)) == _ERC1271_MAGIC_VALUE;
+            && abi.decode(result, (bytes32)) == bytes32(_ERC1271_MAGIC_VALUE);
     }
 
     function _digest(bytes32 structHash) private view returns (bytes32) {
