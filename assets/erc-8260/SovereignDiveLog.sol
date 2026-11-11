@@ -13,7 +13,7 @@ import {DiveLogTypedData} from "./interfaces/IDiveLogTypedData.sol";
 ///         not computed on-chain; the owner supplies the hash. Corrections use
 ///         void/supersede; headers are never mutated or deleted.
 contract SovereignDiveLog is IDiveLog {
-    // secp256k1n / 2 — upper bound for canonical (non-malleable) s values (EIP-2)
+    // secp256k1n / 2, upper bound for canonical (non-malleable) s values (EIP-2)
     uint256 private constant _HALF_N = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     /// @notice Maximum dives accepted per `batchLogDives` call.
