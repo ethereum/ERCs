@@ -185,6 +185,8 @@ interface IAgentMeditation {
     // ---------------------------------------------------------------------
 
     /// @notice Record a new policy version for `subject`; callable by the subject or an operator holding PERM_POLICY.
+    ///         The new version must keep every layer the floor requires, and every layer with an outstanding demand,
+    ///         in `supportedLayers`.
     function setPolicy(address subject, Policy calldata policy) external;
 
     /// @notice Record a new floor version for `subject`; callable by a controller holding RIGHT_FLOOR.

@@ -69,6 +69,7 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
     error InvalidTrigger();
     error TriggerNotAllowed();
     error LayerNotSupported();
+    error LayerUnderObligation(uint8 layer);
     error PolicyVersionNotGoverning();
     error BaseVersionMismatch();
     error PreRootMismatch();
@@ -212,6 +213,16 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         if (!h.enrolled) revert NotEnrolled();
         if (msg.sender != subject && _operators[subject][msg.sender] & PERM_POLICY == 0) revert Unauthorized();
         _validatePolicy(policy);
+        // A layer the floor requires, or one with an outstanding demand, must stay supported: the subject
+        // cannot step out from under an obligation by dropping the layer from its policy.
+        uint8 bound = _floors[subject].requiredLayers;
+        Demand[4] storage ds = _demands[subject];
+        for (uint8 i = 0; i < 4; i++) {
+            if (ds[i].demandedAt != 0) bound |= uint8(1 << i);
+        }
+        for (uint8 i = 0; i < 4; i++) {
+            if (bound & (1 << i) != 0 && policy.supportedLayers & (1 << i) == 0) revert LayerUnderObligation(i);
+        }
         uint32 version = h.policyVersion + 1;
         uint48 now_ = clock();
         h.policyVersion = version;
