@@ -1,0 +1,592 @@
+{
+  "about": "ERC-8478 test vectors for the 2026-11 review: the 90-day validity ceiling and its transition (section 3), the binding payees list (sections 3 and 6), and the EIP-7702 indicator under rule 2(a). `t` is the checker's time in unix seconds. Every delegation is signed by `agentWallet` under the domain { name: \"x402 Payee Delegation\", version: \"2\", chainId, verifyingContract: registry }. The identity's tokenURI resolves to `registration`; eth_getCode of the agent wallet on the registry's chain returns `agentWalletCode`; the agent wallet's latest MetadataSet is in block `walletSetAt`.",
+  "strictFrom": 1802649600,
+  "rulesChangedAt": 1794873600,
+  "maxWindowSeconds": 7776000,
+  "identity": {
+    "chainId": 4663,
+    "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+    "agentId": "20030"
+  },
+  "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+  "walletSetAt": 999500,
+  "block": "1000000",
+  "vectors": [
+    {
+      "name": "window: a new delegation of exactly 90 days is valid",
+      "rule": "3-window",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1794960000",
+          "validUntil": "1802736000",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0x41751da60636324b7fbb34bc5f9b4c8ca881b3ff7f715f62aad2456f5d8ccb2b6812792a5db78fa0aa76abccb1283c89cd623b1d8e38dd75afa4ddbb4126137d1c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000bb"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "verified-delegation",
+        "delegationRule": null,
+        "notes": []
+      }
+    },
+    {
+      "name": "window: a new delegation of 90 days and one second is invalid",
+      "rule": "3-window",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1794960000",
+          "validUntil": "1802736001",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0xf5562ecbfcf5ed41b19763fc79893abe4a681f44218a074621bad0941749661350c840aaf85f85e2bed876f75c79ce9b8c9ff05fe7c8f9be65182f566ffba79e1c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000bb"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "invalid-delegation",
+        "delegationRule": "window",
+        "notes": []
+      }
+    },
+    {
+      "name": "window, transition: signed before the change with 365 days, one second before the transition date: valid",
+      "rule": "3-window",
+      "t": 1802649599,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1793145600",
+          "validUntil": "1824681600",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0x5cc0863804169bed39c31fe34cd4d92fedfe03753b58b254dd6b94b5ff3db2224c132b7f7a031a7962c766b2d6b5978e40798f9ea6faa0f6ef1960ca1d7fceef1c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000bb"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "verified-delegation",
+        "delegationRule": null,
+        "notes": []
+      }
+    },
+    {
+      "name": "window, transition: the same delegation at the transition date: invalid",
+      "rule": "3-window",
+      "t": 1802649600,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1793145600",
+          "validUntil": "1824681600",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0x5cc0863804169bed39c31fe34cd4d92fedfe03753b58b254dd6b94b5ff3db2224c132b7f7a031a7962c766b2d6b5978e40798f9ea6faa0f6ef1960ca1d7fceef1c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000bb"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "invalid-delegation",
+        "delegationRule": "window",
+        "notes": []
+      }
+    },
+    {
+      "name": "payees: the list names the delegated network and payTo: valid",
+      "rule": "6-payees",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1794960000",
+          "validUntil": "1797552000",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0x67d91b0f18093c3b8c1f741994e51846de97d320851ede0490d08458996bd312764653518ab9be3672a06d6ac036527a7c53780f1619662fbfc5a1a8d9e6da291c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000bb"
+              },
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000dd"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "verified-delegation",
+        "delegationRule": null,
+        "notes": []
+      }
+    },
+    {
+      "name": "payees: the list is present and does not name it (the line was removed): invalid, also for a delegation signed before the change",
+      "rule": "6-payees",
+      "t": 1793145660,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1793145600",
+          "validUntil": "1795737600",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0xc338f5291bd488fb0c119a0ef8c8b5c0c3eff6a13a68c99868bfdfd8443f2a8b1e96828c4c54d4c5947c04d37b3fa3817d95092e156afabd2bc9c29e9e649adc1b"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:8453",
+                "payTo": "0x00000000000000000000000000000000000000dd"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "invalid-delegation",
+        "delegationRule": "not-declared",
+        "notes": [
+          "payee-not-declared"
+        ]
+      }
+    },
+    {
+      "name": "payees: the same payTo listed for another network does not cover this one",
+      "rule": "6-payees",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1794960000",
+          "validUntil": "1797552000",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0x67d91b0f18093c3b8c1f741994e51846de97d320851ede0490d08458996bd312764653518ab9be3672a06d6ac036527a7c53780f1619662fbfc5a1a8d9e6da291c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid",
+            "payees": [
+              {
+                "network": "eip155:4663",
+                "payTo": "0x00000000000000000000000000000000000000bb"
+              }
+            ]
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "invalid-delegation",
+        "delegationRule": "not-declared",
+        "notes": [
+          "payee-not-declared"
+        ]
+      }
+    },
+    {
+      "name": "payees, transition: no list at all, signed before the change, before the transition date: valid, with payee-not-declared",
+      "rule": "6-payees",
+      "t": 1797465600,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1793145600",
+          "validUntil": "1800921600",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0xb3e17403519e7ea33ca1981bca2425aba665b8d1baa9f0787dce0922d97ca0346294cbbd6023f3769816b02493d62b2bfc3d4981423bb10d0c3f82767e59de591c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid"
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "verified-delegation",
+        "delegationRule": null,
+        "notes": [
+          "payee-not-declared"
+        ]
+      }
+    },
+    {
+      "name": "payees: no list at all, a new delegation: invalid at once",
+      "rule": "6-payees",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1794960000",
+          "validUntil": "1797552000",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0x67d91b0f18093c3b8c1f741994e51846de97d320851ede0490d08458996bd312764653518ab9be3672a06d6ac036527a7c53780f1619662fbfc5a1a8d9e6da291c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid"
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "invalid-delegation",
+        "delegationRule": "not-declared",
+        "notes": []
+      }
+    },
+    {
+      "name": "payees: no list at all, after the transition date: invalid",
+      "rule": "6-payees",
+      "t": 1802736060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x00000000000000000000000000000000000000bb",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": {
+        "message": {
+          "chainId": "4663",
+          "registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "agentId": "20030",
+          "agentWallet": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "walletSetAt": "999500",
+          "network": "eip155:8453",
+          "payTo": "0x00000000000000000000000000000000000000bb",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "origin": "https://seller.example",
+          "validAfter": "1802736000",
+          "validUntil": "1805328000",
+          "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "signature": "0xb1dddf653ad570a2950fd6cb2aa0860062510fd8ecbec0ef74e06ee30db012e61bb0fbc3aa14ad29d68612a2206e270411f36ee8523dc30592d69d674f65bc921c"
+      },
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid"
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "invalid-delegation",
+        "delegationRule": "not-declared",
+        "notes": []
+      }
+    },
+    {
+      "name": "EIP-7702: the agent wallet's code is exactly the 23-byte indicator: 2(a) holds on another EVM network",
+      "rule": "2a-eip7702",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": null,
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid"
+          }
+        ]
+      },
+      "agentWalletCode": "0xef0100abababababababababababababababababababab",
+      "expect": {
+        "outcome": "verified-wallet",
+        "delegationRule": null,
+        "notes": []
+      }
+    },
+    {
+      "name": "EIP-7702: 24 bytes that start with the indicator prefix are contract code: 2(a) does not hold there",
+      "rule": "2a-eip7702",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": null,
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid"
+          }
+        ]
+      },
+      "agentWalletCode": "0xef0100abababababababababababababababababababab00",
+      "expect": {
+        "outcome": "mismatch",
+        "delegationRule": null,
+        "notes": []
+      }
+    },
+    {
+      "name": "EIP-7702: no code at all: 2(a) holds, as before",
+      "rule": "2a-eip7702",
+      "t": 1794960060,
+      "requirement": {
+        "network": "eip155:8453",
+        "payTo": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+        "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "resource": "https://seller.example/api/paid"
+      },
+      "delegation": null,
+      "registration": {
+        "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+        "name": "Vector seller",
+        "services": [
+          {
+            "name": "x402",
+            "endpoint": "https://seller.example/api/paid"
+          }
+        ]
+      },
+      "agentWalletCode": "0x",
+      "expect": {
+        "outcome": "verified-wallet",
+        "delegationRule": null,
+        "notes": []
+      }
+    }
+  ]
+}
