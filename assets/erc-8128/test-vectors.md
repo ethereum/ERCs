@@ -71,6 +71,29 @@ H = 0x9aabac90688b9c0d5b7b16a580ccfcd7322872edfd4c79aacd763eeef3024dfc
 S = 0x958f4bc5c450534293239ea0eb1a53a657a1fc90e46600299db0b9c06e0be8eb49b4d3118acffa8e778a3b3f45904da1ac5d77f0d9cdb3e9c3d853ffe9f742de1b
 ```
 
+## Invalidation vectors
+
+These vectors use the request of the positive vector without a nonce, re-signed with `expires=1700000061`. The signature is Replayable and valid for 61 seconds, and its signature base differs from the one above only in `expires`:
+
+```text
+H = 0x3116bc69551ce120ee93875d4f6f36ab8bf5469a5bc84ba996347b24609abd84
+S = 0x2ae35507e90e01bdf3b9ac89fd649d1d325423e2d260e45d0e077763eec0358b7dec8cde36211df547b71590e46432113ca2ac97ea90c7614c50d1ec410393901b
+```
+
+The verifier accepts Replayable signatures valid for up to 300 seconds and serves an invalidation endpoint. Each row starts from empty invalidation state and sends a `POST` to that endpoint with the displayed JSON content, authenticated with a Request Signature of the fixture Account unless stated.
+
+| Invalidation request | Expected result |
+| --- | --- |
+| `{"not_before": 1700000001}` where not-before is implemented | 200; the 61-second signature then yields `signature_invalidated` |
+| `{"not_before": 1700000000}` where not-before is implemented | 200; the 61-second signature still authenticates, because its `created` is not earlier |
+| `{"not_before": 1700000001}` followed by `{"not_before": 1699999990}` | both 200; the not-before timestamp stays `1700000001` |
+| `{"not_before": 1700000032}` | 400; the value is later than the verifier clock plus skew; no state change |
+| `{"message_hash": "0x3116bc69551ce120ee93875d4f6f36ab8bf5469a5bc84ba996347b24609abd84"}` where per-signature invalidation is implemented | 200; the 61-second signature then yields `signature_invalidated`; a signature over any other signature base is unaffected |
+| The same `message_hash` request where only not-before is implemented | 422; no state change |
+| `{}`, a JSON array, both members in one object, or a `message_hash` with uppercase digits | 400; no state change |
+| Either request authenticated with a signature that omits `content-digest` or another Request-Bound component | `insufficient_coverage`; no state change |
+| `{"not_before": 1700000001}` authenticated by another Account that Principal policy accepts | 200; the fixture Account's 61-second signature still authenticates |
+
 ## Negative and classification vectors
 
 Each mutation starts from the positive vector with a nonce unless stated, leaves signature bytes unchanged unless stated, and uses fresh replay state.
