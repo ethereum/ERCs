@@ -80,7 +80,7 @@ Steps:
 2. Evaluate candidates in wire order under the limits in Section 3.5.
 3. Validate the served chain, request coverage, content, time, replay posture, and policy. A nonce on a route that does not accept Non-Replayable signatures yields `nonce_not_supported`. A Replayable validity window over 60 seconds needs early invalidation (Section 5.2).
 4. Reconstruct `M` and apply Universal Account verification, honoring `mode="eoa"`.
-5. Atomically consume the winning nonce, or check a Replayable signature valid for more than 60 seconds against early invalidation. A Replayable signature valid for at most 60 seconds reads no state.
+5. Atomically consume the winning nonce, or check a Replayable signature valid for more than 60 seconds against early invalidation: its `created` against the Signer's not-before timestamp, and its `H` against per-signature invalidations. A Replayable signature valid for at most 60 seconds reads no state.
 
 ```ts
 async function verifyRequest(req: Request, policy: Policy): Promise<AuthResult> {
@@ -111,13 +111,47 @@ async function verifyRequest(req: Request, policy: Policy): Promise<AuthResult> 
       failures.push("nonce_reused"); continue;
     }
     // validateBeforeRpc refused a longer Replayable window without invalidation.
+    // A verifier implements at least one of the two checks (Section 5.2).
     if (candidate.nonce === undefined &&
         candidate.expires - candidate.created > 60 &&
-        await isInvalidated(checked.signer, M)) {
+        (candidate.created < await notBefore(checked.signer) || // not-before; 0 when unset
+         await isInvalidated(checked.signer, H))) {             // per-signature
       failures.push("signature_invalidated"); continue;
     }
     return checked.result;
   }
   throw selectFailure(failures);
+}
+```
+
+## Invalidation endpoint (server)
+
+Steps:
+
+1. Authenticate the `POST` request with `verifyRequest` under a policy that accepts only Request-Bound signatures; its Signer is the only `keyid` the request can affect.
+2. Require a JSON object with exactly one of `not_before` and `message_hash` (Section 5.2.1).
+3. Record the invalidation in state shared by every verifier instance, then respond with 200.
+
+```ts
+async function handleInvalidation(req: Request, signer: string): Promise<Response> {
+  const body = await parseJsonObject(req);          // null unless the content is a JSON object
+  const members = body === null ? [] : Object.keys(body);
+  if (members.length !== 1) return status(400);
+
+  if (members[0] === "not_before") {
+    const t = body.not_before;
+    if (!Number.isSafeInteger(t) || t < 0 || t > now() + ALLOWED_SKEW) return status(400);
+    if (!IMPLEMENTS_NOT_BEFORE) return status(422);
+    await raiseNotBefore(signer, t);                // atomic max(stored, t); never lowers
+    return status(200);
+  }
+  if (members[0] === "message_hash") {
+    if (typeof body.message_hash !== "string" ||
+        !/^0x[0-9a-f]{64}$/.test(body.message_hash)) return status(400);
+    if (!IMPLEMENTS_PER_SIGNATURE) return status(422);
+    await markInvalidated(signer, body.message_hash); // keyed by Signer and H
+    return status(200);
+  }
+  return status(400);
 }
 ```
