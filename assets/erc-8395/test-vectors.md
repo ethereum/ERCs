@@ -10,7 +10,7 @@ The fixed private keys are public and MUST NOT hold assets:
 | Delegate A | `0x0000000000000000000000000000000000000000000000000000000000000003` | `eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69` |
 | Delegate B | `0x0000000000000000000000000000000000000000000000000000000000000004` | `eip155:1:0x1eff47bc3a10a45d4b230b5d10e37751fe6aa718` |
 
-The clock is `1700000001`, skew is 30 seconds, the effective origin is `https://api.example`, all three accounts have no code, replay state is empty, scope processing is supported, the route explicitly permits Delegated Request Signatures and requires `resource:read`, and Principal policy accepts Root. Neither a route request-validity maximum nor a grant-validity maximum is configured. The registry reports `(false, 7)` for Root and `(false, 3)` for Delegate A.
+The clock is `1700000001`, skew is 30 seconds, the effective origin is `https://api.example`, all three accounts have no code, replay state is empty, scope processing is supported, the route explicitly permits Delegated Request Signatures, accepts Non-Replayable and Replayable signatures, and requires `resource:read`, and Principal policy accepts Root. Neither a route request-validity maximum nor a grant-validity maximum is configured. The registry reports `(false, 7)` for Root and `(false, 3)` for Delegate A.
 
 ## EIP-712 grant vectors
 
@@ -19,47 +19,47 @@ JSON grant values below show the full EIP-712 signing data, including fields rec
 `g0` is Root to Delegate A:
 
 ```json
-{"issuer":"eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf","delegate":"eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read","resource:write"]},{"audience":"https://backup.example","scopes":["resource:read"]}],"id":"0x1111111111111111111111111111111111111111111111111111111111111111","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":2,"delegateProfile":"erc8128-eoa","requireNonReplayable":true,"requiredComponents":["@authority"],"parentGrantHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}
+{"issuer":"eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf","delegate":"eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read","resource:write"]},{"audience":"https://backup.example","scopes":["resource:read"]}],"id":"0x1111111111111111111111111111111111111111111111111111111111111111","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":2,"delegateProfile":"erc8128-eoa","requiredComponents":["@authority"],"parentGrantHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}
 ```
 
 ```text
-domainSeparator = 0xbfa3ef2ffa516b4a513d3dc11b82f54744ff269a42a518551a62fd138e3c34d4
-structHash_g0 = 0x585eb4ef34d6b8eee793dca2c929ea24f2f339928eedcaedfcc6470fec5cd4b3
-B_g0 = 0x1901bfa3ef2ffa516b4a513d3dc11b82f54744ff269a42a518551a62fd138e3c34d4585eb4ef34d6b8eee793dca2c929ea24f2f339928eedcaedfcc6470fec5cd4b3
-digest_g0 = 0x2eb367345c88e81888af6089940e946533ae6059f1c781369a29b7405b378620
-signature_g0 = 0x18ec6f90b4a58fb9ea3a389accd20b22fcf3c7912beaa0e3b760b4d04306f1b53e68a8e1a674fea5d7ef33dd99bd43d02abaa43137ab0d9ef255bd081e01b4291b
+domainSeparator = 0x6a839aa3fa901cbfb3e93f09818ee980c296246834a5f691ebbcce551c8dcfc2
+structHash_g0 = 0xd60bfb138406e0673d769f70717e5f12f73d5997ec7306c3979096278d671719
+B_g0 = 0x19016a839aa3fa901cbfb3e93f09818ee980c296246834a5f691ebbcce551c8dcfc2d60bfb138406e0673d769f70717e5f12f73d5997ec7306c3979096278d671719
+digest_g0 = 0xbfc6a0fa843eaddb4413f6bddf428811e0436fa9bfd7a34d44d85b2407a63768
+signature_g0 = 0x25f443a2f25f0549075249b3efcccdd3b9dd6231037aea2ba3841293f0826b87414535efa0ffac3fcbd7e28e20f4004a3348e057c2ef11e93c4f7865392cf3bf1c
 ```
 
 `g1` is Delegate A to Delegate B:
 
 ```json
-{"issuer":"eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69","delegate":"eip155:1:0x1eff47bc3a10a45d4b230b5d10e37751fe6aa718","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x2222222222222222222222222222222222222222222222222222222222222222","epoch":3,"validAfter":1699999500,"validUntil":1700001800,"maxRequestValiditySeconds":60,"remainingDelegations":1,"delegateProfile":"erc8128-eoa","requireNonReplayable":true,"requiredComponents":["@method"],"parentGrantHash":"0x2eb367345c88e81888af6089940e946533ae6059f1c781369a29b7405b378620"}
+{"issuer":"eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69","delegate":"eip155:1:0x1eff47bc3a10a45d4b230b5d10e37751fe6aa718","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x2222222222222222222222222222222222222222222222222222222222222222","epoch":3,"validAfter":1699999500,"validUntil":1700001800,"maxRequestValiditySeconds":60,"remainingDelegations":1,"delegateProfile":"erc8128-eoa","requiredComponents":["@method"],"parentGrantHash":"0xbfc6a0fa843eaddb4413f6bddf428811e0436fa9bfd7a34d44d85b2407a63768"}
 ```
 
 ```text
-structHash_g1 = 0x2e275b47b3205bed22ceba7de7fb61286feaf2f2b35662ca1e04bb5cfb59d626
-B_g1 = 0x1901bfa3ef2ffa516b4a513d3dc11b82f54744ff269a42a518551a62fd138e3c34d42e275b47b3205bed22ceba7de7fb61286feaf2f2b35662ca1e04bb5cfb59d626
-digest_g1 = 0x9bfc92f42443547ff12d0d009d52e25863514cd919442ce737effbfa09b3c157
-signature_g1 = 0x3dbca150c5f8a0890473d835db1a0fec9a2c2d0b27d3a37ccc57e497be9013520bbe53a75c69817b8a04c21a3fcc5832d67095c964fa197f1cb1569eab129d0d1b
+structHash_g1 = 0x9bdd392309fb6a3f34d027445e80aa533fbdff2f61aac6f4b05ed10df4a27906
+B_g1 = 0x19016a839aa3fa901cbfb3e93f09818ee980c296246834a5f691ebbcce551c8dcfc29bdd392309fb6a3f34d027445e80aa533fbdff2f61aac6f4b05ed10df4a27906
+digest_g1 = 0x3a8971812a160d989b61c7b74189968908950f6d17782da8822b565e0803284e
+signature_g1 = 0xc061411db9dc14d7794bd1a23776792a67afd0c9482dbb615ede94fdab8f8cfa04b87d34b0db41ec3e3a6682bb9e236d8fd363678676ea4df3a8b5a9e2cd95b91c
 ```
 
 Each mutation of `g0` below yields the listed `structHash`, with arrays hashed in their signed order:
 
 | Mutation of `g0` | `structHash` |
 | --- | --- |
-| Give the `https://backup.example` entry no tokens; an empty array hashes as `keccak256("")` | `0xd3359780984197f85e7a02463c3260752f3229b6585094c614d24af245a26f35` |
-| Append a third entry, `https://third.example` with no tokens | `0x1df75982d9d43c812b1e2e614ea11d0844be539771805522df430d0c6380d9a5` |
-| Place that third entry first, before the two entries of `g0` | `0xf91667aeae12cad3fd871a37cc1d43e5bc50f12823145ab5ac98a2c7209613b1` |
-| Swap the two tokens of the `https://api.example` entry | `0x057b742f524836323601d0b54d82310c6d3f33607d42a5eab89ef58beb66f3eb` |
-| Give `requiredComponents` no entries | `0xde1bfc8159210631f47f87418e98132f0206bc8928914c126ac6c6f0b85bc67d` |
-| Hashing only, as such a grant is invalid: one entry whose `audience` and only token are empty strings, and one empty-string required component | `0x0252d5f806cb38dc14db94899f2ec32e450a1356cacf1144d390259d14892393` |
+| Give the `https://backup.example` entry no tokens; an empty array hashes as `keccak256("")` | `0xe5fd3c3678ae87995e1df719b5d8b17cdb0f6596704ee314558705be4f57f455` |
+| Append a third entry, `https://third.example` with no tokens | `0x018de96d287fb69bceb36af5e036cc26f2197c2b0fb08729d1b60ec83decdbfa` |
+| Place that third entry first, before the two entries of `g0` | `0xd162b8a7771411c2812611962927b6470a4a26af0c74f0e64d76daf79a25e040` |
+| Swap the two tokens of the `https://api.example` entry | `0xc79f17170275bafc31451dc93291afc0af37e4d3d2e61eb7bd35206e2c318c4e` |
+| Give `requiredComponents` no entries | `0x0b25fa16ad2d962b3e5f818ca0363dc37efa40697336c51dfbab7346a2454c37` |
+| Hashing only, as such a grant is invalid: one entry whose `audience` and only token are empty strings, and one empty-string required component | `0x29468a4e4bfbf28cf19a524ccf2da4b7d915ab20d591ae346c8cea01d392c53d` |
 
 ## Single-link request vector
 
-The `g0` Byte Sequence is 338 bytes. Its exact uninterrupted base64 value is:
+The `g0` Byte Sequence is 337 bytes. Its exact uninterrupted base64 value is:
 
 ```text
-jXgzZWlwMTU1OjE6MHgyYjVhZDVjNDc5NWMwMjY1MTRmODMxN2M3YTIxNWUyMThkY2NkNmNmeDNlaXAxNTU6MToweDY4MTNlYjkzNjIzNzJlZWY2MjAwZjNiMWRiYzNmODE5NjcxY2JhNjmCgnNodHRwczovL2FwaS5leGFtcGxlgm1yZXNvdXJjZTpyZWFkbnJlc291cmNlOndyaXRlgnZodHRwczovL2JhY2t1cC5leGFtcGxlgW1yZXNvdXJjZTpyZWFkWCAREREREREREREREREREREREREREREREREREREREREREQcaZVPtGBplU/8QGDwCa2VyYzgxMjgtZW9h9YFqQGF1dGhvcml0eVhBGOxvkLSlj7nqOjiazNILIvzzx5Er6qDjt2C00EMG8bU+aKjhpnT+pdfvM92ZvUPQKrqkMTerDZ7yVb0IHgG0KRs=
+jHgzZWlwMTU1OjE6MHgyYjVhZDVjNDc5NWMwMjY1MTRmODMxN2M3YTIxNWUyMThkY2NkNmNmeDNlaXAxNTU6MToweDY4MTNlYjkzNjIzNzJlZWY2MjAwZjNiMWRiYzNmODE5NjcxY2JhNjmCgnNodHRwczovL2FwaS5leGFtcGxlgm1yZXNvdXJjZTpyZWFkbnJlc291cmNlOndyaXRlgnZodHRwczovL2JhY2t1cC5leGFtcGxlgW1yZXNvdXJjZTpyZWFkWCAREREREREREREREREREREREREREREREREREREREREREQcaZVPtGBplU/8QGDwCa2VyYzgxMjgtZW9hgWpAYXV0aG9yaXR5WEEl9EOi8l8FSQdSSbPvzM3Tud1iMQN66iujhBKT8IJrh0FFNe+g/6w/y9fijiD0AEozSOBXwu8R6TxPeGU5LPO/HA==
 ```
 
 For readability, `<G0>` in the following HTTP and signature-base blocks means the exact base64 bytes above. It MUST be substituted before parsing, transmission, hashing, or signing; the angle brackets are not part of the vector.
@@ -71,7 +71,7 @@ GET /resource?x=1 HTTP/1.1
 Host: api.example
 ERC-8128-Delegation: g0=:<G0>:
 Signature-Input: request=("@scheme" "@authority" "@method" "@path" "@query" "erc-8128-delegation";sf);created=1700000000;expires=1700000060;nonce="ASNFZ4mrze8QMlR2mLrc_g";keyid="eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69";tag="erc8128-delegated"
-Signature: request=:+s7Ag8pBpYsf76mSs/8XOLi2aiGD0iqRsKT9LnKejt5FsSqALyDkoIxvQO4nmTIC0y997fMWMbY21s8fAp1DoBs=:
+Signature: request=:dnfYS7McroZ/R8H5D6FZJ3GnH1R9FyhEavnXyVDPCQEJDNwf8D3cjFgoeuUDtZLyunJVB78RYU1igXuUX7yfBhs=:
 ```
 
 The exact 826-byte signature base is:
@@ -87,18 +87,18 @@ The exact 826-byte signature base is:
 ```
 
 ```text
-H_request_g0 = 0xa83066be20c75ff394022784ea52b29379daa666c641f4c680e78ead0471c2fa
-S_request_g0 = 0xfacec083ca41a58b1fefa992b3ff1738b8b66a2183d22a91b0a4fd2e729e8ede45b12a802f20e4a08c6f40ee27993202d32f7dedf31631b636d6cf1f029d43a01b
+H_request_g0 = 0x319d6a3f605508196cea84d28925378b5313a51a32e1a6c54bed5f8d68260058
+S_request_g0 = 0x7677d84bb31cae867f47c1f90fa1592771a71f547d1728446af9d7c950cf0901090cdc1ff03ddc8c58287ae503b592f2ba725507bf11614d62817b945fbc9f061b
 ```
 
 The expected Principal is Root and Signer is Delegate A. The request is Request-Bound and Non-Replayable, and only Delegate A's nonce is consumed.
 
 ## Depth-two request vector
 
-The `g1` Byte Sequence is 262 bytes. Its exact uninterrupted base64 value is:
+The `g1` Byte Sequence is 261 bytes. Its exact uninterrupted base64 value is:
 
 ```text
-jXgzZWlwMTU1OjE6MHgxZWZmNDdiYzNhMTBhNDVkNGIyMzBiNWQxMGUzNzc1MWZlNmFhNzE4gYJzaHR0cHM6Ly9hcGkuZXhhbXBsZYFtcmVzb3VyY2U6cmVhZFggIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIDGmVT7wwaZVP4CBg8AWtlcmM4MTI4LWVvYfWBZ0BtZXRob2RYIC6zZzRciOgYiK9giZQOlGUzrmBZ8ceBNpopt0BbN4YgWEE9vKFQxfigiQRz2DXbGg/smiwtCyfTo3zMV+SXvpATUgu+U6dcaYF7igTCGj/MWDLWcJXJZPoZfxyxVp6rEp0NGw==
+jHgzZWlwMTU1OjE6MHgxZWZmNDdiYzNhMTBhNDVkNGIyMzBiNWQxMGUzNzc1MWZlNmFhNzE4gYJzaHR0cHM6Ly9hcGkuZXhhbXBsZYFtcmVzb3VyY2U6cmVhZFggIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIDGmVT7wwaZVP4CBg8AWtlcmM4MTI4LWVvYYFnQG1ldGhvZFggv8ag+oQ+rdtEE/a930KIEeBDb6m/16NNRNhbJAemN2hYQcBhQR253BTXeUvRojd2eSpnr9DJSC27YV7elP2rj4z6BLh9NLDbQew+OmaCu54jbY/TY2eGdupN86i1qeLNlbkc
 ```
 
 This vector uses the exact `g0` Byte Sequence above, followed by `g1`. In the following blocks, `<G0>` and `<G1>` MUST be substituted with their exact displayed base64 bytes before processing.
@@ -108,10 +108,10 @@ GET /resource?x=1 HTTP/1.1
 Host: api.example
 ERC-8128-Delegation: g0=:<G0>:, g1=:<G1>:
 Signature-Input: request=("@scheme" "@authority" "@method" "@path" "@query" "erc-8128-delegation";sf);created=1700000000;expires=1700000060;nonce="RERERERERERERERERERERA";keyid="eip155:1:0x1eff47bc3a10a45d4b230b5d10e37751fe6aa718";tag="erc8128-delegated"
-Signature: request=:jWSeh0et5RDGPFgLZ6zr0Gs0DL8rtiPVm7OJFG+tM5h3S1C7aW5FIJQIaRj81NKvSHazGfQAFYsoJfn8eCYpkxs=:
+Signature: request=:KmMIJS4Xx0fhrXtzo9pwvfeg60uijvWkqRC1y7T2Umcot2NF/FTDbb0b8uA39ABxP9JBfLyNqCKr82MyQ6ppNBs=:
 ```
 
-The exact 1185-byte signature base is:
+The exact 1181-byte signature base is:
 
 ```text
 "@scheme": https
@@ -124,11 +124,11 @@ The exact 1185-byte signature base is:
 ```
 
 ```text
-H_request_g1 = 0x635a35b75aaeb8f1f3eccba13d8f3a1df42aa4ed2eb57a3dc234bae49b6491ec
-S_request_g1 = 0x8d649e8747ade510c63c580b67acebd06b340cbf2bb623d59bb389146fad3398774b50bb696e452094086918fcd4d2af4876b319f400158b2825f9fc782629931b
+H_request_g1 = 0x34c6177bc6268b8129bcbd18d39f2a35ea04c310556ea8c1f971c5f999338faf
+S_request_g1 = 0x2a6308252e17c747e1ad7b73a3da70bdf7a0eb4ba28ef5a4a910b5cbb4f6526728b76345fc54c36dbd1bf2e037f400713fd2417cbc8da822abf3633243aa69341b
 ```
 
-The expected Principal is Root and Signer is Delegate B. Effective Audience is `https://api.example`, Effective Scopes at `https://api.example` contain `resource:read`, Effective Components contain `@authority` and `@method`, Effective Non-Replayable Requirement is true, and only Delegate B's nonce is consumed.
+The expected Principal is Root and Signer is Delegate B. Effective Audience is `https://api.example`, Effective Scopes at `https://api.example` contain `resource:read`, Effective Components contain `@authority` and `@method`, and only Delegate B's nonce is consumed.
 
 ## P-256 leaf vector
 
@@ -147,20 +147,20 @@ urn:ietf:params:oauth:jwk-thumbprint:sha-256:uhdbksqePVMcTx2Fvr5RY78RjuSE2bd16nN
 The grant `p0` is signed by Root:
 
 ```json
-{"issuer":"eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf","delegate":"{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x3333333333333333333333333333333333333333333333333333333333333333","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":2,"delegateProfile":"ecdsa-p256-sha256","requireNonReplayable":true,"requiredComponents":["@authority"],"parentGrantHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}
+{"issuer":"eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf","delegate":"{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x3333333333333333333333333333333333333333333333333333333333333333","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":2,"delegateProfile":"ecdsa-p256-sha256","requiredComponents":["@authority"],"parentGrantHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}
 ```
 
 ```text
-structHash_p0 = 0x77a67137f39da316b2df8c33f423b4291870253af15200eeb09fd9e7c0125232
-B_p0 = 0x1901bfa3ef2ffa516b4a513d3dc11b82f54744ff269a42a518551a62fd138e3c34d477a67137f39da316b2df8c33f423b4291870253af15200eeb09fd9e7c0125232
-digest_p0 = 0xc09d7f9eccfeeb77e98b5aaf8aa11e9e2ed06e1a9ab5c5e9f3e5779193baaee7
-signature_p0 = 0xbda677fd8c04fbfa3e9a4066534423fa12b57d90299e1d89b4a48dfe024bb3b25c37b239db63f1cbe7d65e8d9660f01aecf888630961c4009461a3f34f4951721c
+structHash_p0 = 0xb0ccd0687c8d924044182cfc99fd150500e143578f236ca69fe2c773a8e5add6
+B_p0 = 0x19016a839aa3fa901cbfb3e93f09818ee980c296246834a5f691ebbcce551c8dcfc2b0ccd0687c8d924044182cfc99fd150500e143578f236ca69fe2c773a8e5add6
+digest_p0 = 0xfd3e5af8cb32feee064272b1b69423b5f82dea019996e588f6902edb7fdd6051
+signature_p0 = 0xb3b8a850aa12693204519cf0f5392a8723743e525d8d194c03c677e7fc7a5b345f51631df1c61704a6e7aa6a0f49bc47237bc1fde3bb597f8d30f49390c68f9d1c
 ```
 
-Its 365-byte CBOR link has this exact base64 encoding; `<P0>` below MUST be replaced with this value:
+Its 364-byte CBOR link has this exact base64 encoding; `<P0>` below MUST be replaced with this value:
 
 ```text
-jXgzZWlwMTU1OjE6MHgyYjVhZDVjNDc5NWMwMjY1MTRmODMxN2M3YTIxNWUyMThkY2NkNmNmeH57ImNydiI6IlAtMjU2Iiwia3R5IjoiRUMiLCJ4Ijoic0JvWEtuYWtZQ3lTMHlRc3VKZmQ0d0pNZEEzcnNoVzB4ckNxNlR3aWthayIsInkiOiI2RndRZERJMzJ0VnY3QTR0LTZjRGVSd0E5M0FjZmhhOV9YeElVNF9IZi1JIn2BgnNodHRwczovL2FwaS5leGFtcGxlgW1yZXNvdXJjZTpyZWFkWCAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMwcaZVPtGBplU/8QGDwCcWVjZHNhLXAyNTYtc2hhMjU29YFqQGF1dGhvcml0eVhBvaZ3/YwE+/o+mkBmU0Qj+hK1fZApnh2JtKSN/gJLs7JcN7I522Pxy+fWXo2WYPAa7PiIYwlhxACUYaPzT0lRchw=
+jHgzZWlwMTU1OjE6MHgyYjVhZDVjNDc5NWMwMjY1MTRmODMxN2M3YTIxNWUyMThkY2NkNmNmeH57ImNydiI6IlAtMjU2Iiwia3R5IjoiRUMiLCJ4Ijoic0JvWEtuYWtZQ3lTMHlRc3VKZmQ0d0pNZEEzcnNoVzB4ckNxNlR3aWthayIsInkiOiI2RndRZERJMzJ0VnY3QTR0LTZjRGVSd0E5M0FjZmhhOV9YeElVNF9IZi1JIn2BgnNodHRwczovL2FwaS5leGFtcGxlgW1yZXNvdXJjZTpyZWFkWCAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMwcaZVPtGBplU/8QGDwCcWVjZHNhLXAyNTYtc2hhMjU2gWpAYXV0aG9yaXR5WEGzuKhQqhJpMgRRnPD1OSqHI3Q+Ul2NGUwDxnfn/HpbNF9RYx3xxhcEpueqag9JvEcje8H947tZf40w9JOQxo+dHA==
 ```
 
 ```http
@@ -168,7 +168,7 @@ GET /resource?x=1 HTTP/1.1
 Host: api.example
 ERC-8128-Delegation: g0=:<P0>:
 Signature-Input: request=("@scheme" "@authority" "@method" "@path" "@query" "erc-8128-delegation";sf);created=1700000000;expires=1700000060;nonce="VVVVVVVVVVVVVVVVVVVVVQ";keyid="urn:ietf:params:oauth:jwk-thumbprint:sha-256:uhdbksqePVMcTx2Fvr5RY78RjuSE2bd16nNAkdfZ36I";tag="erc8128-delegated"
-Signature: request=:vFwYha1yhscOVgpuZ2Jsy70nIvWCMOi18ux9pwvMPnkFXsNVs/WvON8OJEsi8OnHOH0nRU7xRyIvRNF5jb2I3w==:
+Signature: request=:dZCDEqKsqxmq9DXqO+bmZJnLGRhLpGrEjkPGg0HBVaXlon7ZxIyM27UOp57A8NRpuJNbjPhzaI4z27tCR2pqNA==:
 ```
 
 The exact 899-byte signature base, with LF separators and no trailing LF, is:
@@ -184,8 +184,8 @@ The exact 899-byte signature base, with LF separators and no trailing LF, is:
 ```
 
 ```text
-SHA256_request_p0 = 0x5cb1ff63aaf83a59e89993d367dc5c0a8fa19cc55b3e7e91c6535242e2362eac
-S_request_p0 = 0xbc5c1885ad7286c70e560a6e67626ccbbd2722f58230e8b5f2ec7da70bcc3e79055ec355b3f5af38df0e244b22f0e9c7387d27454ef147222f44d1798dbd88df
+SHA256_request_p0 = 0x9e56a1f3250fdbda9cab6a4e985c71410d6fcd417f96d191036e2758a9f6e9e5
+S_request_p0 = 0x75908312a2acab19aaf435ea3be6e66499cb19184ba46ac48e43c68341c155a5e5a27ed9c48c8cdbb50ea79ec0f0d469b8935b8cf873688e33dbbb42476a6a34
 ```
 
 The expected Principal is Root; the Signer is identified by the displayed JWK Thumbprint URI. Only its nonce is consumed. Grant-proof verification and registry status checks remain required; the leaf requires no Account classification or callback.
@@ -208,7 +208,18 @@ The expected Principal is Root; the Signer is identified by the displayed JWK Th
 | Submit the vector concurrently twice | Exactly one request authenticates; the other yields `nonce_reused` |
 | Revoke `p0.id` or advance Root's epoch | `authorization_revoked` or `authorization_epoch_mismatch` |
 
-For Replayable coverage, reissue `p0` with `requireNonReplayable=false`, re-sign it, and sign a request without `nonce` on a route permitting Replayable requests. Invalidation by `(Signer, signature base)` MUST reject both valid `s` representatives. An invalidation request must be Request-Bound and Non-Replayable and pass the same grant checks.
+For Replayable coverage, re-sign the request without `nonce`: it authenticates as Replayable, and no nonce is consumed.
+
+For early-invalidation coverage under Section 4.3, reissue `p0` with `maxRequestValiditySeconds=300` and re-sign it, then sign the request without `nonce` and with `expires=1700000300`. The verifier accepts Replayable signatures valid for up to 300 seconds and implements both ERC-8128 mechanisms. Each invalidation request below is sent to the verifier's invalidation endpoint at `https://api.example` and, unless stated, carries a Request-Bound Delegated Request Signature by the same key under the reissued `p0`. Each row starts from empty invalidation state.
+
+| Request or state | Expected result |
+| --- | --- |
+| Present the 300-second Replayable request to a verifier that implements no early invalidation | `request_validity_too_long` |
+| Send `{"message_hash": H}`, where `H` is the ERC-8128 hash of the Replayable request's signature base | HTTP 200; the Replayable request then yields `signature_invalidated`, also with its `s` replaced by `n - s` |
+| Send `{"not_before": 1700000001}` | HTTP 200; the Replayable request then yields `signature_invalidated` |
+| Send `{"not_before": 1700000001}` with a signature that omits `content-digest` | `insufficient_coverage`; the Replayable request still authenticates |
+| Send `{"not_before": 1700000001}` after `p0.id` is revoked | `authorization_revoked`; invalidation state is unchanged |
+| Send `{"not_before": 1700000001}` in a direct ERC-8128 request signed by Root | HTTP 200; the Replayable request still authenticates, as its `keyid` is the Delegate's |
 
 ## JWK redelegation vector
 
@@ -217,41 +228,41 @@ This chain uses the existing `p0` as `g0`: Root → Delegate C (P-256) → Deleg
 `q1` is issued by Delegate C, using the profile and key authorized in `p0`:
 
 ```json
-{"issuer":"urn:ietf:params:oauth:jwk-thumbprint:sha-256:uhdbksqePVMcTx2Fvr5RY78RjuSE2bd16nNAkdfZ36I","delegate":"{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"PuKopyg8sv1yiUPaoSfvCeSDBxqLS8aZukUi8JsUz94\"}","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x4444444444444444444444444444444444444444444444444444444444444444","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":1,"delegateProfile":"ed25519","requireNonReplayable":true,"requiredComponents":["@authority"],"parentGrantHash":"0xc09d7f9eccfeeb77e98b5aaf8aa11e9e2ed06e1a9ab5c5e9f3e5779193baaee7"}
+{"issuer":"urn:ietf:params:oauth:jwk-thumbprint:sha-256:uhdbksqePVMcTx2Fvr5RY78RjuSE2bd16nNAkdfZ36I","delegate":"{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"PuKopyg8sv1yiUPaoSfvCeSDBxqLS8aZukUi8JsUz94\"}","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x4444444444444444444444444444444444444444444444444444444444444444","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":1,"delegateProfile":"ed25519","requiredComponents":["@authority"],"parentGrantHash":"0xfd3e5af8cb32feee064272b1b69423b5f82dea019996e588f6902edb7fdd6051"}
 ```
 
 ```text
-structHash_q1 = 0x25ae5b1b46904e81bc8f8546d77237f428bb59db61d0eb01723f5792d7e03586
-B_q1 = 0x1901bfa3ef2ffa516b4a513d3dc11b82f54744ff269a42a518551a62fd138e3c34d425ae5b1b46904e81bc8f8546d77237f428bb59db61d0eb01723f5792d7e03586
-digest_q1 = 0x86914d13882258958311e14ce6b87dbdfde260f6dc5abf9cd23095b6adfeecda
-signature_q1 = 0xdb6f273f6fd54e16f4ac0a7a0c316dc727c7403d6feaff6b2d67f44788b4081543aa41e76142a8bcbb733a30a6a7bb4fb7bf8d541ea9d540d6b2f48fcd3c6000
-registryHandle_q1 = 0x744d35239d3d09fc0f9946a2750980c8a0a7a922ebb3a2d5cdfab683c139bb33
+structHash_q1 = 0x6f30674322477cebf96075d47d8584363342aa958540c728d852b70a9d2bf6fe
+B_q1 = 0x19016a839aa3fa901cbfb3e93f09818ee980c296246834a5f691ebbcce551c8dcfc26f30674322477cebf96075d47d8584363342aa958540c728d852b70a9d2bf6fe
+digest_q1 = 0xdaa0edebace700d536fe21173ec6e71292b0f12edb3d911c94fb89fa9704559b
+signature_q1 = 0xbb43b83f3ff3d65935839f71ebd39de10508c1688074c55b8dd25c06a47ce547a939bd2c348d21ce77fa3bb0c68ed1e24b32f76f2da0d0302dcccfd26bceda17
+registryHandle_q1 = 0x994d95f089beb56fe65cd5ddb3acc12c5d86a03e6b0167b0b7b3a1e4d34cb725
 ```
 
-Its 287-byte CBOR link has the following exact base64 value, substituted for `<Q1>` below:
+Its 286-byte CBOR link has the following exact base64 value, substituted for `<Q1>` below:
 
 ```text
-jHhPeyJjcnYiOiJFZDI1NTE5Iiwia3R5IjoiT0tQIiwieCI6IlB1S29weWc4c3YxeWlVUGFvU2Z2Q2VTREJ4cUxTOGFadWtVaThKc1V6OTQifYGCc2h0dHBzOi8vYXBpLmV4YW1wbGWBbXJlc291cmNlOnJlYWRYIEREREREREREREREREREREREREREREREREREREREREREGmVT7RgaZVP/EBg8AWdlZDI1NTE59YFqQGF1dGhvcml0eVggwJ1/nsz+63fpi1qviqEeni7QbhqatcXp8+V3kZO6rudYQNtvJz9v1U4W9KwKegwxbccnx0A9b+r/ay1n9EeItAgVQ6pB52FCqLy7czowpqe7T7e/jVQeqdVA1rL0j808YAA=
+i3hPeyJjcnYiOiJFZDI1NTE5Iiwia3R5IjoiT0tQIiwieCI6IlB1S29weWc4c3YxeWlVUGFvU2Z2Q2VTREJ4cUxTOGFadWtVaThKc1V6OTQifYGCc2h0dHBzOi8vYXBpLmV4YW1wbGWBbXJlc291cmNlOnJlYWRYIEREREREREREREREREREREREREREREREREREREREREREGmVT7RgaZVP/EBg8AWdlZDI1NTE5gWpAYXV0aG9yaXR5WCD9Plr4yzL+7gZCcrG2lCO1+C3qAZmW5Yj2kC7bf91gUVhAu0O4Pz/z1lk1g59x69Od4QUIwWiAdMVbjdJcBqR85UepOb0sNI0hznf6O7DGjtHiSzL3by2g0DAtzM/Sa87aFw==
 ```
 
 `q2` is issued by Delegate D, using the profile and key authorized in `q1`:
 
 ```json
-{"issuer":"urn:ietf:params:oauth:jwk-thumbprint:sha-256:ts1eTI_oZYXecqXBULbizrUm9_vtL32WjRh2-lHeOZ8","delegate":"{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Ytl3nb7psFNAQnQtOrVMrcHSOJgPzpfbtN2dwdtvs5M\",\"y\":\"rVrMvZHp2CRP8V13EWfO4KLtUfa752p42lQKag8JlX4\"}","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x5555555555555555555555555555555555555555555555555555555555555555","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":0,"delegateProfile":"ecdsa-p256-sha256","requireNonReplayable":true,"requiredComponents":["@authority"],"parentGrantHash":"0x86914d13882258958311e14ce6b87dbdfde260f6dc5abf9cd23095b6adfeecda"}
+{"issuer":"urn:ietf:params:oauth:jwk-thumbprint:sha-256:ts1eTI_oZYXecqXBULbizrUm9_vtL32WjRh2-lHeOZ8","delegate":"{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Ytl3nb7psFNAQnQtOrVMrcHSOJgPzpfbtN2dwdtvs5M\",\"y\":\"rVrMvZHp2CRP8V13EWfO4KLtUfa752p42lQKag8JlX4\"}","audienceScopes":[{"audience":"https://api.example","scopes":["resource:read"]}],"id":"0x5555555555555555555555555555555555555555555555555555555555555555","epoch":7,"validAfter":1699999000,"validUntil":1700003600,"maxRequestValiditySeconds":60,"remainingDelegations":0,"delegateProfile":"ecdsa-p256-sha256","requiredComponents":["@authority"],"parentGrantHash":"0xdaa0edebace700d536fe21173ec6e71292b0f12edb3d911c94fb89fa9704559b"}
 ```
 
 ```text
-structHash_q2 = 0xa5ea651f9fbd8c56216567bf925c12e9bbdc7c641d741bb26d487d06a86cc11f
-B_q2 = 0x1901bfa3ef2ffa516b4a513d3dc11b82f54744ff269a42a518551a62fd138e3c34d4a5ea651f9fbd8c56216567bf925c12e9bbdc7c641d741bb26d487d06a86cc11f
-digest_q2 = 0xf9c4c0cacc5ef8dd6219bbb9ab0c58aa4a5a6555e38ae205a7e478c4a34df1a9
-signature_q2 = 0xc62e50ee64f7145fc2a394fffaf530391584dff9a2ba6389d52daeea9c92c1ec3bd41ab91c0ddbd4fe92a31d8c40a0dfd8179d40eba503b3cae634798dc41e01
-registryHandle_q2 = 0x7dea78e742289b1efc793f1e899bae544a89c10f66933b3b322289a880c2e4c5
+structHash_q2 = 0xd9bfba41ad32d574ddd60376e35929168450f99d8ff27b1cb442275958728e77
+B_q2 = 0x19016a839aa3fa901cbfb3e93f09818ee980c296246834a5f691ebbcce551c8dcfc2d9bfba41ad32d574ddd60376e35929168450f99d8ff27b1cb442275958728e77
+digest_q2 = 0x5bb773bc9491df32d2ae24b152e49dc400dba1c3df7a4b952e6f14aef3a59a13
+signature_q2 = 0x5418cdb72c186480c8c658a024c13300bc482467d662458ecec59d3605beb2e99c0e95a88dbda48522b11289bad2fe77d1499c8f61125aa1f8e28ee682d15a01
+registryHandle_q2 = 0x3fdcdee837664f28c3397a539ef33371d8a473f1c287e98bd29c5354b28ced1b
 ```
 
-Its 344-byte CBOR link has the following exact base64 value, substituted for `<Q2>` below:
+Its 343-byte CBOR link has the following exact base64 value, substituted for `<Q2>` below:
 
 ```text
-jHh+eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6Ill0bDNuYjdwc0ZOQVFuUXRPclZNcmNIU09KZ1B6cGZidE4yZHdkdHZzNU0iLCJ5IjoiclZyTXZaSHAyQ1JQOFYxM0VXZk80S0x0VWZhNzUycDQybFFLYWc4SmxYNCJ9gYJzaHR0cHM6Ly9hcGkuZXhhbXBsZYFtcmVzb3VyY2U6cmVhZFggVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUaZVPtGBplU/8QGDwAcWVjZHNhLXAyNTYtc2hhMjU29YFqQGF1dGhvcml0eVgghpFNE4giWJWDEeFM5rh9vf3iYPbcWr+c0jCVtq3+7NpYQMYuUO5k9xRfwqOU//r1MDkVhN/5orpjidUtruqcksHsO9QauRwN29T+kqMdjECg39gXnUDrpQOzyuY0eY3EHgE=
+i3h+eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6Ill0bDNuYjdwc0ZOQVFuUXRPclZNcmNIU09KZ1B6cGZidE4yZHdkdHZzNU0iLCJ5IjoiclZyTXZaSHAyQ1JQOFYxM0VXZk80S0x0VWZhNzUycDQybFFLYWc4SmxYNCJ9gYJzaHR0cHM6Ly9hcGkuZXhhbXBsZYFtcmVzb3VyY2U6cmVhZFggVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUaZVPtGBplU/8QGDwAcWVjZHNhLXAyNTYtc2hhMjU2gWpAYXV0aG9yaXR5WCDaoO3rrOcA1Tb+IRc+xucSkrDxLts9kRyU+4n6lwRVm1hAVBjNtywYZIDIxligJMEzALxIJGfWYkWOzsWdNgW+sumcDpWojb2khSKxEom60v530Umcj2ESWqH44o7mgtFaAQ==
 ```
 
 `<P0>` retains the exact encoding from the P-256 leaf vector. Delegate E signs the HTTP request covering the complete chain:
@@ -261,7 +272,7 @@ GET /resource?x=1 HTTP/1.1
 Host: api.example
 ERC-8128-Delegation: g0=:<P0>:, g1=:<Q1>:, g2=:<Q2>:
 Signature-Input: request=("@scheme" "@authority" "@method" "@path" "@query" "erc-8128-delegation";sf);created=1700000000;expires=1700000060;nonce="ZmZmZmZmZmZmZmZmZmZmZg";keyid="urn:ietf:params:oauth:jwk-thumbprint:sha-256:dua6RYkNcqxX7xRiMQ5XZyMedBizg7y9jkqbcMKgldM";tag="erc8128-delegated"
-Signature: request=:4JdBVuBIMSS5ZLSCNVr+f1+kKF8q4SNqtgFez6EKkt9NQrlkVKtxuhPBbtkUiHQatb9/HAwRyEgUvTFc7jHbIA==:
+Signature: request=:AZIMZKsTlXbBUDqkCsLWodS/aCdwTFaA+6EWb6Wi93K/o7WcWkDwLt8hC4boHbzqTmYtI1I6nLYCqc8GiaeQkA==:
 ```
 
 The exact 1757-byte signature base uses LF separators and no trailing LF:
@@ -277,8 +288,8 @@ The exact 1757-byte signature base uses LF separators and no trailing LF:
 ```
 
 ```text
-SHA256_request_q2 = 0x38c7135dd581d55bb9ecde979eb04cd96ced739509b0e0293af82e65c71c009a
-S_request_q2 = 0xe0974156e0483124b964b482355afe7f5fa4285f2ae1236ab6015ecfa10a92df4d42b96454ab71ba13c16ed91488741ab5bf7f1c0c11c84814bd315cee31db20
+SHA256_request_q2 = 0xcae0240046e97a5350c64b6ac0c70a71ad4016e9c79fc3d17e276a4a016ebade
+S_request_q2 = 0x01920c64ab139576c1503aa40ac2d6a1d4bf6827704c5680fba1166fa5a2f772bfa3b59c5a40f02edf210b86e81dbcea4e662d23523a9cb602a9cf0689a79090
 ```
 
 The expected Principal is Root, and the Signer is identified by Delegate E's JWK Thumbprint URI. Only Delegate E's nonce is consumed. The registry checks Root's status at `p0.id`, `registryHandle_q1`, and `registryHandle_q2`; each reports `(false, 7)`. No JWK issuer requires Account classification.
@@ -302,7 +313,7 @@ The expected Principal is Root, and the Signer is identified by Delegate E's JWK
 The following authority challenge metadata is valid; `future` is ignored:
 
 ```http
-WWW-Authenticate: ERC8128 error="insufficient_scope", scope="orders:create resource:read", audience="https://merchant.example", max_validity="3600", max_depth="2", future="ignored"
+WWW-Authenticate: ERC8128 error="insufficient_scope", scope="orders:create resource:read", audience="https://merchant.example", max_grant_validity="3600", max_depth="2", future="ignored"
 Accept-Signature: delegated=("@scheme" "@authority" "@method" "@path" "@query" "content-digest" "content-type" "erc-8128-delegation";sf);keyid;created;expires;tag="erc8128-delegated";nonce
 ```
 
@@ -310,13 +321,14 @@ Accept-Signature: delegated=("@scheme" "@authority" "@method" "@path" "@query" "
 | --- | --- |
 | Set `scope` to an empty value, include more than 32 values, repeat a value, make a value longer than 256 bytes, use invalid separators, or include a value that is not an RFC 9651 Token | Ignore all ERC-8395 authority metadata in the challenge |
 | Set `audience` to `http://merchant.example`, `https://merchant.example/`, a wildcard, or another non-canonical origin | Ignore all ERC-8395 authority metadata in the challenge |
-| Set `max_validity` or `max_depth` to `0`, `01`, `-1`, `+1`, `1.0`, `9007199254740992`, or an unquoted token value | Ignore all ERC-8395 authority metadata in the challenge |
+| Set `max_grant_validity` or `max_depth` to `0`, `01`, `-1`, `+1`, `1.0`, `9007199254740992`, or an unquoted token value | Ignore all ERC-8395 authority metadata in the challenge |
 | Repeat any recognized ERC-8395 auth-param | Ignore all ERC-8395 authority metadata in the challenge |
 | Add an unrecognized auth-param with a valid quoted-string value | Ignore only that parameter and retain the valid ERC-8395 authority metadata |
+| Add ERC-8128's `max_validity="60"` | It bounds the request's validity window under ERC-8128; the ERC-8395 authority metadata is unchanged |
 | Include a delegated `Accept-Signature` member with `alg="ecdsa-p256-sha256"` or `alg="ed25519"` | Advertise the named registered algorithm; an existing grant authorizing another profile cannot be reused |
 | Retain `max_depth` but remove every `Accept-Signature` member that covers the delegation field | Do not infer runtime Delegated Request Signature support |
 
-For discovery, a recognized member with a wrong type, an out-of-range integer, a non-Token scope, or a non-canonical Audience is ignored independently; an invalid `max_depth` does not advertise delegation support.
+For discovery, a recognized member with a wrong type, an out-of-range integer, a non-Token scope, or a non-canonical Audience is ignored independently; an invalid `max_depth` does not advertise delegation support. A top-level `scopes` member with a name that is not an RFC 9651 Token or a value that is not a non-empty string is ignored as a whole, as is a top-level `delegation` member that lacks `max_depth` or `registry_chains` or holds an invalid value for either.
 
 ## Negative and classification vectors
 
@@ -353,7 +365,9 @@ For the three-link rows, implementers extend the depth-two chain with a valid at
 | Set request `expires-created` to 61 | `delegation_request_validity_exceeded` |
 | Put an unsupported derived identifier in `requiredComponents` and re-sign the grant | `delegation_components_unsupported` |
 | Add supported `content-type` to `requiredComponents`, re-sign, and omit it from request coverage | `delegation_components_uncovered` |
-| Remove the nonce from either positive request without changing its grant | `delegation_nonce_required` |
+| Re-sign either positive request without `nonce` | Accepted as Replayable; no nonce is consumed |
+| Re-sign either positive request without `nonce` on a route that accepts only Non-Replayable signatures | `nonce_required` |
+| Use either positive request on a route that accepts only Replayable signatures | `nonce_not_supported` |
 | Change Effective Audience to exclude `https://api.example` | `audience_mismatch` |
 | Use a verifier without scope processing for either positive vector | `unsupported_scopes` |
 | Use a verifier without scope processing on a route that requires none, with `g0` re-signed to hold no tokens at `https://api.example` and the request re-signed | Accepted; tokens granted only at `https://backup.example` need no processing for this request |

@@ -49,12 +49,12 @@ The CREATE2 inputs and code hashes are identical across chains:
 
 | Property | Value |
 | --- | --- |
-| `verifyingContract` | `0x78471f52e31Dc1d21891D80f257094fF885a3C44` |
+| `verifyingContract` | `0x1414dC8A04a403aa24794e515d9b5F25ed83b44e` |
 | CREATE2 deployer | `0x4e59b44847b379578588920ca78fbf26c0b4956c` |
 | Salt | `0xc07accaa153ec807c474cf97ca6424b77f59aacf9db59509075bfbca281dd155` (`keccak256("erc8395.delegation-verifier")`) |
 | Constructor arguments | None |
-| Init-code hash | `0x38bd9dbdb81d4bfbdb6aa7bf20b8be8af227a5a6aa871e24e36e42ad41a5960b` |
-| Runtime code hash | `0x3cd2d0d5a2e13d79a91e847e6b17d0ccf23478ae1affd105132c7f3e1905d921` |
+| Init-code hash | `0x3818217dd613e7cf5e06610f235b42d4fb0f3c25620838ca8fbbe6ee2c06c96c` |
+| Runtime code hash | `0x38029aa988e61d6481d38247260be946e1b969170fdb3f3a5fb78d4d9d2d220e` |
 
 ### Build settings
 
@@ -98,6 +98,6 @@ a count of grants or requests.
 The fixtures cover every signed member across the listed chains, including
 P-256 JWK and Ethereum delegates, a child grant, services with different
 scopes, a service without scopes, and a grant that allows no further
-delegation and does not require single-use requests. Branding, supplementary
+delegation. Branding, supplementary
 descriptions, publication policy, and wallet trust decisions do not change the
 signed grant or protocol validation rules.

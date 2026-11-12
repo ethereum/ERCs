@@ -31,7 +31,12 @@ async function verifyDelegated(req: Request, candidate: Candidate, policy: Polic
     chain.effectiveScopesAt(req.origin), policy.requiredScopes
   ); // the leaf entry's tokens for this Audience (Section 3.4)
   if (candidate.nonce !== undefined) await consumeLeafNonceLast(candidate, chain.leaf.delegateId);
-  else await requireReplayableInvalidationActive(candidate, chain.leaf.delegateId);
+  else if (candidate.expires - candidate.created > 60) {
+    const H = erc8128MessageHash(M); // identifies M under every Delegate Profile (Section 4.3)
+    const invalidated = candidate.created < await notBefore(chain.leaf.delegateId)
+      || await isInvalidated(chain.leaf.delegateId, H);
+    if (invalidated) throw failure("signature_invalidated");
+  }
   return delegatedResult(chain);
 }
 ```

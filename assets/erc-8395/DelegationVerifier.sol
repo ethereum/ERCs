@@ -27,13 +27,12 @@ contract DelegationVerifier {
         uint32 maxRequestValiditySeconds;
         uint32 remainingDelegations;
         string delegateProfile;
-        bool requireNonReplayable;
         string[] requiredComponents;
         bytes32 parentGrantHash;
     }
 
     bytes32 public constant DELEGATION_TYPEHASH = keccak256(
-        "Delegation(string issuer,string delegate,AudienceScope[] audienceScopes,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,bytes32 parentGrantHash)AudienceScope(string audience,string[] scopes)"
+        "Delegation(string issuer,string delegate,AudienceScope[] audienceScopes,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,string[] requiredComponents,bytes32 parentGrantHash)AudienceScope(string audience,string[] scopes)"
     );
     bytes32 public constant AUDIENCE_SCOPE_TYPEHASH = keccak256("AudienceScope(string audience,string[] scopes)");
     bytes32 private constant DOMAIN_TYPEHASH =
@@ -61,7 +60,7 @@ contract DelegationVerifier {
 
     function hashGrantStruct(Delegation calldata g) public pure returns (bytes32) {
         // Fixed-width words avoid stack pressure without changing EIP-712 encoding.
-        bytes32[14] memory words;
+        bytes32[13] memory words;
         words[0] = DELEGATION_TYPEHASH;
         words[1] = keccak256(bytes(g.issuer));
         words[2] = keccak256(bytes(g.delegate));
@@ -73,9 +72,8 @@ contract DelegationVerifier {
         words[8] = bytes32(uint256(g.maxRequestValiditySeconds));
         words[9] = bytes32(uint256(g.remainingDelegations));
         words[10] = keccak256(bytes(g.delegateProfile));
-        words[11] = bytes32(uint256(g.requireNonReplayable ? 1 : 0));
-        words[12] = _hashStrings(g.requiredComponents);
-        words[13] = g.parentGrantHash;
+        words[11] = _hashStrings(g.requiredComponents);
+        words[12] = g.parentGrantHash;
         return keccak256(abi.encode(words));
     }
 
