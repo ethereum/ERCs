@@ -35,7 +35,7 @@ Clients MUST resolve `https`, `ipfs` (InterPlanetary File System), `ar` (Arweave
 
 Producers MUST use absolute URIs, SHOULD use `ipfs`, `ar`, or `data` for content that is not meant to change, and SHOULD NOT use `http`. An `ipfs` URI MUST have the form `ipfs://<cid>`, where `<cid>` is a content identifier, with an optional path. Producers SHOULD NOT write an IPFS gateway URL in place of an `ipfs` URI. Clients MAY fetch `ipfs` and `ar` content through any gateway.
 
-A `data` URI ([RFC 2397](https://www.rfc-editor.org/rfc/rfc2397)) that carries a metadata document SHOULD use the prefix `data:application/json;base64,`. Clients MUST accept base64 payloads. Clients SHOULD also accept unencoded payloads, such as `data:application/json;utf8,{"name":"Example"}`, and SHOULD percent-decode one that does not parse as written.
+A `data` URI ([RFC 2397](https://www.rfc-editor.org/rfc/rfc2397)) that carries a metadata document SHOULD use the prefix `data:application/json;base64,`. Clients MUST accept base64 payloads. Clients SHOULD also accept unencoded payloads, such as `data:application/json;utf8,{"name":"Example"}`, and MUST percent-decode an unencoded payload exactly once before parsing it, as the Fetch Standard does for `data:` URLs.
 
 For ERC-1155 tokens, clients MUST apply ERC-1155's `{id}` substitution to the metadata URI and to string values in the document.
 
@@ -58,6 +58,8 @@ A client that fetches from its own servers, such as an indexer, MUST NOT connect
 | `attributes` | array | Traits of the token. |
 
 Every field is OPTIONAL. Producers SHOULD include `name` and `image`, and SHOULD omit a field rather than set it to `null` or an empty string.
+
+Producers MUST NOT repeat a member name within an object. Clients MUST use the last value of a repeated member.
 
 Clients MUST treat `null` and empty strings as absent and MUST ignore fields they do not recognize. Clients SHOULD ignore a field of the wrong type and read the rest of the document, and MAY truncate or drop values that exceed their own limits.
 
@@ -240,6 +242,7 @@ Figures below come from a survey of metadata from 708 Ethereum and Base contract
 - Dates are in seconds to match `block.timestamp`. The millisecond cutoff of `1000000000000` catches every millisecond date after September 2001 and no date in seconds before the year 33000. A lower cutoff would misread `253402300800` (the year 10000), which some contracts use to mean "never expires".
 - Gateway URLs tie content to one server: 113 of the 204 surveyed token URIs written as IPFS gateway URLs failed to load. An `ipfs` URI can be fetched through any gateway or node.
 - Base64 is the recommended `data` encoding because browsers treat `#` as the start of a fragment and drop the rest of an unencoded payload, which breaks JSON that contains a `#`, such as a name like `Creature #42`. Clients still accept unencoded payloads because many deployed contracts emit them.
+- Unencoded payloads are percent-decoded exactly once, always, because browsers do so when fetching a `data:` URL. Decoding only when a payload fails to parse lets `{"name":"a%22,%22image%22:%22https://x%22}` read as two different documents on two clients. Repeated members resolve to the last value because `JSON.parse` and common JSON libraries already do that, and rejecting the document would break deployed tokens that build JSON by concatenation.
 - Extensions are top-level objects because clients already detect optional data by checking whether a field is present. A list of implemented proposals, like the `interop` object in [ERC-1046](./eip-1046.md), or a version field would repeat that and could disagree with it. Names begin with a letter so they are valid identifiers in GraphQL and Protocol Buffers.
 - There is no contract interface or [ERC-165](./eip-165.md) identifier, because the document tells a client everything an interface could.
 - Attributes are display data that producers can change. Protocols that settle on a trait's value need an onchain source such as [ERC-7496](./eip-7496.md).
