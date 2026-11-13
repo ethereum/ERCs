@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Signed Execution via Session-Key Validator</title>
+  <desc id="desc">Sequence diagram showing a session-key holder signing an execution request. The account's signature validation cascade fails ecrecover (signer is H, not Bob) and fails the contract-controller check, then reaches the session-key validator. The validator verifies H, checks target and spending limit, and returns the magic value. Execution proceeds without Bob's root key.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a8a9a"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4c7a62"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45d42"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .hotkey { fill: #fff3db; }
+    .relayer { fill: #eef3ff; }
+    .account { fill: #eaf7ef; }
+    .target { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .info { fill: #f3f7ff; stroke: #8ea8c7; stroke-width: 2; rx: 14; ry: 14; }
+    .fail-box { fill: #fff0ec; stroke: #b45d42; stroke-width: 2; rx: 14; ry: 14; }
+    .pass-box { fill: #eaf7ef; stroke: #4c7a62; stroke-width: 2; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .life { stroke: #98a6b3; stroke-width: 2.4; stroke-dasharray: 8 7; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .offchain { stroke: #7a8a9a; stroke-width: 3; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow-gray); }
+    .edge-ok { stroke: #4c7a62; stroke-width: 3.2; fill: none; marker-end: url(#arrow-green); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="1000"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Signed Execution via Session-Key Validator</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">The session-key holder signs. The cascade reaches step 3 (validators). Bob's root key is never involved.</text>
+
+  <!-- Entity boxes -->
+  <rect class="box hotkey" x="40" y="130" width="240" height="90"/>
+  <text class="title2" x="160" y="168" text-anchor="middle">Session Key (H)</text>
+  <text class="body" x="160" y="198" text-anchor="middle">hot key, signs offline</text>
+
+  <rect class="box relayer" x="370" y="130" width="220" height="90"/>
+  <text class="title2" x="480" y="168" text-anchor="middle">Relayer</text>
+  <text class="body" x="480" y="198" text-anchor="middle">submits ordinary tx</text>
+
+  <rect class="box account" x="680" y="130" width="340" height="90"/>
+  <text class="title2" x="850" y="168" text-anchor="middle">Account (A)</text>
+  <text class="mono" x="850" y="198" text-anchor="middle">owned by Bob via T</text>
+
+  <rect class="box target" x="1140" y="130" width="240" height="90"/>
+  <text class="title2" x="1260" y="168" text-anchor="middle">DEX Router</text>
+  <text class="body" x="1260" y="198" text-anchor="middle">authorized target</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="160" y1="220" x2="160" y2="740"/>
+  <line class="life" x1="480" y1="220" x2="480" y2="740"/>
+  <line class="life" x1="850" y1="220" x2="850" y2="740"/>
+  <line class="life" x1="1260" y1="220" x2="1260" y2="740"/>
+
+  <!-- 1. H signs -->
+  <rect class="info" x="40" y="258" width="260" height="40"/>
+  <text class="label" x="170" y="284" text-anchor="middle">1. H signs EIP-712 ExecuteRequest</text>
+
+  <!-- 2. Off-chain handoff -->
+  <text class="label" x="320" y="330" text-anchor="middle">2. Off-chain handoff</text>
+  <path class="offchain" d="M 160 350 L 480 350"/>
+
+  <!-- 3. Relayer submits -->
+  <text class="label" x="665" y="400" text-anchor="middle">3. executeWithSignature(...)</text>
+  <path class="edge" d="M 480 418 L 850 418"/>
+
+  <!-- 4. Cascade — three steps shown as boxes inside account's column -->
+  <text class="label" x="850" y="460" text-anchor="middle">4. Signature validation cascade</text>
+
+  <!-- 4a. ecrecover fails -->
+  <rect class="fail-box" x="720" y="480" width="260" height="36"/>
+  <text class="mono" x="850" y="503" text-anchor="middle">ecrecover → H ≠ Bob ✗</text>
+
+  <!-- 4b. contract controller fails -->
+  <rect class="fail-box" x="720" y="528" width="260" height="36"/>
+  <text class="mono" x="850" y="551" text-anchor="middle">isValidSignature → N/A ✗</text>
+
+  <!-- 4c. session-key validator succeeds -->
+  <rect class="pass-box" x="720" y="576" width="260" height="50"/>
+  <text class="mono" x="850" y="598" text-anchor="middle">validator.isValidSignature</text>
+  <text class="mono" x="850" y="618" text-anchor="middle">ForAccount → magic ✓</text>
+
+  <!-- 5. Execution proceeds -->
+  <text class="label" x="1055" y="660" text-anchor="middle">5. nonce++, then CALL</text>
+  <path class="edge" d="M 850 678 L 1260 678"/>
+  <text class="mono" x="1055" y="700" text-anchor="middle">swap on DEX router</text>
+
+  <!-- 6. Result -->
+  <text class="label" x="1055" y="726" text-anchor="middle">6. Result</text>
+  <path class="edge-ok" d="M 1260 740 L 850 740"/>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="800" width="420" height="130"/>
+  <text class="label" x="280" y="838" text-anchor="middle">Root Key Never Involved</text>
+  <text class="body" x="280" y="868" text-anchor="middle">Bob never signs or sends a transaction.</text>
+  <text class="body" x="280" y="890" text-anchor="middle">The session key authorized the swap</text>
+  <text class="body" x="280" y="912" text-anchor="middle">within its installed policy.</text>
+
+  <rect class="note" x="530" y="800" width="380" height="130"/>
+  <text class="label" x="720" y="838" text-anchor="middle">Cascade Reaches Step 3</text>
+  <text class="body" x="720" y="868" text-anchor="middle">Steps 1-2 fail because the signer is H,</text>
+  <text class="body" x="720" y="890" text-anchor="middle">not Bob. The validator installed by Bob</text>
+  <text class="body" x="720" y="912" text-anchor="middle">recognizes H and approves execution.</text>
+
+  <rect class="warn" x="950" y="800" width="420" height="130"/>
+  <text class="label" x="1160" y="838" text-anchor="middle">Validator Checks Policy</text>
+  <text class="body" x="1160" y="868" text-anchor="middle">The validator verifies: correct signer (H),</text>
+  <text class="body" x="1160" y="890" text-anchor="middle">allowed target (DEX router), and within</text>
+  <text class="body" x="1160" y="912" text-anchor="middle">the daily spending limit.</text>
+</svg>
