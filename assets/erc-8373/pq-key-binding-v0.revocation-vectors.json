@@ -1,0 +1,45 @@
+{
+  "profile": "pq_key_binding.v0/revocation",
+  "description": "Revocation is NOT rotation (#134). Rotation is orderly succession — the old binding still governed its era. Revocation INVALIDATES a binding as of the revocation's ANCHOR time: artifacts anchored before that point stay valid, artifacts anchored at/after are no longer governed by it (and, with no successor, are ungoverned → rejected). The revocation is its OWN anchored statement class (schema kya.pq_key_revocation.v0), naming the binding it revokes by content-address and PQ-authorized by that binding's key — see pq-key-binding-v0.revocation.json (deep lane). Effective time is the revocation's anchor time, NEVER a self-declared field (same reason cutoff uses anchor time, not created_at), so the vector supplies revocation_anchor_time rather than trusting the statement. Uses a DEDICATED example binding (964af387…) so the production genesis/rotation chain is untouched. Run: `python3 cutoff_enforce.py pq-key-binding-v0.revocation-vectors.json`. The revocation fills the revoked_at slot resolve_in_force already honours — the predicate built at #132 took revocation with no rewrite, same dividend as rotation.",
+  "bindings": [
+    { "name": "kya-example", "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14", "pq_pubkey": "0b15e3baa3918b23b1a975d4aa2039cda772e4c5f070096ceebfed05e3c0933f26058db24d618704c66a4e41e25962c7", "content_address": "964af387798109a23d12bab0cc10c578dc27b61d494cf79591cf82f53c72a471", "binding_anchor_time": 1786100000 }
+  ],
+  "revocations": [
+    { "revokes_content_address": "964af387798109a23d12bab0cc10c578dc27b61d494cf79591cf82f53c72a471", "revocation_anchor_time": 1787000000, "reason": "example: key-compromise" }
+  ],
+  "consumer_cutoff": 1795000000,
+  "cases": [
+    {
+      "name": "before binding existed → ungoverned",
+      "artifact": { "anchor_time": 1785000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-example", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "after binding, BEFORE revocation → governed (stays valid)",
+      "artifact": { "anchor_time": 1786500000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-example", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "exactly AT revocation anchor time → no longer governed",
+      "artifact": { "anchor_time": 1787000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": null, "resolution_reason": "no_in_force_binding", "rule": "no_in_force_binding", "decision": "REJECT" }
+    },
+    {
+      "name": "after revocation → no longer governed",
+      "artifact": { "anchor_time": 1788000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": null, "resolution_reason": "no_in_force_binding", "rule": "no_in_force_binding", "decision": "REJECT" }
+    },
+    {
+      "name": "pre-revocation post-cutoff, valid companion under the (then-live) key → admit",
+      "consumer_cutoff": 1786400000,
+      "artifact": { "anchor_time": 1786500000, "anchored": true, "pq_companion": { "present": true, "valid": true, "pq_pubkey": "0b15e3baa3918b23b1a975d4aa2039cda772e4c5f070096ceebfed05e3c0933f26058db24d618704c66a4e41e25962c7" } },
+      "expected": { "resolved": "kya-example", "resolution_reason": "resolved_at_anchor_time", "rule": "valid_pq_companion", "decision": "ADMIT" }
+    },
+    {
+      "name": "post-revocation post-cutoff, valid companion under the REVOKED key → still rejected (binding is gone)",
+      "consumer_cutoff": 1786400000,
+      "artifact": { "anchor_time": 1788000000, "anchored": true, "pq_companion": { "present": true, "valid": true, "pq_pubkey": "0b15e3baa3918b23b1a975d4aa2039cda772e4c5f070096ceebfed05e3c0933f26058db24d618704c66a4e41e25962c7" } },
+      "expected": { "resolved": null, "resolution_reason": "no_in_force_binding", "rule": "no_in_force_binding", "decision": "REJECT" }
+    }
+  ]
+}
