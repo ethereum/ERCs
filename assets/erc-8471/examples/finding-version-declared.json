@@ -1,0 +1,31 @@
+{
+  "kind": "adrf-finding",
+  "adrf": "0.1",
+  "caseId": "0xfe27fb74fca28790944155a2143216f238bf10d75af90998a9ae8396eda74101",
+  "subQuestion": 0,
+  "round": 1,
+  "proposition": "0xb1e0895783a66395bbfa78783be54cc99df125fe2a9efcef18012b5561543c0e",
+  "statement": "The version the provider declared at delivery differs from the committed version.",
+  "value": "FALSE",
+  "method": {
+    "address": "0x0000000000000000000000000000000000000f04",
+    "qType": "FORMAL",
+    "version": "DeclaredVersionVerifier v0.2",
+    "params": "0x00000000000000000000000000000000000000000000000000000000000e5c20"
+  },
+  "inputs": {
+    "description": "abi.encode(uint256(17))",
+    "inputsHash": "0x31ecc21a745e3968a04e9570e4425bc18fa8019c68028196b546d1669c200c68",
+    "resultHash": "0xa8b01f955e5451f2dd2941155e120f2a62d5c65188f83d537e65dabe4cfe62f3"
+  },
+  "dependsOn": [],
+  "externalPremises": [
+    "the escrow records the committed and the declared version"
+  ],
+  "acceptedBy": "0x0000000000000000000000000000000000000f04",
+  "supportKinds": [
+    "computed"
+  ],
+  "reason": "NONE",
+  "at": 1770011000
+}
