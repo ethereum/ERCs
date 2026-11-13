@@ -8,6 +8,8 @@ on:
 name: Auto Review Bot
 jobs:
   auto-review-bot:
+    # Trigger runs cancelled by a newer event (concurrency) have no PR number.
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     name: Run
     steps:
@@ -17,13 +19,19 @@ jobs:
           name: pr-number
           workflow: auto-review-trigger.yml
           run_id: ${{ github.event.workflow_run.id }}
+          # Comments other than "@eth-bot rerun" do not write a PR number.
+          if_no_artifact_found: ignore
 
       - name: Save PR Number
         id: save-pr-number
-        run: echo "pr=$(cat pr-number.txt)" >> $GITHUB_OUTPUT
+        run: |
+          if [ -f pr-number.txt ]; then
+            echo "pr=$(cat pr-number.txt)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Auto Review Bot
         id: auto-review-bot
+        if: steps.save-pr-number.outputs.pr != ''
         uses: ethereum/eip-review-bot@dist
         continue-on-error: true
         with:
