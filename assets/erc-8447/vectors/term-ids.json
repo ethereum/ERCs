@@ -1,0 +1,131 @@
+{
+  "description": "Identifiers of the base vocabulary and the reserved names. Dimension ids are keccak256('sai.dimension.<d>'); term ids keccak256('sai.<d>.<name>'); roles keccak256('sai.role.<name>'); origins keccak256('sai.origin.<name>'); resource kinds keccak256('sai.resource.<name>'); decision-point questions keccak256('sai.dp.<name>'); effects keccak256('sai.enact') / keccak256('sai.refuse') / keccak256('sai.status-quo').",
+  "dimensions": {
+    "payoff": "0x4a60801a22e1b9dfde25e59f992b52c954f118602a2cffe440105c972e9df12d",
+    "topology": "0xe944b18c68159a005a81c8fe8f61cdb660f7e0efd16e3f8f68cdb9c1f1b805e0",
+    "coordination": "0xf4ca38f9c20c8daa24b7ec7bdf14747721d276cc41a3e8ce5d9eff83ab9b6bc6"
+  },
+  "terms": {
+    "payoff": {
+      "shared": "0xefad6aa8c92c03410cd7fa4f87ebc00ba64c967137c7b00fb8d0615535809dc9",
+      "exclusive": "0x3a52f35ab3a79cc29d315ba9bde514b321231421fd597e0684238eb1c1de28aa",
+      "mixed": "0x2d9848834ba704046e94e699c631215485d5e94260f40ad0792f9b09f4862d0e"
+    },
+    "topology": {
+      "redundant": "0x00501c6ca1471e06a50bee459cb96addc4576c0e9ac37201f7d1448a625b2219",
+      "partitioned": "0x1c75a4f5855a46b5822d3307010ad19ab1f3d33adbb9d9804c4f42f5731be03a",
+      "sequential": "0x1dd9a7d7d27bae4c759375a436aec1ec3421867b59fb9e2bcb6e7156751b14c7",
+      "hierarchical": "0xaaa6f7c90e779b3d98e3646f0da7b7acb344c591587ff0be86066f4dc8e5d41d",
+      "iterative": "0x58df3641fbc401b54f4566a7cfde1961a4e63d06f7fa8e365d2bf8306f7a8b37",
+      "free": "0xd1f00de2c72316151c57ab1089cd542f15acc3edf715ff8514d7a280e5ec7a37"
+    },
+    "coordination": {
+      "leader": "0x3c8fcb23f6e961408b5b5de1fbeaaecf62e20b64949267a3f39105ff0d23482a",
+      "collective": "0x9eaa14d564b2568cad372b172381613f296df46536a5b71a49781125fc96bc8c",
+      "market": "0x3464134d6def5c130a616b204b78d692d813e28a09b932b93121d028b55f7550",
+      "automated": "0x26e8683f8028cca8cec6b9727499eb1cf57b97c86dc5e37e51aaf0ecd1c110b4",
+      "none": "0x35a013832ced7759027b6dae7d57f6c2c7e14cb2e7a54718cff7b3aeb9294cff"
+    }
+  },
+  "roles": {
+    "initiator": "0xbc04a21b1d513c25da1800fd132f8db7e826087f2bccfd08399f6513866e4403",
+    "coordinator": "0x4fc13b418c06e66bee8d79228bef6e44cc720286e48578225bdc8c8c0b62c27d",
+    "worker": "0x0e3a19745aa9b7079f93a3673c0bba2e976f355a1a9469cbe536fcb9df620fc1",
+    "verifier": "0x5e56c6e5653691ad60be29b0daa2b1da03e2626066088adb40cb89caf733d8d0",
+    "observer": "0xd76042ab7268001eca58c9e0c916702838d861075500463a238717e0ee9bc6a6",
+    "bidder": "0x547a47511e635e41ca797b5efef145fb3281fb1c297d6dd25d6d4804b50336d9"
+  },
+  "origins": {
+    "initiator": "0xa2e41cdddac78022f16aad6ea6c59da9132b83f048f37dc18c94a20df6abc3fa",
+    "joint": "0x6dbfa4f7b1982f614e0c653cbf7a1950b605b121113b640be860cb63d2a8e9a7",
+    "task": "0x9f90241a393603cc6179c9bff1ad633544c27cba6885d217a8bb4285d5612174",
+    "trigger": "0x350422e7fcb93bf5cd4445b85c4b6362faf3ccc2f699ced38a3d2f1bc315bce1",
+    "decision": "0x408ac3aef93b21803efa1686028b744396a42367689def9cc8836ef94e383291",
+    "succession": "0x6526c872f79b9c7fca37dd213f918aab26daf1ea9bcfaea61858984beb977645"
+  },
+  "resourceKinds": {
+    "skill": "0x1e81ecf39fad8abace9e4ac4f64555d3eb890eeabed3fe434ecf0e34a9b164b1",
+    "dataset": "0xeb943966e4c5db06446abec53cd2b14e544d0773506487a7723a4522a1a7ff79",
+    "tool": "0x0fbec6880225f29f5ef88082b6014779bc7a88d537ae112f5ad16385e7da243b",
+    "code": "0x286c0f16777c018cc9101221518321322161fa4c095917a3ab931171268c3a75",
+    "model": "0xe3c1c87715265129e86fde43a16514d303ffc7e69f02b0a0b9ddcd5b2a623d9f",
+    "document": "0x9ef55ea86a8058611b4967b30b9268034368c23713e19797469f6916a14e257e",
+    "oracle": "0x881992976f911210f5d8aa127de60d9ef7e69785b7d4748b0851d50cdc4fa6ff",
+    "fund": "0x45ecb31a2c28de045910da5a843c404b31ee80cf327d133aee6e683ca1543af2"
+  },
+  "decisionPointQuestions": {
+    "activate": {
+      "index": 0,
+      "question": "0x08310f834c807784f87196f98b68aeb8f88e9950cd9cc90d4a3dd9d73be20838"
+    },
+    "abort": {
+      "index": 1,
+      "question": "0xf030420792d2d8d3a0f53b2646566d9c849cfa2c3a9ab304e365dfe7f3100116"
+    },
+    "suspend": {
+      "index": 2,
+      "question": "0xf955fbf2a8f1a7956369ef8a86d73e4aaf14b43c6d1a12f5115afcfbefd8d2ba"
+    },
+    "resume": {
+      "index": 3,
+      "question": "0xa76f2ac7462b3a90155f0bf51a6981ee88633c202907282620b0312b0c611888"
+    },
+    "advance": {
+      "index": 4,
+      "question": "0x55ecebc03a833fe800e8f7a1226e1537057fb93e534e16d76d6980b39b9e47da"
+    },
+    "conclude": {
+      "index": 5,
+      "question": "0xd099033adbecc9a4d58472857295c42d14795b53664f16e36388d05e7bf43e5c"
+    },
+    "dissolve": {
+      "index": 6,
+      "question": "0xe064e11c18c5a98db5fa1c1f6b9a4f55de4df208ff7d7f09da473ace04d4c6dc"
+    },
+    "succeed": {
+      "index": 7,
+      "question": "0xe7966d4418307df0aa8024e1864dfb1a4083857b10240d53da8982da6846da34"
+    },
+    "admit": {
+      "index": 8,
+      "question": "0xda07fea522436f08ec48ef25f7d74f7f9257574f5c256796f79c57da06d97b01"
+    },
+    "remove": {
+      "index": 9,
+      "question": "0xc1a97980237fbe9fa3185ca11c0ef2c21d12e504596e8c3ec1b51c677e645db0"
+    },
+    "reinstate": {
+      "index": 10,
+      "question": "0x68a66e005f7c0daeb60c44f0044fe236bd8ca1fa5274a7438b7cffa6847e5351"
+    },
+    "amend": {
+      "index": 11,
+      "question": "0x20a2b8cda412ec649f73dd511d54b702abf01b4c86770acefec6eb3a85d535c5"
+    },
+    "attach": {
+      "index": 12,
+      "question": "0x3bfb36fd7dcf6f79d7e781768cffe01deb33e5a624a3d21a774ad6c81575f6e8"
+    },
+    "detach": {
+      "index": 13,
+      "question": "0x0357a242a033c964a22e86284d932bfd795a9ce2fc2f752a1311f47f8084868f"
+    },
+    "set-account": {
+      "index": 14,
+      "question": "0x8111bc0e8857f8e01f2f9219de053e69a0213930dc76789666761ca588440e19"
+    },
+    "represent": {
+      "index": 15,
+      "question": "0x26e1ef9c53982e02ca622c000d80a6338a6fd72e6b13d569cccd5fdaf3643104"
+    }
+  },
+  "effects": {
+    "enact": "0xd3c4f8f89493d3b254a6e584b767ea21eac12693872d0e6f3ecd92fa254ed955",
+    "refuse": "0x4b3274e6cf67c375b15d8fbb960c13a6aa4aaebf1751ab1f04885aa46dc65a91",
+    "statusQuo": "0xd24033ead29941b4631c4cf799261a1d6815bbbc5b6e7926d4dff27ceb327ebf"
+  },
+  "digestKinds": {
+    "sha-256": "0xe342133ae8b4662317d26ea1128faf903384e1907ecae2f56f6a6db3c7309b37",
+    "keccak256": "0xb7845733ba102a68c6eb21c3cd2feafafd1130de581d7e73be60b76d775b6704"
+  }
+}
