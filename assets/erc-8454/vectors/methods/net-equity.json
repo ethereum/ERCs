@@ -1,0 +1,59 @@
+{
+  "auf": "1.0",
+  "kind": "method",
+  "name": "auf:method:net-equity@1",
+  "version": "1.0.0",
+  "summary": "Net equity: sum of priced asset positions minus sum of priced liability positions within the stated scope, in one denomination.",
+  "inputs": {
+    "type": "object",
+    "required": ["denomination", "assets", "liabilities"],
+    "properties": {
+      "denomination": { "type": "string" },
+      "assets": { "type": "array", "items": { "$ref": "#/$defs/position" } },
+      "liabilities": { "type": "array", "items": { "$ref": "#/$defs/position" } }
+    },
+    "$defs": {
+      "position": {
+        "type": "object",
+        "required": ["element", "quantity", "price", "priceSource", "priceAt"],
+        "properties": {
+          "element": { "type": "string", "description": "elementId or element ref" },
+          "quantity": { "type": "string" },
+          "price": { "type": "string", "description": "price per unit in the denomination" },
+          "priceSource": { "type": "string" },
+          "priceAt": { "type": "string" },
+          "restrictions": { "type": "array", "items": { "enum": ["locked", "pledged", "contingent", "non-transferable"] } },
+          "share": { "type": "string" }
+        }
+      }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "required": ["kind", "value", "denomination"],
+    "properties": {
+      "kind": { "const": "monetary" },
+      "value": { "type": "string" },
+      "denomination": { "type": "string" }
+    }
+  },
+  "algorithm": {
+    "description": "value = sum(quantity_i * price_i * share_i over priced assets) - sum(quantity_j * price_j * share_j over priced liabilities). Positions without a usable price are excluded from the sum and listed under inputs.missing of the receipt; a material missing position makes the result kind insufficient-evidence.",
+    "formula": "value = sum_i q_i * p_i * s_i - sum_j q_j * p_j * s_j",
+    "implementation": { "uri": "AUFValuationLib.sol#netEquity", "hash": "" }
+  },
+  "assumptions": [
+    "Prices are expressed in the output denomination at the stated time.",
+    "Restrictions (locked, pledged, contingent) are disclosed with each position and may be reflected by the evaluator through the price or through an explicit haircut recorded in params."
+  ],
+  "applicability": {
+    "roles": ["container", "pledge"],
+    "interests": ["auf:interest:net-equity@1", "auf:interest:position@1"],
+    "structures": ["auf:structure:simple@1", "auf:structure:composite@1", "auf:structure:chip@1"]
+  },
+  "composability": {
+    "mode": "conditional",
+    "conditions": "For a composite, claims between parts of the composite cancel, a right shared by several parts is counted once at the share held by the Unit as a whole, and positions reached through more than one containment path are counted once."
+  },
+  "publisher": "AIFi Unit Framework reference profiles"
+}

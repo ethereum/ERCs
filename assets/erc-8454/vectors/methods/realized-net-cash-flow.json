@@ -1,0 +1,44 @@
+{
+  "auf": "1.0",
+  "kind": "method",
+  "name": "auf:method:realized-net-cash-flow@1",
+  "version": "1.0.0",
+  "summary": "Observation profile: realized net cash flow of a Unit over a window, inflow minus outflow through its ports for one asset, or for several assets with declared conversion rates.",
+  "inputs": {
+    "type": "object",
+    "required": ["observation", "asset"],
+    "properties": {
+      "observation": { "type": "string", "description": "assertionId or canonical hash of the observation record" },
+      "asset": { "type": "string" },
+      "conversions": { "type": "array", "items": { "type": "object", "required": ["asset", "rate", "rateSource", "rateAt"] } }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "required": ["kind", "value", "denomination"],
+    "properties": {
+      "kind": { "const": "monetary" },
+      "value": { "type": "string" },
+      "denomination": { "type": "string" }
+    }
+  },
+  "algorithm": {
+    "description": "value = inflow - outflow over the observation window, using only transfers that cross a port of the Unit. Internal transfers are excluded by construction. The output is a historical measurement, not a value of the Unit, and must not be presented as one.",
+    "formula": "value = inflow - outflow",
+    "implementation": { "uri": "AUFValuationLib.sol#realizedNetCashFlow", "hash": "" }
+  },
+  "assumptions": [
+    "The observation record satisfies the reconciliation rule of Section 8.2 for the asset.",
+    "Missing members of the observation are listed under missing and are not treated as zero."
+  ],
+  "applicability": {
+    "roles": ["source", "sink", "conductor", "damping"],
+    "interests": ["auf:interest:whole@1", "auf:interest:revenue-right@1"],
+    "structures": ["auf:structure:simple@1", "auf:structure:composite@1", "auf:structure:chip@1"]
+  },
+  "composability": {
+    "mode": "additive",
+    "conditions": "Across disjoint Units with disjoint ports and the same asset and window; transfers between the Units become internal transfers of the composite and are removed."
+  },
+  "publisher": "AIFi Unit Framework reference profiles"
+}

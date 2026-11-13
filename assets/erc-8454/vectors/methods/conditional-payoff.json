@@ -1,0 +1,60 @@
+{
+  "auf": "1.0",
+  "kind": "method",
+  "name": "auf:method:conditional-payoff@1",
+  "version": "1.0.0",
+  "summary": "Scenario valuation of a conditional claim or obligation: probability-weighted payoffs discounted over the periods until resolution.",
+  "inputs": {
+    "type": "object",
+    "required": ["denomination", "scenarios", "rate", "periods", "probabilityBasis", "costsIncluded"],
+    "properties": {
+      "denomination": { "type": "string" },
+      "scenarios": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "probability", "payoff"],
+          "properties": {
+            "name": { "type": "string" },
+            "probability": { "type": "string" },
+            "payoff": { "type": "string" },
+            "conditions": { "type": "string" }
+          }
+        }
+      },
+      "rate": { "type": "string" },
+      "periods": { "type": "integer", "minimum": 0 },
+      "probabilityBasis": { "enum": ["declared", "estimated", "market-implied"] },
+      "costsIncluded": { "type": "boolean" }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "required": ["kind", "scenarios", "value", "denomination"],
+    "properties": {
+      "kind": { "const": "scenario" },
+      "scenarios": { "type": "array" },
+      "value": { "type": "string", "description": "discounted expectation" },
+      "denomination": { "type": "string" }
+    }
+  },
+  "algorithm": {
+    "description": "value = (sum over scenarios of p_j * x_j) / (1 + r)^n, with sum of p_j equal to 1. The receipt states the basis of the probabilities and whether costs are included. The result is a valuation under the stated probability model, not a market price.",
+    "formula": "value = (sum_j p_j * x_j) / (1+r)^n",
+    "implementation": { "uri": "AUFValuationLib.sol#conditionalPayoff", "hash": "" }
+  },
+  "assumptions": [
+    "Scenarios are exhaustive and mutually exclusive.",
+    "Payoffs may be negative (obligations)."
+  ],
+  "applicability": {
+    "roles": ["valve", "control", "pledge"],
+    "interests": ["auf:interest:fulfillment-claim@1", "auf:interest:obligation@1", "auf:interest:position@1"],
+    "structures": ["auf:structure:simple@1", "auf:structure:composite@1", "auf:structure:chip@1"]
+  },
+  "composability": {
+    "mode": "context-dependent",
+    "conditions": "Expectations add across independent claims under the same probability model and rate; correlated or mutually exclusive claims require a joint scenario set."
+  },
+  "publisher": "AIFi Unit Framework reference profiles"
+}
