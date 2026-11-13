@@ -1,7 +1,7 @@
 {
     "$schema": "./erc7730-v2.schema.json",
 
-    "$comment": "This is an example of ERC-7730 display schema that demonstrates how to format array iterations in bundled mode, as well as nested calldata formatting with arrays.",
+    "$comment": "This is an example of ERC-7730 display schema that demonstrates how to format array iterations in bundled mode, how to group the fields of an array of structs, as well as nested calldata formatting with arrays.",
 
     "context": {
         "$id": "Example Array Iteration",
@@ -53,6 +53,28 @@
                                     "base": "%",
                                     "decimals": 2
                                 }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "payMany((address to,uint256 amount)[] payments)": {
+                "intent": "Pay many recipients",
+                "fields": [
+                    {
+                        "path": "payments.[]",
+                        "label": "Payments",
+                        "fields": [
+                            {
+                                "path": "to",
+                                "label": "Recipient",
+                                "format": "addressName",
+                                "separator": "Payment {index}"
+                            },
+                            {
+                                "path": "amount",
+                                "label": "Amount",
+                                "format": "amount"
                             }
                         ]
                     }
