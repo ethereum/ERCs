@@ -1,0 +1,5 @@
+# Foundry dependencies and build output: never commit
+lib/
+out/
+cache/
+broadcast/

@@ -1,0 +1,11 @@
+{
+  "chainId": 31337,
+  "registry": "0x8412000000000000000000000000000000008412",
+  "actors": {
+    "author": "0x96f2Cd020d378362228253F7fE82c35EfE73E149",
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "stranger": "0xc05d610C43B697b78ba87D6AA46b32f04e5FC88A",
+    "author2": "0xB187B23F6D4a6E3758361a1CF185ce215911FcbB"
+  },
+  "note": "Actors are EOAs derived from keccak256('erc8412:<name>'). 'zero' denotes address(0). Conformance requires that a call with expect.revert reverts; the tag names the targeted invariant."
+}

@@ -1,0 +1,142 @@
+{
+  "name": "o4-not-satisfied-count-shortfall",
+  "rule": "O4",
+  "description": "ALL_REQUIRED_AND_AT_LEAST(2) with required obligations met and only one of two optional obligations MET: NotSatisfied is the rule's result, carries no UNMET obligation, and must not be rejected by E11.",
+  "expect": {
+    "valid": true,
+    "violations": []
+  },
+  "chainAccepts": true,
+  "chain": {
+    "chainId": 31337,
+    "registry": "0x8412000000000000000000000000000000008412",
+    "preregistrationId": "0x713589911fea5802310a79fedec38cde8b1bdb675ef9f3d838632cdb2b8f4d69",
+    "author": "0x96f2Cd020d378362228253F7fE82c35EfE73E149",
+    "criteriaDigest": "0x5c0d4a656a951d4b9c66d35ada4dcea9bc6939bdb385e720fb8fa0643aa606d0",
+    "taskRef": "0xf6f4e822c3f4948732183e8b04263a277e9f72331f0e02f33b6315e027f09be6",
+    "obligationCount": 4,
+    "obligationFlags": "0x70",
+    "expiry": 1788600000,
+    "registeredAt": 1788000000,
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "attestation": {
+      "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+      "bundleDigest": "0xadd8e3faec6d1caca5e4fdfc7a062e35cd936f1b1fd12a170c66a480fe1ea9e0",
+      "attestationDigest": "0xa649a3abc23b72763939e30b117e24b513f38378e6fdaf883ffcc87bf36615ab",
+      "verdict": "NotSatisfied",
+      "obligationOutcomes": "0x67",
+      "attestedAt": 1788100000
+    }
+  },
+  "criteria": {
+    "version": "1",
+    "taskRef": "0xf6f4e822c3f4948732183e8b04263a277e9f72331f0e02f33b6315e027f09be6",
+    "supersedes": null,
+    "decisionRule": "ALL_REQUIRED_AND_AT_LEAST(2)",
+    "obligations": [
+      {
+        "index": 0,
+        "type": "PHOTO",
+        "required": true,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp",
+            "geolocation"
+          ],
+          "geofence": {
+            "commitment": "0xa5b82e48fd49474d45545fc2ec5b239718f4a87825e45b29aaa81a5dc69e8031"
+          },
+          "notBefore": 1788000000,
+          "mediaType": "image/jpeg"
+        }
+      },
+      {
+        "index": 1,
+        "type": "DOCUMENT",
+        "required": true,
+        "waivable": true,
+        "constraints": {
+          "mediaType": "application/pdf"
+        }
+      },
+      {
+        "index": 2,
+        "type": "GPS_TRACE",
+        "required": false,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp"
+          ],
+          "sampleIntervalSeconds": 30
+        }
+      },
+      {
+        "index": 3,
+        "type": "GPS_TRACE",
+        "required": false,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp"
+          ],
+          "sampleIntervalSeconds": 60
+        }
+      }
+    ],
+    "waiverAuthority": "0xBd3548FfAcC503E4F4e77Cb8993922931636517F",
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "verifierConstraint": {
+      "allowed": [
+        "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8"
+      ],
+      "maxRiskScore": 20
+    },
+    "expiry": 1788600000,
+    "terminalOnExpiry": "REFUND_WITH_RECORD"
+  },
+  "bundle": {
+    "version": "1",
+    "preregistrationId": "0x713589911fea5802310a79fedec38cde8b1bdb675ef9f3d838632cdb2b8f4d69",
+    "items": [
+      {
+        "obligationIndex": 0,
+        "preregistrationId": "0x713589911fea5802310a79fedec38cde8b1bdb675ef9f3d838632cdb2b8f4d69",
+        "digest": "0x50df873827644f58334700438fccad7314dee96abb823e3389fc13c74b8ab768",
+        "mediaType": "image/jpeg",
+        "locator": "ipfs://photo",
+        "captureMetadata": {
+          "timestamp": 1788003600,
+          "geolocation": "0xc110391af6113d14bc4a087efeffa3d1b1aa0bb0eab00c084ddd24cb541dd753"
+        }
+      },
+      {
+        "obligationIndex": 2,
+        "preregistrationId": "0x713589911fea5802310a79fedec38cde8b1bdb675ef9f3d838632cdb2b8f4d69",
+        "digest": "0x8102895cc14012450b5d941ca73a9acf37809aec215a6198455ab581ac51a923",
+        "mediaType": "application/geo+json",
+        "locator": "ipfs://gps",
+        "captureMetadata": {
+          "timestamp": 1788003700
+        }
+      }
+    ]
+  },
+  "attestation": {
+    "version": "1",
+    "preregistrationId": "0x713589911fea5802310a79fedec38cde8b1bdb675ef9f3d838632cdb2b8f4d69",
+    "bundleDigest": "0xadd8e3faec6d1caca5e4fdfc7a062e35cd936f1b1fd12a170c66a480fe1ea9e0",
+    "verdict": "NotSatisfied",
+    "obligationOutcomes": "0x67",
+    "waivers": [
+      {
+        "obligationIndex": 1,
+        "reasonDigest": "0xffa6b160725748e078dfc89bc35026fbf40d401605b40f6a5ca87cb910311171",
+        "signature": "0x8b3d7f3acabb32736358f4900d3bda1721243be6419d62c8e76427bcbafa6f6a211a8e66cc3237e76a143065e9594f9e56a0b4edfd13d321fefd1d32c0b4d9f61c"
+      }
+    ],
+    "undecided": []
+  }
+}
