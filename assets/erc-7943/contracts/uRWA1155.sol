@@ -248,13 +248,27 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
                 // Pass the cumulative amount for repeated ids: balances are
                 // debited only in super._update after this loop, so per-element
                 // amounts would under-adjust the frozen balance for duplicates.
+                // The call occurs one time per id, at its last occurrence, so
+                // the frozen amount stays untouched until the id's full total
+                // is known: _excessFrozenUpdate reads and writes the frozen
+                // amount, so calling it per element would subtract the earlier
+                // elements a second time whenever the frozen amount exceeds
+                // the balance (a state the ERC permits).
                 uint256 cumulativeValue = values[j];
                 for (uint256 k = 0; k < j; ++k) {
                     if (ids[k] == ids[j]) {
                         cumulativeValue += values[k];
                     }
                 }
-                _excessFrozenUpdate(from, ids[j], cumulativeValue);
+                bool lastOccurrence = true;
+                for (uint256 k = j + 1; k < ids.length; ++k) {
+                    if (ids[k] == ids[j]) {
+                        lastOccurrence = false;
+                    }
+                }
+                if (lastOccurrence) {
+                    _excessFrozenUpdate(from, ids[j], cumulativeValue);
+                }
             }
         }
 

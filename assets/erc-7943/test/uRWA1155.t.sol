@@ -2,6 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {uRWA1155} from "../contracts/uRWA1155.sol";
 import {IERC7943MultiToken} from "../contracts/interfaces/IERC7943.sol";
 import {MockERC1155Receiver} from "../contracts/mocks/MockERC1155Receiver.sol";
@@ -466,6 +467,143 @@ contract uRWA1155Test is Test {
 
         assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - amounts[0] - amounts[1]);
         assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), expectedNewFrozenAmount);
+    }
+
+    function test_BurnBatch_DuplicateId_FrozenExceedsBalance() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        // The ERC permits the frozen amount to exceed the balance.
+        uint256 frozenAmount = 150;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, frozenAmount);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 40;
+        amounts[1] = 40;
+
+        // The batch must agree with a single burn of the sum:
+        // burn(TOKEN_ID_1, 80) with frozen 150 and balance 100 leaves 70.
+        uint256 expectedNewFrozenAmount = 70;
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true);
+        emit IERC7943MultiToken.Frozen(user1, TOKEN_ID_1, expectedNewFrozenAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IERC1155.TransferBatch(user1, user1, address(0), ids, amounts);
+        token.burnBatch(ids, amounts);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - amounts[0] - amounts[1]);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), expectedNewFrozenAmount);
+    }
+
+    function test_BurnBatch_DuplicateId_FirstElementExceedsUnfrozen() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        uint256 frozenAmount = 60;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, frozenAmount);
+
+        // The first element (50) already exceeds the unfrozen balance (40).
+        // The frozen adjustment happens once per id, with the full total
+        // (80), so exactly one Frozen event fires and frozen drops to 20,
+        // the same as a single burn of 80.
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 50;
+        amounts[1] = 30;
+
+        uint256 expectedNewFrozenAmount = 20;
+
+        // Exactly one Frozen event, carrying the final amount: adjusting
+        // per element would emit Frozen(50) and then Frozen(20).
+        vm.recordLogs();
+        vm.prank(user1);
+        token.burnBatch(ids, amounts);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 frozenTopic = keccak256("Frozen(address,uint256,uint256)");
+        uint256 frozenEventCount = 0;
+        uint256 lastFrozenAmount = 0;
+        for (uint256 i = 0; i < logs.length; ++i) {
+            if (logs[i].emitter == address(token) && logs[i].topics.length > 0 && logs[i].topics[0] == frozenTopic) {
+                frozenEventCount++;
+                lastFrozenAmount = abi.decode(logs[i].data, (uint256));
+            }
+        }
+        assertEq(frozenEventCount, 1);
+        assertEq(lastFrozenAmount, expectedNewFrozenAmount);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - amounts[0] - amounts[1]);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), expectedNewFrozenAmount);
+    }
+
+    function test_BurnBatch_DuplicateId_NonAdjacent_FrozenExceedsBalance() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        uint256 frozenAmount = 150;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, frozenAmount);
+
+        // TOKEN_ID_1 appears at both ends of the batch; its total is 80,
+        // so the frozen amount must match a single burn of 80: 70.
+        uint256[] memory ids = new uint256[](3);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        ids[2] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = 40;
+        amounts[1] = 10;
+        amounts[2] = 40;
+
+        vm.prank(user1);
+        token.burnBatch(ids, amounts);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - 80);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), 70);
+        assertEq(token.balanceOf(user1, TOKEN_ID_2), MINT_AMOUNT - 10);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_2), 0);
+    }
+
+    function testFuzz_BurnBatch_DuplicateId_MatchesSingleBurnOfSum(uint256 a, uint256 b, uint256 frozenAmount) public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user2);
+
+        // Balance is MINT_AMOUNT (100) for both users; the frozen amount may
+        // exceed it, which the ERC permits.
+        frozenAmount = bound(frozenAmount, 0, 300);
+        a = bound(a, 0, MINT_AMOUNT);
+        b = bound(b, 0, MINT_AMOUNT - a);
+
+        vm.prank(minter);
+        token.mint(user2, TOKEN_ID_1, MINT_AMOUNT);
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, frozenAmount);
+        vm.prank(freezer);
+        token.setFrozenTokens(user2, TOKEN_ID_1, frozenAmount);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = a;
+        amounts[1] = b;
+
+        vm.prank(user1);
+        token.burnBatch(ids, amounts);
+        vm.prank(user2);
+        token.burn(TOKEN_ID_1, a + b);
+
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), token.getFrozenTokens(user2, TOKEN_ID_1));
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), token.balanceOf(user2, TOKEN_ID_1));
     }
 
     function test_Revert_BurnBatch_NotBurnerRole() public {
