@@ -3,7 +3,7 @@ eip: XXXX
 title: Hash-Based Key Derivation from BIP-39
 description: Derives hash-based post-quantum keys from a BIP-39 phrase using hash functions only.
 author: Johann Barbie (@johba37)
-discussions-to: https://ethereum-magicians.org/t/TBD
+discussions-to: https://ethereum-magicians.org/t/hash-based-key-derivation-from-bip-39/30375
 status: Draft
 type: Standards Track
 category: ERC
