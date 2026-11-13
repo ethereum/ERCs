@@ -1,0 +1,38 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Legacy Token",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xYourLegacyTokenAddress"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Example",
+        "contractName": "Legacy Token"
+    },
+    "display": {
+        "formats": {
+            "creditAccount(uint256 amount,address to)": {
+                "intent": "Credit legacy balance",
+                "interpolatedIntent": "Credit {to} with {amount}",
+                "fields": [
+                    {
+                        "path": "amount",
+                        "label": "Amount",
+                        "format": "amount"
+                    },
+                    {
+                        "path": "to",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    }
+                ]
+            }
+        }
+    }
+}
