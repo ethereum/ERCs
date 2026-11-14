@@ -33,11 +33,11 @@ These rules apply to the metadata URI and to every URI-valued field.
 
 Clients MUST resolve `https`, `ipfs` (InterPlanetary File System), `ar` (Arweave), and `data` URIs. Clients MAY resolve other schemes, such as `ipns` or the `web3` scheme of [ERC-4804](./eip-4804.md), and MUST NOT resolve schemes that run code or read local resources, such as `javascript` or `file`.
 
-Producers MUST use absolute URIs, SHOULD use `ipfs`, `ar`, or `data` for content that is not meant to change, and SHOULD NOT use `http`. An `ipfs` URI MUST have the form `ipfs://<cid>`, where `<cid>` is a content identifier, with an optional path. Producers SHOULD NOT write an IPFS gateway URL in place of an `ipfs` URI. Clients MAY fetch `ipfs` and `ar` content through any gateway.
+Producers MUST use absolute URIs, SHOULD use `ipfs`, `ar`, or `data` for content that is not meant to change, and SHOULD NOT use `http`. An `ipfs` URI MUST have the form `ipfs://<cid>`, where `<cid>` is a content identifier, with an optional path. Producers SHOULD NOT write an IPFS gateway URL in place of an `ipfs` URI. Clients MAY fetch `ipfs` and `ar` content through any gateway. Clients that fetch `ipfs` content through a gateway they do not operate SHOULD verify it against the CID, for example by requesting raw blocks or a CAR file from a trustless gateway.
 
-A `data` URI ([RFC 2397](https://www.rfc-editor.org/rfc/rfc2397)) that carries a metadata document SHOULD use the prefix `data:application/json;base64,`. Clients MUST accept base64 payloads. Clients SHOULD also accept unencoded payloads, such as `data:application/json;utf8,{"name":"Example"}`, and MUST percent-decode an unencoded payload exactly once before parsing it, as the Fetch Standard does for `data:` URLs.
+A `data` URI ([RFC 2397](https://www.rfc-editor.org/rfc/rfc2397)) that carries a metadata document SHOULD use the prefix `data:application/json;base64,`. Clients MUST accept base64 payloads. Producers that do not use base64 MUST percent-encode the payload, as in `data:application/json,%7B%22name%22%3A%22Example%22%7D`. Clients SHOULD also accept unencoded payloads, and MUST percent-decode an unencoded payload exactly once before parsing it, as the Fetch Standard does for `data:` URLs. Unlike the Fetch Standard, clients MUST NOT remove a fragment from a `data` URI that carries a metadata document: the payload is everything after the first comma, including any `#`. Producers that build metadata onchain SHOULD return a `data:application/json;base64,` URI.
 
-For ERC-1155 tokens, clients MUST apply ERC-1155's `{id}` substitution to the metadata URI and to string values in the document.
+For ERC-1155 tokens, clients MUST apply ERC-1155's `{id}` substitution to the metadata URI and to string values in the document. A producer that returns a `{id}` template MUST serve each document at the hexadecimal form ERC-1155 defines.
 
 ### Fetching
 
@@ -112,7 +112,7 @@ An array of trait objects:
 
 `value` MUST be a string or a number, so `"5"` is a string trait and `5` is a numeric trait. Clients SHOULD ignore an attribute whose `value` is absent, `null`, an empty string, an object, or an array, and MAY read a boolean as the string `"true"` or `"false"`.
 
-A `trait_type` MAY repeat to give a trait several values, and clients SHOULD keep each value. Clients SHOULD compare trait types and string values exactly after trimming leading and trailing whitespace. Producers SHOULD list attributes in display order.
+A `trait_type` MAY repeat to give a trait several values, and clients SHOULD keep each value. Clients SHOULD compare trait types and string values exactly after trimming leading and trailing whitespace. Producers SHOULD list attributes in display order. When an attribute conflicts with a value the contract reports through an interface it declares with [ERC-165](./eip-165.md), such as whether the token can be transferred, clients SHOULD show the contract's value.
 
 | `display_type` | `value` | Meaning |
 | --- | --- | --- |
@@ -140,7 +140,10 @@ Clients MAY accept these forms, which producers MUST NOT use:
 - Traits in an array named `traits` or `properties` instead of `attributes`.
 - `image_url` instead of `image`.
 - `ipfs://ipfs/<cid>`, read as `ipfs://<cid>`.
-- `date` values in milliseconds. Clients MAY read a value of `1000000000000` or more as milliseconds.
+- A URI in `image_data` instead of SVG markup, read as `image` when `image` is absent.
+- A metadata URI that is a JSON document instead of a URI. Clients that accept it SHOULD read it as a document only when, after trimming whitespace, it begins with `{` and ends with `}`.
+- An ERC-1155 `{id}` template whose documents are served only at the decimal token ID. When the hexadecimal URI does not resolve to a metadata document, clients that accept this form SHOULD retry once with the decimal token ID.
+- `date` values in milliseconds. Clients SHOULD read a value of `1000000000000` or more as milliseconds, so that every client shows the same date.
 
 ### Extensions
 
@@ -157,7 +160,7 @@ Producers MAY add fields that no proposal defines, and SHOULD name them so they 
 
 ### Metadata updates
 
-When a document changes, ERC-721 contracts SHOULD emit an [ERC-4906](./eip-4906.md) event and ERC-1155 contracts SHOULD emit `URI`. Clients that cache documents SHOULD refetch on these events, and MAY refetch on their own schedule.
+When a document changes, ERC-721 contracts SHOULD emit an [ERC-4906](./eip-4906.md) event and ERC-1155 contracts SHOULD emit `URI`. Clients that cache documents SHOULD refetch on these events, and MAY refetch on their own schedule. Clients that cache media SHOULD also refetch the media a refetched document references, even when its URI is unchanged, unless the URI is content-addressed, such as `ipfs`, `ar`, or `data`.
 
 ### JSON Schema
 
@@ -242,6 +245,8 @@ Figures below come from a survey of metadata from 708 Ethereum and Base contract
 - Dates are in seconds to match `block.timestamp`. The millisecond cutoff of `1000000000000` catches every millisecond date after September 2001 and no date in seconds before the year 33000. A lower cutoff would misread `253402300800` (the year 10000), which some contracts use to mean "never expires".
 - Gateway URLs tie content to one server: 113 of the 204 surveyed token URIs written as IPFS gateway URLs failed to load. An `ipfs` URI can be fetched through any gateway or node.
 - Base64 is the recommended `data` encoding because browsers treat `#` as the start of a fragment and drop the rest of an unencoded payload, which breaks JSON that contains a `#`, such as a name like `Creature #42`. Clients still accept unencoded payloads because many deployed contracts emit them.
+- Clients keep any `#` in a metadata document's unencoded payload. Onchain SVG embedded in the JSON is full of hex colors such as `fill="#ff0000"`, and a JSON document has no use for a fragment. Cutting at the first `#`, as browsers do, would break tokens that render today.
+- Many ERC-1155 `{id}` templates resolve only at the decimal token ID, likely because IPFS directories are uploaded with files named `1`, `2`, `3`. In a sample of Ethereum contracts shared in the discussion, 181 of 323 templates that still responded were served only that way, and trying the hexadecimal form first with one decimal retry resolved 319.
 - Unencoded payloads are percent-decoded exactly once, always, because browsers do so when fetching a `data:` URL. Decoding only when a payload fails to parse lets `{"name":"a%22,%22image%22:%22https://x%22}` read as two different documents on two clients. Repeated members resolve to the last value because `JSON.parse` and common JSON libraries already do that, and rejecting the document would break deployed tokens that build JSON by concatenation.
 - Extensions are top-level objects because clients already detect optional data by checking whether a field is present. A list of implemented proposals, like the `interop` object in [ERC-1046](./eip-1046.md), or a version field would repeat that and could disagree with it. Names begin with a letter so they are valid identifiers in GraphQL and Protocol Buffers.
 - There is no contract interface or [ERC-165](./eip-165.md) identifier, because the document tells a client everything an interface could.
@@ -256,7 +261,10 @@ Documents that conform to the ERC-721 or ERC-1155 metadata schemas, or follow th
 | Metadata URI | Document |
 | --- | --- |
 | `data:application/json;base64,eyJuYW1lIjoiRXhhbXBsZSJ9` | `{"name":"Example"}` |
-| `data:application/json;utf8,{"name":"Example"}` | `{"name":"Example"}` |
+| `data:application/json,%7B%22name%22%3A%22Example%22%7D` | `{"name":"Example"}` |
+| `data:application/json;utf8,{"name":"Example"}` | Not conformant. Read as `{"name":"Example"}` by clients that accept it. |
+| `data:application/json;utf8,{"name":"Creature #42"}` | Not conformant. Read as `{"name":"Creature #42"}` by clients that accept it. |
+| `{"name":"Example"}` | Not conformant. Read as `{"name":"Example"}` by clients that accept it. |
 | `ipfs://ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json` | Not conformant. Read as `ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json` by clients that accept it. |
 
 For an ERC-1155 token with ID `314592`, `ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/{id}.json` resolves to `ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/000000000000000000000000000000000000000000000000000000000004cce0.json`.
@@ -277,7 +285,7 @@ For an ERC-1155 token with ID `314592`, `ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26
 | `{"display_type": "text", "trait_type": "Faction", "value": "Red"}` | String trait. |
 | `{"display_type": "sparkle", "trait_type": "Mood", "value": "Calm"}` | String trait, since `sparkle` is unknown. |
 | `{"display_type": "date", "trait_type": "Expires", "value": 253402300800}` | `10000-01-01T00:00:00Z`. |
-| `{"display_type": "date", "trait_type": "Registered", "value": 1694173211000}` | `2023-09-08T11:40:11Z` for clients that accept milliseconds. |
+| `{"display_type": "date", "trait_type": "Registered", "value": 1694173211000}` | Not conformant. Read as `2023-09-08T11:40:11Z`. |
 | `{"trait_type": "Mood", "value": null}` | Ignored. |
 
 Two attributes with `trait_type` `Accessory` and values `Scarf` and `Glasses` form one trait with both values.
@@ -290,6 +298,7 @@ Two attributes with `trait_type` `Accessory` and values `Scarf` and `Glasses` fo
 - Documents and media can be huge, slow, deeply nested, or compressed. Clients should limit size, depth, time, and redirects.
 - A producer's server sees every client that fetches from it directly, and can serve moderators different content than users. Clients should fetch through their own cache.
 - A document served over `https` can change between a buyer's decision and settlement, so a seller can change a token's attributes to fill a trait offer and then change them back. Content-addressed URIs change only when the contract returns a new one. Protocols that settle on traits should read them onchain.
+- A gateway can return content that does not match the requested CID. Content-addressed URIs protect a client only when it verifies what it fetched.
 - Anyone can copy another collection's name and image. Clients should identify tokens by chain, contract, and token ID, never by metadata.
 
 ## Copyright
