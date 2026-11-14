@@ -107,7 +107,7 @@ library ASFTypes {
         BindingState state;
         uint8 restrictions;        // bit set of RESTRICT_* of the current or last suspension; cleared by resume, kept through termination
         bytes32 responseRef;       // content hash of its response document; cleared by resume, kept through termination
-        address suspendedBy;       // account that recorded it; cleared by resume, kept through termination
+        address suspendedBy;       // whose suspension the record carries: the account that suspended it, or the first intervener that widened the adopter's own suspension; cleared by resume, kept through termination
     }
 
     /// @notice A standing stop: an intervener's suspensions recorded against the adopter for the subject and the

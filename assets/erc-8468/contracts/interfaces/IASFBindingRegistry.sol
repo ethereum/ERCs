@@ -71,6 +71,11 @@ interface IASFBindingRegistry /* is IERC165 */ {
     ///         the caller is recorded as `suspendedBy`. A suspension by an intervener is also recorded into the
     ///         intervener's standing stop against the adopter for the binding's subject and specification: a new
     ///         stop when none stands, otherwise the union of the response sets (Section 8.5).
+    ///         Suspended -> Suspended by an intervener with RIGHT_SUSPEND widens the existing suspension: the
+    ///         record's set becomes the union, its document is replaced when a non-zero one is supplied, the record
+    ///         becomes the intervener's when it was the adopter's own suspension, and the intervener's stop is
+    ///         recorded or widened; an existing suspension never blocks an intervener (Section 8.1). The adopter
+    ///         cannot suspend a record that is already Suspended.
     function suspend(bytes32 bindingId, uint8 restrictions, bytes32 responseRef, bytes32 reasonRef) external;
 
     /// @notice Suspended -> Active. Adopter or intervener with RIGHT_RESUME, except that a suspension recorded by
