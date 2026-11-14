@@ -20,11 +20,11 @@ interface ISDCTrade {
      * @param withParty is the party the inceptor wants to trade with
      * @param tradeId is the trade ID (e.g. generated internally)
      * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param position is the position the inceptor has in that trade
+     * @param position is the position the inceptor has in that trade, may be negative (sell) or positive (buy)
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-    event TradeIncepted(address initiator, address withParty, string tradeId, string tradeData, int position, int256 paymentAmount, string initialSettlementData);
+    event TradeIncepted(address initiator, address withParty, string tradeId, string tradeData, int256 position, int256 paymentAmount, string initialSettlementData);
 
     /**
      * @dev Emitted when an incepted trade is confirmed by the opposite counterparty
@@ -92,12 +92,12 @@ interface ISDCTrade {
      * @dev emits a {TradeIncepted} event
      * @param withParty is the party the inceptor wants to trade with
      * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param position is the position the inceptor has in that trade
+     * @param position is the position the inceptor has in that trade, may be negative (sell) or positive (buy)
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      * @return the tradeId uniquely determining this trade.
      */
-    function inceptTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external returns (string memory);
+    function inceptTrade(address withParty, string memory tradeData, int256 position, int256 paymentAmount, string memory initialSettlementData) external returns (string memory);
 
     /**
      * @notice Performs a matching of provided trade data and settlement data of a previous trade inception
@@ -108,18 +108,18 @@ interface ISDCTrade {
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the confirmer, negative of the inceptor's view)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-     function confirmTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external;
+     function confirmTrade(address withParty, string memory tradeData, int256 position, int256 paymentAmount, string memory initialSettlementData) external;
 
     /**
      * @notice Performs a matching of provided trade data and settlement data of a previous trade inception. Required to be called by inceptor.
      * @dev emits a {TradeCanceled} event if trade data match and msg.sender agrees with the party that incepted the trade.
      * @param withParty is the party the inceptor wants to trade with
      * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param position is the position the inceptor has in that trade
+     * @param position is the position the inceptor has in that trade, may be negative (sell) or positive (buy)
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-    function cancelTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external;
+    function cancelTrade(address withParty, string memory tradeData, int256 position, int256 paymentAmount, string memory initialSettlementData) external;
 
     /// Trade termination
 
