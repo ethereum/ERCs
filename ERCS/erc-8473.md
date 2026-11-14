@@ -467,6 +467,10 @@ Policies that keep state, such as holder counts, need to observe completed movem
 
 The callback runs before any call to the recipient, so a recipient that starts another movement meets policy state that already includes the first (token rule 7).
 
+### What a check costs
+
+The [benchmark](../assets/eip-8473/contracts/test/GasComparison.t.sol) measures one ERC-20 transfer where both accounts must be on an allowlist, as a transaction in which every account and storage slot starts cold. A plain transfer to an existing holder costs about 34,500 gas. Reaching the rule through this ERC costs about 8,200 more than reading the list in the token itself, or 9,500 more with the after-transfer callback. A `bool` compliance call shaped like ERC-3643's, with its `transferred` callback but not its identity registry, costs about 6,400 more. More than half of the difference, about 4,700 gas, is reading the address of the contract that holds the rule and making the first call to it, which any external policy pays. Passing the context instead of three arguments, the reentrancy guard and `wantsAfterTransfer` account for most of the rest. The figures are for the Osaka gas schedule.
+
 ### Installing a policy
 
 A policy that keeps state derived from movements, such as a holder count, is only correct for one unbroken installation. While another policy is installed, it sees none of the token's movements, and without being told it cannot know that it was replaced. `onInstall` tells it on every installation, so a policy can rebuild or verify its state at the moment it goes live, or refuse to go live by reverting.
