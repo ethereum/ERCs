@@ -1,5 +1,5 @@
 {
-  "description": "ERC-165 interface identifier of IAgentMeditation (XOR of all function selectors).",
+  "description": "ERC-165 interface identifiers: IAgentMeditation (required) and IAgentMeditationStart (optional recorded-start extension); each is the XOR of the interface's function selectors.",
   "interfaceId": "0x9c81b550",
   "functions": [
     {
@@ -94,5 +94,24 @@
       "signature": "withdrawDemand(address,uint8)",
       "selector": "0xfddd3898"
     }
-  ]
+  ],
+  "extensions": {
+    "IAgentMeditationStart": {
+      "interfaceId": "0xb17415a3",
+      "functions": [
+        {
+          "signature": "begin(address)",
+          "selector": "0x54abe9d0"
+        },
+        {
+          "signature": "cancelStart(address)",
+          "selector": "0x154436c9"
+        },
+        {
+          "signature": "openStartOf(address)",
+          "selector": "0xf09bcaba"
+        }
+      ]
+    }
+  }
 }

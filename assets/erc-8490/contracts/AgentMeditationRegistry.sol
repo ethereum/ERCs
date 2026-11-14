@@ -2,15 +2,17 @@
 pragma solidity ^0.8.28;
 
 import {IAgentMeditation} from "./IAgentMeditation.sol";
+import {IAgentMeditationStart} from "./IAgentMeditationStart.sol";
 import {IERC165} from "./IERC165.sol";
 import {IERC6372} from "./IERC6372.sol";
 
 /// @title AgentMeditationRegistry
-/// @notice Reference implementation of the Agent Meditation Mechanism kernel.
+/// @notice Reference implementation of the Agent Meditation Mechanism kernel, with the optional
+///         recorded-start extension.
 /// @dev    Single clock domain: `mode=timestamp`. Storage keeps one head record, four layer
-///         checkpoints, policy/floor versions and the root of every state version per subject;
-///         full cycle records are emitted as events.
-contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
+///         checkpoints, policy/floor versions, the root of every state version and at most one open
+///         start per subject; full cycle records are emitted as events.
+contract AgentMeditationRegistry is IAgentMeditation, IAgentMeditationStart, IERC165, IERC6372 {
     // ---------------------------------------------------------------------
     // Constants
     // ---------------------------------------------------------------------
@@ -78,12 +80,21 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
     error StartBeforePreviousCycle();
     error CompletionNotMonotonic(uint8 layer);
     error InvalidRestore();
+    error StartHeldByAnother();
+    error NoOpenStart();
 
     // ---------------------------------------------------------------------
     // Storage
     // ---------------------------------------------------------------------
 
+    /// @dev Open start of a subject's next cycle (recorded-start extension).
+    struct OpenStart {
+        uint48 at; // 0 = none
+        address by; // account that recorded it
+    }
+
     mapping(address => Head) internal _heads;
+    mapping(address => OpenStart) internal _openStarts;
     mapping(address => LayerCheckpoint[4]) internal _checkpoints;
     mapping(address => mapping(uint64 => bytes32)) internal _rootAt;
     mapping(address => mapping(uint32 => Policy)) internal _policies;
@@ -97,8 +108,8 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
     // ---------------------------------------------------------------------
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IAgentMeditation).interfaceId || interfaceId == type(IERC6372).interfaceId
-            || interfaceId == type(IERC165).interfaceId;
+        return interfaceId == type(IAgentMeditation).interfaceId || interfaceId == type(IAgentMeditationStart).interfaceId
+            || interfaceId == type(IERC6372).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
     function clock() public view virtual override returns (uint48) {
@@ -223,6 +234,13 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         for (uint8 i = 0; i < 4; i++) {
             if (bound & (1 << i) != 0 && policy.supportedLayers & (1 << i) == 0) revert LayerUnderObligation(i);
         }
+        // An open start recorded by anyone other than the subject or the account changing the policy does not
+        // survive the change: no operator can hold a pin to the superseded version across a tightening.
+        OpenStart storage s = _openStarts[subject];
+        if (s.at != 0 && s.by != subject && s.by != msg.sender) {
+            emit StartVoided(subject, s.at, msg.sender);
+            delete _openStarts[subject];
+        }
         uint32 version = h.policyVersion + 1;
         uint48 now_ = clock();
         h.policyVersion = version;
@@ -303,6 +321,8 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         if (!(r.reportedStartedAt <= r.reportedEndedAt && r.reportedEndedAt <= now_)) revert InvalidTimeOrder();
         if (r.reportedStartedAt < h.lastCycleEndedAt) revert StartBeforePreviousCycle();
 
+        _checkCurrentVersion(subject, h, r);
+
         LayerCheckpoint[4] storage cps = _checkpoints[subject];
         uint8 changed = 0;
         for (uint8 i = 0; i < 4; i++) {
@@ -353,6 +373,8 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         h.nextPlannedAt = r.nextPlannedAt;
         h.lastCycleEndedAt = r.reportedEndedAt;
 
+        _settleStart(subject, r.reportedStartedAt, r.reportedEndedAt);
+
         emit CycleRecorded(subject, seq, r.baseVersion, newVersion, r, changed, now_, msg.sender);
     }
 
@@ -368,6 +390,39 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         h.lastSignalAt = now_;
         h.nextPlannedAt = nextPlannedAt;
         emit Pulsed(subject, seq, now_, nextPlannedAt, msg.sender);
+    }
+
+    // ---------------------------------------------------------------------
+    // Recorded start (optional extension)
+    // ---------------------------------------------------------------------
+
+    /// @inheritdoc IAgentMeditationStart
+    function begin(address subject) external override returns (uint48 startedAt) {
+        Head storage h = _heads[subject];
+        if (!h.enrolled) revert NotEnrolled();
+        if (msg.sender != subject && _operators[subject][msg.sender] & PERM_REPORT == 0) revert Unauthorized();
+        OpenStart storage s = _openStarts[subject];
+        if (s.at != 0 && s.by != msg.sender && msg.sender != subject) revert StartHeldByAnother();
+        uint48 replaced = s.at;
+        startedAt = clock();
+        s.at = startedAt;
+        s.by = msg.sender;
+        emit CycleBegun(subject, startedAt, replaced, msg.sender);
+    }
+
+    /// @inheritdoc IAgentMeditationStart
+    function cancelStart(address subject) external override {
+        OpenStart storage s = _openStarts[subject];
+        if (s.at == 0) revert NoOpenStart();
+        if (msg.sender != subject && msg.sender != s.by) revert Unauthorized();
+        emit StartVoided(subject, s.at, msg.sender);
+        delete _openStarts[subject];
+    }
+
+    /// @inheritdoc IAgentMeditationStart
+    function openStartOf(address subject) external view override returns (uint48 startedAt, address recordedBy) {
+        OpenStart storage s = _openStarts[subject];
+        return (s.at, s.by);
     }
 
     // ---------------------------------------------------------------------
@@ -540,6 +595,35 @@ contract AgentMeditationRegistry is IAgentMeditation, IERC165, IERC6372 {
         Policy storage p = _policies[subject][pv];
         if (r.layerMask & ~p.supportedLayers != 0) revert LayerNotSupported();
         if (p.allowedTriggers & (1 << r.trigger) == 0) revert TriggerNotAllowed();
+    }
+
+    /// @dev A record is pinned to the subject's open start when it reports that start and comes from the account
+    ///      that recorded it.
+    function _pinned(address subject, uint48 startedAt) internal view returns (bool) {
+        OpenStart storage s = _openStarts[subject];
+        return s.at != 0 && s.at == startedAt && s.by == msg.sender;
+    }
+
+    /// @dev A record under a superseded policy version that is not pinned to a recorded start must also fit the
+    ///      current version's `supportedLayers` and `allowedTriggers`: a start placed before a policy change
+    ///      cannot reach content the current version forbids, while a late record that fits both versions is
+    ///      accepted unchanged and keeps its reported age and its governing version.
+    function _checkCurrentVersion(address subject, Head storage h, CycleReport calldata r) internal view {
+        if (r.policyVersion == h.policyVersion || _pinned(subject, r.reportedStartedAt)) return;
+        Policy storage current = _policies[subject][h.policyVersion];
+        if (r.layerMask & ~current.supportedLayers != 0) revert LayerNotSupported();
+        if (current.allowedTriggers & (1 << r.trigger) == 0) revert TriggerNotAllowed();
+    }
+
+    /// @dev The pinned record consumes the open start; a record of a later cycle (its reported end is after the
+    ///      start) makes the start unusable under the ordering rule, so it is cleared as well.
+    function _settleStart(address subject, uint48 startedAt, uint48 endedAt) internal {
+        OpenStart storage s = _openStarts[subject];
+        if (s.at == 0) return;
+        bool pinned = _pinned(subject, startedAt);
+        if (!pinned && endedAt <= s.at) return;
+        if (!pinned) emit StartVoided(subject, s.at, msg.sender);
+        delete _openStarts[subject];
     }
 
     function _checkLinkage(Head storage h, CycleReport calldata r) internal view {
