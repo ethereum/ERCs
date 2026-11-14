@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-defs.schema.json",
+  "title": "GEOF shared definitions",
+  "description": "Definitions shared by every GEOF record schema. Records are canonicalized with the JSON Canonicalization Scheme (RFC 8785); a record's content hash is keccak256 of its canonical UTF-8 bytes.",
+  "$defs": {
+    "hash32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "description": "32-byte hash, lower-case hex with 0x prefix"
+    },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "clockValue": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "A value of the registry's ERC-6372 clock"
+    },
+    "uri": {
+      "type": "string",
+      "format": "uri"
+    },
+    "subjectId": {
+      "$ref": "#/$defs/hash32",
+      "description": "keccak256(utf8('<scheme>:<domain>:<identifier>'))"
+    },
+    "recordRef": {
+      "type": "object",
+      "description": "Reference to another GEOF record by content hash and optional URI",
+      "required": [
+        "hash"
+      ],
+      "properties": {
+        "hash": {
+          "$ref": "#/$defs/hash32"
+        },
+        "uri": {
+          "$ref": "#/$defs/uri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "ABSENT",
+        "UNOBSERVED",
+        "NOT_APPLICABLE",
+        "UNDETERMINABLE"
+      ],
+      "description": "ABSENT: checked, explicitly none. UNOBSERVED: no material to check. NOT_APPLICABLE: the field has no meaning here. UNDETERMINABLE: material available but the declared method reached no determination."
+    },
+    "valueOrState": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/state"
+        }
+      ],
+      "description": "A value, or one of the five states. A string value that equals a state name is that state."
+    },
+    "scopeRecord": {
+      "type": "object",
+      "description": "Scope of one Frame dimension. 'unrestricted' means no restriction was imposed, not that everything was covered.",
+      "required": [
+        "scope"
+      ],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "unrestricted",
+            "enumerated",
+            "not-applicable"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "items": {}
+        },
+        "coverageObserved": {
+          "type": "array",
+          "items": {}
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensionToken": {
+      "type": "string",
+      "pattern": "^x:[a-z0-9.-]+/[a-z0-9-]+$",
+      "description": "Extension value: x:<publisher>/<name>"
+    },
+    "metricId": {
+      "type": "string",
+      "pattern": "^geof:(exposure|presentation|reception|fidelity|seo|access|dynamics|economics|attainment|attribution)/[a-z0-9-]+/v[1-9][0-9]*$|^geof:x/[a-z0-9.-]+/[a-z0-9-]+/v[1-9][0-9]*$",
+      "description": "geof:<family>/<metric>/vN or geof:x/<publisher>/<metric>/vN"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "exposure",
+        "presentation",
+        "reception",
+        "fidelity",
+        "seo",
+        "access",
+        "dynamics",
+        "economics",
+        "attainment",
+        "attribution"
+      ]
+    },
+    "granularity": {
+      "type": "string",
+      "enum": [
+        "individual",
+        "cohort",
+        "aggregate",
+        "commitment-only"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Who wrote this record and when, in registry clock values",
+      "required": [
+        "declarant",
+        "declaredAt"
+      ],
+      "properties": {
+        "declarant": {
+          "$ref": "#/$defs/address"
+        },
+        "declaredAt": {
+          "$ref": "#/$defs/clockValue"
+        }
+      }
+    }
+  }
+}

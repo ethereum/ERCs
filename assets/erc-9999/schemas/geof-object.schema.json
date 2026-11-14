@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-object.schema.json",
+  "title": "GEOF Object",
+  "description": "An engine-independent subject being represented. A declaration proves only that its declarant submitted this description; control over the Object requires an independent basis carried in holderClaims and verified by consumers. Several declarations for one subjectId may coexist.",
+  "type": "object",
+  "required": ["type", "version", "subjectId", "canonicalSubject", "kind", "identifiers", "provenance"],
+  "properties": {
+    "type": { "const": "geof:object" },
+    "version": { "const": 1 },
+    "subjectId": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+    "canonicalSubject": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9+.-]*:[^:]*:.+$",
+      "description": "<scheme>:<domain>:<identifier>; scheme and domain lower-case, '-' for no domain"
+    },
+    "kind": {
+      "oneOf": [
+        { "type": "string", "enum": ["content", "entity", "offer", "agent", "skill", "task", "registry", "claim"] },
+        { "$ref": "geof-defs.schema.json#/$defs/extensionToken" }
+      ]
+    },
+    "identifiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["scheme", "value"],
+        "properties": {
+          "scheme": { "type": "string", "enum": ["url", "caip10", "caip19", "urn", "did", "content-hash", "other"] },
+          "value": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["relation", "target"],
+        "properties": {
+          "relation": {
+            "oneOf": [
+              { "type": "string", "enum": ["carrierOf", "partOf", "aliasOf", "instanceOf", "competesWith"] },
+              { "$ref": "geof-defs.schema.json#/$defs/extensionToken" }
+            ]
+          },
+          "target": { "$ref": "geof-defs.schema.json#/$defs/subjectId" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "externalRecords": {
+      "type": "array",
+      "description": "References into other registries, e.g. an on-chain value registry record for skill/task/agent/registry kinds",
+      "items": {
+        "type": "object",
+        "required": ["system", "ref"],
+        "properties": {
+          "system": { "type": "string", "description": "label of the external system, e.g. 'erc-8444', 'erc-8338', 'erc-8434'" },
+          "ref": { "type": "string" },
+          "chainId": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "holderClaims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claimant", "basis"],
+        "properties": {
+          "claimant": { "$ref": "geof-defs.schema.json#/$defs/address" },
+          "basis": { "type": "string", "enum": ["registry-record", "domain-acknowledgment", "identity-binding", "signature", "declared"] },
+          "evidence": { "type": "string", "description": "URI, record reference or signature supporting the basis" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "description": { "type": "string" },
+    "propositions": {
+      "type": "array",
+      "description": "For kind 'claim': the declared propositions that claimCoverage and fidelity statements refer to",
+      "items": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": { "id": { "type": "string" }, "text": { "type": "string" } },
+        "additionalProperties": false
+      }
+    },
+    "provenance": { "$ref": "geof-defs.schema.json#/$defs/provenance" }
+  },
+  "additionalProperties": false
+}

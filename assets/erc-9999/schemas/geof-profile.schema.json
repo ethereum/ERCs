@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-profile.schema.json",
+  "title": "GEOF Profile",
+  "description": "A set of statements published by one account against one frozen Process version. Several Profiles per version by different publishers may coexist; none is official. Every statement carries its frame, sources, method, counts, coverage and rationale. Attainment and attribution statements must reference an Intent; fidelity statements must declare what was checked against what.",
+  "type": "object",
+  "required": ["type", "version", "publisher", "processRef", "processVersion", "statements", "visibilityScope", "unverifiedPremises"],
+  "properties": {
+    "type": { "const": "geof:profile" },
+    "version": { "const": 1 },
+    "publisher": { "$ref": "geof-defs.schema.json#/$defs/address" },
+    "processRef": { "$ref": "geof-defs.schema.json#/$defs/hash32", "description": "processId" },
+    "processVersion": { "type": "integer", "minimum": 1 },
+    "publishedAt": { "$ref": "geof-defs.schema.json#/$defs/clockValue" },
+    "statements": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/statement" } },
+    "composites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["compositeId", "components", "methodRef", "value"],
+        "properties": {
+          "compositeId": { "type": "string" },
+          "components": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["statementId", "weight"],
+              "properties": { "statementId": { "type": "string" }, "weight": { "type": "number" } }
+            }
+          },
+          "methodRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef" },
+          "value": { "$ref": "geof-defs.schema.json#/$defs/valueOrState" },
+          "rationale": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "supersedes": { "$ref": "geof-defs.schema.json#/$defs/hash32" },
+    "visibilityScope": { "type": "string", "description": "What the publisher could and could not see" },
+    "unverifiedPremises": { "type": "array", "items": { "type": "string" }, "description": "Premises assumed but not checked; may be empty but must be present" },
+    "description": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "statement": {
+      "type": "object",
+      "required": ["statementId", "metricRef", "value", "coverage", "window", "frameRef", "sourceRefs", "methodRef", "uncertainty", "rationale"],
+      "properties": {
+        "statementId": { "type": "string" },
+        "metricRef": { "$ref": "geof-defs.schema.json#/$defs/metricId" },
+        "metricDefinitionRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef" },
+        "objectRef": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+        "value": { "$ref": "geof-defs.schema.json#/$defs/valueOrState" },
+        "numeratorCount": { "type": "number" },
+        "denominatorCount": { "type": "number" },
+        "coverage": {
+          "type": "object",
+          "required": ["withRecords", "population"],
+          "properties": {
+            "withRecords": { "type": "number", "description": "units for which records exist" },
+            "population": { "oneOf": [{ "type": "number" }, { "$ref": "geof-defs.schema.json#/$defs/state" }], "description": "units in the eligible population, or a state" }
+          },
+          "additionalProperties": false
+        },
+        "window": { "type": "object", "required": ["start", "end"], "properties": { "start": { "type": "string" }, "end": { "type": "string" } } },
+        "frameRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef" },
+        "sourceRefs": { "type": "array", "minItems": 1, "items": { "$ref": "geof-defs.schema.json#/$defs/recordRef" } },
+        "methodRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef" },
+        "uncertainty": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string", "enum": ["interval", "variance", "stddev", "qualitative"] },
+                "low": { "type": "number" },
+                "high": { "type": "number" },
+                "value": { "type": "number" },
+                "confidence": { "type": "number" },
+                "note": { "type": "string" }
+              }
+            },
+            { "$ref": "geof-defs.schema.json#/$defs/state" }
+          ]
+        },
+        "intentRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef", "description": "Required for attainment and attribution families" },
+        "expectedChange": { "type": "string", "description": "For attainment: which expected change of the Intent this statement evaluates" },
+        "referenceSet": { "type": "array", "items": { "$ref": "geof-defs.schema.json#/$defs/recordRef" }, "description": "Required for fidelity: the sources treated as reference" },
+        "comparator": { "$ref": "geof-defs.schema.json#/$defs/recordRef", "description": "Required for fidelity: the verification Method" },
+        "proposition": { "type": "string", "description": "Required for fidelity: which proposition was checked" },
+        "independenceBasis": { "type": "string", "description": "Required for consensus metrics: how source independence was established" },
+        "attributionBasis": { "type": "string", "enum": ["counterfactual", "experimental", "model", "declared"], "description": "For attribution statements" },
+        "rationale": { "type": "string", "description": "Human-readable calculation rationale" },
+        "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "metricRef": { "pattern": "^geof:(attainment|attribution)/" } } },
+          "then": { "required": ["intentRef"] }
+        },
+        {
+          "if": { "properties": { "metricRef": { "pattern": "^geof:fidelity/" } } },
+          "then": { "required": ["referenceSet", "comparator", "proposition"] }
+        },
+        {
+          "if": { "properties": { "metricRef": { "pattern": "^geof:fidelity/consensus" } } },
+          "then": { "required": ["independenceBasis"] }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

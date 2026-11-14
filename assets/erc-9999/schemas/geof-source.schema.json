@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-source.schema.json",
+  "title": "GEOF Source",
+  "description": "A data source declaration. The same material may serve several roles (engine input, observation, evaluation); each role must be declared. An aggregate-only source supports aggregate observations and must not be used to fabricate instance-level events.",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "class",
+    "roles",
+    "party",
+    "access",
+    "verifiability",
+    "provenance"
+  ],
+  "properties": {
+    "type": {
+      "const": "geof:source"
+    },
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string"
+    },
+    "class": {
+      "type": "string",
+      "enum": [
+        "engine-native",
+        "observer-sampled",
+        "publisher-side",
+        "recipient-side",
+        "third-party-corpus",
+        "onchain"
+      ]
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "engine-input",
+          "observation",
+          "evaluation"
+        ]
+      }
+    },
+    "party": {
+      "type": "string",
+      "enum": [
+        "first",
+        "second",
+        "third"
+      ]
+    },
+    "access": {
+      "type": "string",
+      "description": "How the material was obtained: API, log export, crawl, panel run, chain read, report download, ..."
+    },
+    "verifiability": {
+      "type": "string",
+      "enum": [
+        "signed",
+        "replayable",
+        "aggregate-only",
+        "none"
+      ]
+    },
+    "coverage": {
+      "type": "string",
+      "description": "What part of the population this source can see"
+    },
+    "latency": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string",
+      "description": "License or terms under which the material is used"
+    },
+    "visibilityScope": {
+      "type": "string",
+      "description": "What the source holder can and cannot see (black-box engine, aggregate report, ...)"
+    },
+    "timeMapping": {
+      "type": "string",
+      "description": "How the source's reported times map to the registry clock, when they differ"
+    },
+    "identity": {
+      "type": "object",
+      "description": "Operator or system identity of the source",
+      "properties": {
+        "operator": {
+          "type": "string"
+        },
+        "system": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "geof-defs.schema.json#/$defs/address"
+        }
+      }
+    },
+    "description": {
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "geof-defs.schema.json#/$defs/provenance"
+    }
+  },
+  "additionalProperties": false
+}
