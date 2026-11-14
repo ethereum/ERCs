@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "amm.policy/1",
+  "title": "Maintenance policy document",
+  "description": "Off-chain policy document whose canonical hash is registered as policyHash. The onchain member mirrors the fields of the on-chain Policy structure; the remaining members describe triggers, budgets, per-layer routines and adoption conditions, and disclosure terms.",
+  "type": "object",
+  "required": ["schema", "version", "onchain"],
+  "properties": {
+    "schema": {"const": "amm.policy/1"},
+    "name": {"type": "string"},
+    "version": {"type": "integer", "minimum": 1},
+    "onchain": {
+      "type": "object",
+      "required": ["supportedLayers", "requiredLayers", "allowedTriggers", "disclosure", "dueWindow", "pulseInterval", "maxInterval"],
+      "properties": {
+        "supportedLayers": {"type": "integer", "minimum": 1, "maximum": 15},
+        "requiredLayers": {"type": "integer", "minimum": 0, "maximum": 15},
+        "allowedTriggers": {"type": "integer", "minimum": 1, "maximum": 15},
+        "disclosure": {"type": "integer", "minimum": 0, "maximum": 2},
+        "dueWindow": {"type": "integer", "minimum": 0},
+        "pulseInterval": {"type": "integer", "minimum": 0},
+        "maxInterval": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "integer", "minimum": 0}}
+      }
+    },
+    "triggers": {"type": "object"},
+    "budgets": {
+      "type": "object",
+      "properties": {
+        "maxCycleDuration": {"type": "integer"},
+        "maxModelCalls": {"type": "integer"},
+        "cooldownAfterCycle": {"type": "integer"}
+      }
+    },
+    "layers": {
+      "type": "object",
+      "patternProperties": {
+        "^[0-3]$": {
+          "type": "object",
+          "properties": {
+            "routine": {"type": "array", "items": {"type": "string"}},
+            "adoption": {"type": "string", "description": "Condition under which a candidate change of this layer is adopted."}
+          }
+        }
+      }
+    },
+    "disclosure": {"type": "object", "properties": {"level": {"type": "string"}, "terms": {"type": "string"}}}
+  }
+}

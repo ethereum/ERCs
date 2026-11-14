@@ -1,0 +1,41 @@
+{
+  "description": "RFC 8785 canonicalization vectors (UTF-8 bytes hashed with keccak256).",
+  "cases": [
+    {
+      "input": {
+        "b": 1,
+        "a": [
+          true,
+          null,
+          "x"
+        ],
+        "c": {
+          "z": 1.5,
+          "y": "é"
+        }
+      },
+      "canonical": "{\"a\":[true,null,\"x\"],\"b\":1,\"c\":{\"y\":\"é\",\"z\":1.5}}",
+      "keccak256": "0xa5bf818c53f5a4b41e090fb63de6621bd9efe8da3a89e87bc41e7fcd004f9031"
+    },
+    {
+      "input": {
+        "€": 1,
+        "A": 2,
+        "a": 3,
+        "": 4
+      },
+      "canonical": "{\"\":4,\"A\":2,\"a\":3,\"€\":1}",
+      "keccak256": "0x22816a6b64184a15ee2d60a54c0f519ec38dbf7310593294a545467c66c5ea77"
+    },
+    {
+      "input": {
+        "n": 1e+21,
+        "m": 0.000001,
+        "k": 0,
+        "s": "line\nbreak\ttab\"quote\\"
+      },
+      "canonical": "{\"k\":0,\"m\":0.000001,\"n\":1e+21,\"s\":\"line\\nbreak\\ttab\\\"quote\\\\\"}",
+      "keccak256": "0x8953829f4ccb00b31d6f6ea5b40793765a654514a2049b6e1fb99ab38be2f069"
+    }
+  ]
+}

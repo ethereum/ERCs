@@ -1,0 +1,47 @@
+{
+  "schema": "amm.policy/1",
+  "name": "example-cell maintenance policy",
+  "version": 1,
+  "onchain": {
+    "supportedLayers": 15,
+    "requiredLayers": 15,
+    "allowedTriggers": 15,
+    "disclosure": 1,
+    "dueWindow": 3600,
+    "pulseInterval": 21600,
+    "maxInterval": [86400, 604800, 2592000, 7776000]
+  },
+  "triggers": {
+    "scheduled": "daily at 03:00 UTC (layer 0), weekly (layer 1), monthly (layer 2), quarterly (layer 3)",
+    "event": ["three consecutive adapter failures", "dependency or adapter schema change", "task completion review"],
+    "commanded": "controller demand",
+    "self": "within the budgets below"
+  },
+  "budgets": {
+    "maxCycleDuration": 1800,
+    "maxModelCalls": 40,
+    "cooldownAfterCycle": 3600
+  },
+  "layers": {
+    "0": {
+      "routine": ["run the self-check suite", "walk every adapter schema", "verify candidate dependency updates in a sandbox before adoption"],
+      "adoption": "a candidate update is adopted only after the self-check suite passes against it"
+    },
+    "1": {
+      "routine": ["deduplicate recent memory entries", "keep sources of merged entries", "verify skill package hashes against their declared sources"],
+      "adoption": "memory consolidation is adopted when no referenced source is lost"
+    },
+    "2": {
+      "routine": ["review in-flight tasks and their skill bindings", "re-plan priorities", "schedule recovery of interrupted work"],
+      "adoption": "plans may change freely; commitments made to counterparties are only changed through the task mechanism that governs them"
+    },
+    "3": {
+      "routine": ["replay recorded failures against candidate strategies", "revise assumptions whose evidence changed"],
+      "adoption": "a candidate strategy is adopted only after at least 20 replayed cases or two independent evaluation windows show improvement"
+    }
+  },
+  "disclosure": {
+    "level": "summary",
+    "terms": "cycle record documents are published with findings and evaluation summaries; memory and cognition contents are disclosed to named parties only"
+  }
+}
