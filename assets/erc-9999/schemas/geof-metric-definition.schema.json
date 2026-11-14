@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-metric-definition.schema.json",
+  "title": "GEOF Metric Definition",
+  "description": "What a reading means. Immutable; a change to statistical unit, numerator, denominator, eligibility, de-duplication or aggregation is a new version. A metric identifier names a definition, never a reading. Definitions carry no preferred direction: the framework assigns no desirability to any value.",
+  "type": "object",
+  "required": ["type", "version", "id", "family", "basis", "statUnit", "eligibility", "dedup", "aggregation", "valueType", "provenance"],
+  "properties": {
+    "type": { "const": "geof:metric-definition" },
+    "version": { "const": 1 },
+    "id": { "$ref": "geof-defs.schema.json#/$defs/metricId" },
+    "name": { "type": "string" },
+    "family": { "$ref": "geof-defs.schema.json#/$defs/family" },
+    "basis": {
+      "type": "string",
+      "enum": ["outcome", "condition"],
+      "description": "outcome: derived from Observations. condition: a state of the Object or its carrier (crawl permission, structured data coverage, Core Web Vitals, licensing terms)."
+    },
+    "statUnit": {
+      "type": "string",
+      "description": "The unit counted: run, answer, object-in-answer, recipient, call, crawl, citation, period, ...",
+      "examples": ["run", "answer", "object-in-answer", "recipient", "call", "crawl", "citation", "period"]
+    },
+    "numerator": { "type": "string", "description": "Required for ratio and share types: what is counted above" },
+    "denominator": { "type": "string", "description": "Required for ratio and share types: what is counted below" },
+    "eligibility": { "type": "string", "description": "Which units qualify for the denominator (completed answers only, answers in the prompt set, recipients in the intended audience, ...)" },
+    "dedup": { "type": "string", "description": "De-duplication rule (per run, per recipient per day, per citation URL after canonicalization, ...)" },
+    "aggregation": { "type": "string", "description": "How instance values combine (mean, sum, share, distribution, max)" },
+    "valueType": {
+      "type": "string",
+      "enum": ["count", "ratio", "share", "score", "duration", "amount", "state", "distribution"]
+    },
+    "unit": { "type": "string", "description": "Unit of the value when not implied by valueType (seconds, wei, ...)" },
+    "requires": {
+      "type": "object",
+      "description": "Statement fields this definition makes mandatory beyond the family defaults",
+      "properties": {
+        "intentRef": { "type": "boolean" },
+        "referenceSet": { "type": "boolean" },
+        "independenceBasis": { "type": "boolean" }
+      }
+    },
+    "definition": { "type": "string", "description": "Human-readable definition" },
+    "supersedes": { "$ref": "geof-defs.schema.json#/$defs/hash32" },
+    "provenance": { "$ref": "geof-defs.schema.json#/$defs/provenance" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "valueType": { "enum": ["ratio", "share"] } } },
+      "then": { "required": ["numerator", "denominator"] }
+    }
+  ],
+  "not": { "required": ["direction"] },
+  "additionalProperties": false
+}

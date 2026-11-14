@@ -1,0 +1,119 @@
+{
+  "type": "geof:metric-vocabulary",
+  "version": 1,
+  "status": "informative",
+  "note": "Starter vocabulary of metric identifiers. Each identifier names a Metric Definition record (geof-metric-definition.schema.json) that fixes statUnit, numerator, denominator, eligibility, dedup and aggregation; the definitions here are summaries. Nothing in this file assigns a preferred direction to any value. Third parties extend under geof:x/<publisher>/<metric>/vN.",
+  "families": {
+    "exposure": {
+      "describes": "whether the Object entered candidate sets and reached recipients",
+      "metrics": {
+        "geof:exposure/retrieval-inclusion-rate/v1": { "statUnit": "run", "numerator": "runs whose retrieved set contained the Object", "denominator": "eligible runs", "sources": ["engine-native"] },
+        "geof:exposure/answer-inclusion-rate/v1": { "statUnit": "answer", "numerator": "answers in which the Object appears in any representation kind other than OMITTED and RETRIEVED_NOT_USED", "denominator": "eligible answers" },
+        "geof:exposure/invocation-incidence/v1": { "statUnit": "answer", "numerator": "answers with at least one INVOKED entry for the Object", "denominator": "eligible answers", "note": "10 answers, 1 with 3 calls -> 0.10" },
+        "geof:exposure/invocation-intensity/v1": { "statUnit": "call", "numerator": "INVOKED entries for the Object", "denominator": "eligible answers", "note": "10 answers, 1 with 3 calls -> 0.3 calls per answer" },
+        "geof:exposure/invocation-count/v1": { "statUnit": "call", "valueType": "count" },
+        "geof:exposure/crawl-rate/v1": { "statUnit": "crawl", "numerator": "crawler fetches of the carrier", "denominator": "period", "sources": ["publisher-side"] },
+        "geof:exposure/targeted-reach/v1": { "statUnit": "recipient", "numerator": "intended recipients who received at least one representation", "denominator": "intended recipients", "requires": ["intentRef"] }
+      }
+    },
+    "presentation": {
+      "describes": "how the engine presented the Object",
+      "metrics": {
+        "geof:presentation/mention-rate/v1": { "statUnit": "answer", "numerator": "answers with kind in {MENTIONED, CITED, RECOMMENDED, INVOKED}", "denominator": "eligible answers" },
+        "geof:presentation/citation-rate/v1": { "statUnit": "answer", "numerator": "answers with kind CITED (attribution with a resolvable reference)", "denominator": "eligible answers" },
+        "geof:presentation/citation-share/v1": { "statUnit": "citation", "numerator": "citations of the Object", "denominator": "all citations in eligible answers", "note": "different denominator from citation-rate; both valid, not comparable" },
+        "geof:presentation/first-citation-share/v1": { "statUnit": "answer", "numerator": "answers where the Object is the first citation", "denominator": "answers citing the Object" },
+        "geof:presentation/position-adjusted-share/v1": { "statUnit": "object-in-answer", "valueType": "score", "note": "share of answer text attributed to the Object weighted by position decay; decay constant fixed in the scoring Method" },
+        "geof:presentation/recommendation-rate/v1": { "statUnit": "answer", "numerator": "answers with kind RECOMMENDED", "denominator": "eligible answers" },
+        "geof:presentation/push-sent-rate/v1": { "statUnit": "recipient", "numerator": "unsolicited deliveries sent", "denominator": "intended recipients" },
+        "geof:presentation/push-delivered-rate/v1": { "statUnit": "recipient", "numerator": "unsolicited deliveries confirmed delivered", "denominator": "deliveries sent" },
+        "geof:presentation/push-displayed-rate/v1": { "statUnit": "recipient", "numerator": "deliveries confirmed displayed", "denominator": "deliveries delivered" },
+        "geof:presentation/share-of-voice/v1": { "statUnit": "object-in-answer", "numerator": "representations of the Object", "denominator": "representations of all Objects in the Frame's object set" },
+        "geof:presentation/cross-engine-breadth/v1": { "statUnit": "engine", "valueType": "count", "note": "engines in the Frame in which the Object appeared at least once" },
+        "geof:presentation/stance-distribution/v1": { "statUnit": "object-in-answer", "valueType": "distribution", "note": "introduces / supports / questions / opposes / unstated" }
+      }
+    },
+    "reception": {
+      "describes": "what recipients did",
+      "metrics": {
+        "geof:reception/positive-feedback-rate/v1": { "statUnit": "answer", "numerator": "answers containing the Object with positive feedback", "denominator": "answers containing the Object with any feedback signal available" },
+        "geof:reception/negative-feedback-rate/v1": { "statUnit": "answer", "numerator": "... negative feedback", "denominator": "same as above" },
+        "geof:reception/no-feedback-rate/v1": { "statUnit": "answer", "numerator": "answers containing the Object with no feedback signal", "denominator": "answers containing the Object" },
+        "geof:reception/citation-click-rate/v1": { "statUnit": "citation", "numerator": "clicks on the Object's citation", "denominator": "displayed citations of the Object" },
+        "geof:reception/adoption-rate/v1": { "statUnit": "recipient", "numerator": "recipients with a followup ADOPTED", "denominator": "recipients who received a representation" },
+        "geof:reception/execution-success-rate/v1": { "statUnit": "call", "numerator": "recipient INVOKED calls that completed", "denominator": "recipient INVOKED calls" },
+        "geof:reception/reuse-rate/v1": { "statUnit": "recipient", "numerator": "recipients with more than one INVOKED or ACTED followup", "denominator": "recipients with at least one" },
+        "geof:reception/dispute-rate/v1": { "statUnit": "answer", "numerator": "answers containing the Object that were disputed", "denominator": "answers containing the Object" }
+      }
+    },
+    "fidelity": {
+      "describes": "truth relations, each relative to a declared reference set",
+      "metrics": {
+        "geof:fidelity/occurrence-verified/v1": { "statUnit": "run", "valueType": "state", "note": "did the recorded run happen as recorded; reference = independent record of the run" },
+        "geof:fidelity/relay-fidelity/v1": { "statUnit": "object-in-answer", "numerator": "answers whose statements about the Object are supported by the Object's own source", "denominator": "answers making statements about the Object", "reference": "the Object's source", "requires": ["referenceSet", "comparator", "proposition"] },
+        "geof:fidelity/claim-coverage/v1": { "statUnit": "object-in-answer", "numerator": "answers in which the named proposition is present", "denominator": "answers mentioning the claim Object", "requires": ["referenceSet", "comparator", "proposition"] },
+        "geof:fidelity/claim-support/v1": { "statUnit": "proposition", "valueType": "distribution", "note": "supported / contradicted / unverifiable counts of the source's own propositions against an external reference set", "requires": ["referenceSet", "comparator", "proposition"] },
+        "geof:fidelity/attribution-accuracy/v1": { "statUnit": "citation", "numerator": "citations whose cited document supports the attributed statement", "denominator": "citations checked" },
+        "geof:fidelity/consensus-degree/v1": { "statUnit": "proposition", "valueType": "score", "note": "agreement across independent sources; ten reprints of one wire story are one source", "requires": ["referenceSet", "comparator", "proposition", "independenceBasis"] },
+        "geof:fidelity/omission-rate/v1": { "statUnit": "object-in-answer", "numerator": "answers omitting a proposition the Method deems material", "denominator": "answers mentioning the Object" },
+        "geof:fidelity/staleness-lag/v1": { "statUnit": "object-in-answer", "valueType": "duration", "note": "age of the source version the representation reflects" }
+      }
+    },
+    "seo": {
+      "describes": "classic search measurements, kept in the source platform's units; condition-type metrics are states of the carrier",
+      "metrics": {
+        "geof:seo/impressions/v1": { "statUnit": "impression", "valueType": "count", "basis": "outcome" },
+        "geof:seo/clicks/v1": { "statUnit": "click", "valueType": "count", "basis": "outcome" },
+        "geof:seo/ctr/v1": { "statUnit": "impression", "numerator": "clicks", "denominator": "impressions", "basis": "outcome" },
+        "geof:seo/average-position/v1": { "statUnit": "impression", "valueType": "score", "basis": "outcome" },
+        "geof:seo/indexed-pages/v1": { "statUnit": "page", "valueType": "count", "basis": "condition" },
+        "geof:seo/crawl-frequency/v1": { "statUnit": "crawl", "numerator": "crawls", "denominator": "period", "basis": "outcome" },
+        "geof:seo/referring-domains/v1": { "statUnit": "domain", "valueType": "count", "basis": "condition" },
+        "geof:seo/core-web-vitals/v1": { "statUnit": "page", "valueType": "distribution", "basis": "condition" },
+        "geof:seo/structured-data-coverage/v1": { "statUnit": "page", "numerator": "pages with valid structured data", "denominator": "pages", "basis": "condition" },
+        "geof:seo/canonical-state/v1": { "statUnit": "page", "valueType": "state", "basis": "condition" }
+      }
+    },
+    "access": {
+      "describes": "conditions of access and governance; descriptive, not a consent or licensing mechanism",
+      "metrics": {
+        "geof:access/crawl-permission-state/v1": { "statUnit": "carrier", "valueType": "state", "basis": "condition", "note": "robots directives and AI-preference signals as published" },
+        "geof:access/licensing-terms-state/v1": { "statUnit": "carrier", "valueType": "state", "basis": "condition", "note": "machine-readable licensing terms as published (free, attribution, subscription, pay-per-crawl, pay-per-inference, none)" },
+        "geof:access/crawler-auth-state/v1": { "statUnit": "crawl", "valueType": "distribution", "basis": "outcome", "note": "share of crawls carrying verified crawler identity" },
+        "geof:access/content-credential-presence/v1": { "statUnit": "carrier", "valueType": "state", "basis": "condition" }
+      }
+    },
+    "dynamics": {
+      "describes": "change over repetition and time",
+      "metrics": {
+        "geof:dynamics/run-to-run-volatility/v1": { "statUnit": "cell", "valueType": "score", "note": "share of repeated runs of one Frame cell whose representation kind for the Object differs" },
+        "geof:dynamics/persistence/v1": { "statUnit": "period", "valueType": "duration" },
+        "geof:dynamics/freshness-lag/v1": { "statUnit": "object-in-answer", "valueType": "duration" },
+        "geof:dynamics/cross-model-consistency/v1": { "statUnit": "engine", "valueType": "score" }
+      }
+    },
+    "economics": {
+      "describes": "ledger facts; no pricing or settlement rules",
+      "metrics": {
+        "geof:economics/actual-spend/v1": { "statUnit": "period", "valueType": "amount" },
+        "geof:economics/actual-revenue/v1": { "statUnit": "period", "valueType": "amount" },
+        "geof:economics/allocated-amount/v1": { "statUnit": "period", "valueType": "amount", "note": "amount allocated to this dissemination by a declared rule; the rule is the Method" },
+        "geof:economics/estimated-incremental-value/v1": { "statUnit": "period", "valueType": "amount", "note": "requires an attribution Method; distinct from actual revenue" },
+        "geof:economics/crawl-charges/v1": { "statUnit": "crawl", "valueType": "amount" }
+      }
+    },
+    "attainment": {
+      "describes": "how far a declared Intent's expected change occurred; intentRef required",
+      "metrics": {
+        "geof:attainment/attainment-rate/v1": { "statUnit": "recipient", "numerator": "intended recipients for whom the named expectedChange is recorded", "denominator": "intended recipients", "requires": ["intentRef"], "note": "one statement per expectedChange; coverage states how many recipients have records at all" }
+      }
+    },
+    "attribution": {
+      "describes": "how much of an outcome is due to this dissemination; intentRef required; always separate from attainment",
+      "metrics": {
+        "geof:attribution/incremental-contribution/v1": { "statUnit": "recipient", "valueType": "ratio", "requires": ["intentRef"], "note": "attributionBasis = counterfactual | experimental | model | declared; 'declared' is a claim, not an estimate" },
+        "geof:attribution/intervention-effect/v1": { "statUnit": "cell", "valueType": "score", "note": "change in a named metric after a recorded intervention, by a declared attribution Method" }
+      }
+    }
+  }
+}

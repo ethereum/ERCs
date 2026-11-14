@@ -1,0 +1,776 @@
+{
+  "case": "A — wide spread, low fidelity, attainment unknown",
+  "note": "Illustrative records. Hashes and addresses are synthetic placeholders; the reference implementation will replace them with vectors derived by canonicalization. The case shows how one framework describes a correction notice that AI engines relayed widely while most relays dropped the sentence that mattered.",
+  "objects": [
+    {
+      "type": "geof:object",
+      "version": 1,
+      "subjectId": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+      "canonicalSubject": "claim:example.com:warranty-correction-2026-10",
+      "kind": "claim",
+      "identifiers": [
+        {
+          "scheme": "url",
+          "value": "https://example.com/notices/warranty-correction"
+        }
+      ],
+      "propositions": [
+        {
+          "id": "p1",
+          "text": "Product X's warranty covers component Y."
+        },
+        {
+          "id": "p2",
+          "text": "Coverage of component Y applies only when condition Z is met."
+        }
+      ],
+      "relations": [
+        {
+          "relation": "partOf",
+          "target": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35"
+        }
+      ],
+      "holderClaims": [
+        {
+          "claimant": "0x1111111111111111111111111111111111111111",
+          "basis": "domain-acknowledgment",
+          "evidence": "https://example.com/.well-known/geof.json"
+        }
+      ],
+      "provenance": {
+        "declarant": "0x1111111111111111111111111111111111111111",
+        "declaredAt": 1800000000
+      }
+    },
+    {
+      "type": "geof:object",
+      "version": 1,
+      "subjectId": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35",
+      "canonicalSubject": "content:example.com:/notices/warranty-correction",
+      "kind": "content",
+      "identifiers": [
+        {
+          "scheme": "url",
+          "value": "https://example.com/notices/warranty-correction"
+        },
+        {
+          "scheme": "content-hash",
+          "value": "0x5e1f000000000000000000000000000000000000000000000000000000000c0d"
+        }
+      ],
+      "relations": [
+        {
+          "relation": "carrierOf",
+          "target": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be"
+        }
+      ],
+      "provenance": {
+        "declarant": "0x1111111111111111111111111111111111111111",
+        "declaredAt": 1800000000
+      }
+    }
+  ],
+  "intent": {
+    "type": "geof:intent",
+    "version": 1,
+    "mode": "ex-ante",
+    "audience": {
+      "scope": "enumerated",
+      "values": [
+        "human recipients searching about Product X warranty, en-US"
+      ]
+    },
+    "content": [
+      "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be"
+    ],
+    "expectedChange": [
+      "aware",
+      "understood"
+    ],
+    "conditions": [
+      "understood = recipient can state condition Z"
+    ],
+    "evaluationWindow": {
+      "start": "2026-10-01",
+      "end": "2026-10-31"
+    },
+    "provenance": {
+      "declarant": "0x1111111111111111111111111111111111111111",
+      "declaredAt": 1800000100
+    }
+  },
+  "frame": {
+    "type": "geof:frame",
+    "version": 1,
+    "dimensions": {
+      "time": {
+        "scope": "enumerated",
+        "values": [
+          {
+            "start": "2026-10-01",
+            "end": "2026-10-31",
+            "cadence": "3 runs per prompt per week"
+          }
+        ],
+        "coverageObserved": [
+          {
+            "start": "2026-10-01",
+            "end": "2026-10-31"
+          }
+        ]
+      },
+      "engines": {
+        "scope": "enumerated",
+        "values": [
+          {
+            "id": "engine-1",
+            "surface": "chat"
+          },
+          {
+            "id": "engine-2",
+            "surface": "ai-overview"
+          },
+          {
+            "id": "engine-3",
+            "surface": "answer-engine"
+          }
+        ],
+        "coverageObserved": [
+          "engine-1",
+          "engine-2",
+          "engine-3"
+        ]
+      },
+      "queries": {
+        "scope": "enumerated",
+        "values": [
+          {
+            "promptSetHash": "0x9a0000000000000000000000000000000000000000000000000000000000c001",
+            "count": 40,
+            "intentClasses": [
+              "informational"
+            ]
+          }
+        ]
+      },
+      "locales": {
+        "scope": "enumerated",
+        "values": [
+          {
+            "region": "US",
+            "language": "en",
+            "modality": "text"
+          }
+        ]
+      },
+      "objects": {
+        "scope": "enumerated",
+        "values": [
+          "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+          "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35"
+        ]
+      },
+      "observers": {
+        "scope": "enumerated",
+        "values": [
+          "0x2222222222222222222222222222222222222222"
+        ]
+      },
+      "repetition": {
+        "scope": "enumerated",
+        "values": [
+          {
+            "runsPerCell": 12,
+            "timingPolicy": "Mon/Wed/Fri 09:00 UTC"
+          }
+        ]
+      }
+    },
+    "observationGranularity": "individual",
+    "disclosureGranularity": "aggregate",
+    "clocks": {
+      "eventEnd": "answer delivered",
+      "processClose": "2026-11-02",
+      "observationCutoff": "2026-11-15"
+    },
+    "provenance": {
+      "declarant": "0x2222222222222222222222222222222222222222",
+      "declaredAt": 1800000200
+    }
+  },
+  "sources": [
+    {
+      "type": "geof:source",
+      "version": 1,
+      "name": "panel",
+      "class": "observer-sampled",
+      "roles": [
+        "observation"
+      ],
+      "party": "third",
+      "access": "scripted prompt runs via engine UIs and APIs",
+      "verifiability": "replayable",
+      "visibilityScope": "answers and citations only; no retrieval logs",
+      "provenance": {
+        "declarant": "0x2222222222222222222222222222222222222222",
+        "declaredAt": 1800000200
+      }
+    },
+    {
+      "type": "geof:source",
+      "version": 1,
+      "name": "notice-page",
+      "class": "third-party-corpus",
+      "roles": [
+        "engine-input",
+        "evaluation"
+      ],
+      "party": "third",
+      "access": "fetched 2026-10-01, content hash recorded",
+      "verifiability": "replayable",
+      "provenance": {
+        "declarant": "0x2222222222222222222222222222222222222222",
+        "declaredAt": 1800000200
+      }
+    },
+    {
+      "type": "geof:source",
+      "version": 1,
+      "name": "publisher-logs",
+      "class": "publisher-side",
+      "roles": [
+        "observation"
+      ],
+      "party": "first",
+      "access": "server log export",
+      "verifiability": "signed",
+      "coverage": "example.com only",
+      "provenance": {
+        "declarant": "0x1111111111111111111111111111111111111111",
+        "declaredAt": 1800000300
+      }
+    }
+  ],
+  "methods": [
+    {
+      "type": "geof:method",
+      "version": 1,
+      "name": "panel-design-v1",
+      "class": "sampling",
+      "role": "observer",
+      "parameters": {
+        "prompts": 40,
+        "engines": 3,
+        "runsPerCell": 12
+      },
+      "inputs": [
+        "observer-sampled"
+      ],
+      "outputs": [],
+      "limitations": [
+        "prompt set written by the observer; not drawn from live query logs"
+      ],
+      "provenance": {
+        "declarant": "0x2222222222222222222222222222222222222222",
+        "declaredAt": 1800000200
+      }
+    },
+    {
+      "type": "geof:method",
+      "version": 1,
+      "name": "mention-citation-detect-v2",
+      "class": "detection",
+      "role": "observer",
+      "parameters": {
+        "entityResolution": "alias list v3",
+        "urlCanonicalization": "RFC 3986 + tracking-param strip"
+      },
+      "inputs": [
+        "observer-sampled"
+      ],
+      "outputs": [
+        "geof:exposure/answer-inclusion-rate/v1",
+        "geof:presentation/citation-rate/v1",
+        "geof:presentation/first-citation-share/v1"
+      ],
+      "limitations": [
+        "paraphrased mentions without the brand name are missed"
+      ],
+      "provenance": {
+        "declarant": "0x2222222222222222222222222222222222222222",
+        "declaredAt": 1800000200
+      }
+    },
+    {
+      "type": "geof:method",
+      "version": 1,
+      "name": "claim-coverage-judge-v1",
+      "class": "verification",
+      "role": "evaluator",
+      "parameters": {
+        "judge": "LLM judge, prompt hash 0x7c...",
+        "humanSample": "10% double-rated",
+        "agreementThreshold": 0.8
+      },
+      "inputs": [
+        "observer-sampled",
+        "third-party-corpus"
+      ],
+      "outputs": [
+        "geof:fidelity/claim-coverage/v1",
+        "geof:presentation/stance-distribution/v1"
+      ],
+      "limitations": [
+        "judge may accept near-paraphrases of condition Z"
+      ],
+      "provenance": {
+        "declarant": "0x2222222222222222222222222222222222222222",
+        "declaredAt": 1800000200
+      }
+    },
+    {
+      "type": "geof:method",
+      "version": 1,
+      "name": "rates-wilson-v1",
+      "class": "aggregation",
+      "role": "evaluator",
+      "parameters": {
+        "interval": "Wilson 95%"
+      },
+      "inputs": [
+        "observer-sampled"
+      ],
+      "outputs": [],
+      "limitations": [],
+      "provenance": {
+        "declarant": "0x2222222222222222222222222222222222222222",
+        "declaredAt": 1800000200
+      }
+    }
+  ],
+  "observations_sample": [
+    {
+      "type": "geof:observation",
+      "version": 1,
+      "kind": "event",
+      "observer": "0x2222222222222222222222222222222222222222",
+      "sourceRefs": [
+        {
+          "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+        }
+      ],
+      "recordedAt": 1800100000,
+      "event": {
+        "runId": "A-e1-p07-r03",
+        "origin": {
+          "trigger": {
+            "initiator": "recipient",
+            "priorAuthorization": "none",
+            "immediateQuery": true,
+            "queryRef": "0x9a00000000000000000000000000000000000000000000000000000000000007",
+            "queryIntent": "informational"
+          },
+          "engine": {
+            "id": "engine-1",
+            "version": "2026-10",
+            "surface": "chat"
+          },
+          "recipientClass": "human",
+          "delivery": {
+            "channel": "answer"
+          },
+          "time": "2026-10-08T09:00:00Z",
+          "locale": {
+            "region": "US",
+            "language": "en",
+            "modality": "text"
+          }
+        },
+        "course": {
+          "retrieved": "UNOBSERVED",
+          "selected": "UNOBSERVED",
+          "synthesized": "OBSERVED",
+          "attributed": "OBSERVED",
+          "delivered": "OBSERVED"
+        },
+        "conclusion": [
+          {
+            "objectRef": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35",
+            "kind": "CITED",
+            "actor": "engine",
+            "prominence": {
+              "position": 2,
+              "firstCitation": false
+            },
+            "citation": {
+              "url": "https://example.com/notices/warranty-correction?utm=ai",
+              "canonicalUrl": "https://example.com/notices/warranty-correction",
+              "supportsStatement": true
+            }
+          },
+          {
+            "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+            "kind": "MENTIONED",
+            "actor": "engine",
+            "stance": "supports",
+            "claimCoverage": {
+              "p1": "present",
+              "p2": "ABSENT"
+            },
+            "fidelityFlags": [
+              {
+                "flag": "misrepresented",
+                "reference": "notice-page p2",
+                "methodRef": {
+                  "hash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "geof:observation",
+      "version": 1,
+      "kind": "aggregate",
+      "observer": "0x1111111111111111111111111111111111111111",
+      "sourceRefs": [
+        {
+          "hash": "0x6b4e47663b11dfdfcc9ae31655c13d5cd3a8d1d5e49c2bd57481a7bbbc8c4a73"
+        }
+      ],
+      "recordedAt": 1800200000,
+      "aggregate": {
+        "period": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "granularity": "month",
+        "objectRef": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35",
+        "counts": {
+          "geof:exposure/crawl-rate/v1": 412,
+          "geof:seo/clicks/v1": 1930
+        }
+      }
+    }
+  ],
+  "profile": {
+    "type": "geof:profile",
+    "version": 1,
+    "publisher": "0x2222222222222222222222222222222222222222",
+    "processRef": "0x7000000000000000000000000000000000000000000000000000000000000a01",
+    "processVersion": 1,
+    "visibilityScope": "Panel observer: sees answers and citations across three engines; no retrieval logs, no recipient feedback, no engine-side data.",
+    "unverifiedPremises": [
+      "Prompt set is representative of live informational queries about Product X warranty."
+    ],
+    "statements": [
+      {
+        "statementId": "s1",
+        "metricRef": "geof:exposure/answer-inclusion-rate/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "value": 0.74,
+        "numeratorCount": 1066,
+        "denominatorCount": 1440,
+        "coverage": {
+          "withRecords": 1440,
+          "population": 1440
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x71d6bcdc0cfaf89802736df78f53fa78ff796ed7262e85b5bdcffa520cd9c5b9"
+        },
+        "uncertainty": {
+          "kind": "interval",
+          "low": 0.717,
+          "high": 0.762,
+          "confidence": 0.95
+        },
+        "rationale": "1066 of 1440 completed answers (40 prompts x 3 engines x 12 runs) mention the correction claim in any kind other than OMITTED."
+      },
+      {
+        "statementId": "s2",
+        "metricRef": "geof:presentation/citation-rate/v1",
+        "objectRef": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35",
+        "value": 0.61,
+        "numeratorCount": 878,
+        "denominatorCount": 1440,
+        "coverage": {
+          "withRecords": 1440,
+          "population": 1440
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x71d6bcdc0cfaf89802736df78f53fa78ff796ed7262e85b5bdcffa520cd9c5b9"
+        },
+        "uncertainty": {
+          "kind": "interval",
+          "low": 0.585,
+          "high": 0.635,
+          "confidence": 0.95
+        },
+        "rationale": "878 answers carry a resolvable citation to the notice page after URL canonicalization."
+      },
+      {
+        "statementId": "s3",
+        "metricRef": "geof:presentation/first-citation-share/v1",
+        "objectRef": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35",
+        "value": 0.31,
+        "numeratorCount": 272,
+        "denominatorCount": 878,
+        "coverage": {
+          "withRecords": 878,
+          "population": 878
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x71d6bcdc0cfaf89802736df78f53fa78ff796ed7262e85b5bdcffa520cd9c5b9"
+        },
+        "uncertainty": {
+          "kind": "interval",
+          "low": 0.28,
+          "high": 0.34,
+          "confidence": 0.95
+        },
+        "rationale": "Denominator is answers citing the page, not all answers."
+      },
+      {
+        "statementId": "s4",
+        "metricRef": "geof:fidelity/claim-coverage/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "value": 0.23,
+        "numeratorCount": 245,
+        "denominatorCount": 1066,
+        "coverage": {
+          "withRecords": 1066,
+          "population": 1066
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          },
+          {
+            "hash": "0x0cbf9df3556454edfdeca359c64b532311c4c05df6e1562bb5d3b872e3cf4cba"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85"
+        },
+        "referenceSet": [
+          {
+            "hash": "0x0cbf9df3556454edfdeca359c64b532311c4c05df6e1562bb5d3b872e3cf4cba"
+          }
+        ],
+        "comparator": {
+          "hash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85"
+        },
+        "proposition": "p2",
+        "uncertainty": {
+          "kind": "interval",
+          "low": 0.205,
+          "high": 0.256,
+          "confidence": 0.95
+        },
+        "rationale": "Of 1066 answers mentioning the claim, 245 state condition Z (proposition p2). Reference = the notice page as fetched on 2026-10-01."
+      },
+      {
+        "statementId": "s5",
+        "metricRef": "geof:presentation/stance-distribution/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "value": {
+          "supports": 0.7,
+          "introduces": 0.22,
+          "questions": 0.04,
+          "opposes": 0,
+          "unstated": 0.04
+        },
+        "coverage": {
+          "withRecords": 1066,
+          "population": 1066
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85"
+        },
+        "uncertainty": {
+          "kind": "qualitative",
+          "note": "judge/human agreement 0.86 on the 10% sample"
+        },
+        "rationale": "Stance of the engine toward the claim in each mentioning answer."
+      },
+      {
+        "statementId": "s6",
+        "metricRef": "geof:fidelity/claim-support/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "value": "UNOBSERVED",
+        "coverage": {
+          "withRecords": 0,
+          "population": 2
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0x0cbf9df3556454edfdeca359c64b532311c4c05df6e1562bb5d3b872e3cf4cba"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85"
+        },
+        "referenceSet": [],
+        "comparator": {
+          "hash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85"
+        },
+        "proposition": "p1,p2",
+        "uncertainty": "UNOBSERVED",
+        "rationale": "Whether the notice's own propositions are true against an external reference was not evaluated by this observer."
+      },
+      {
+        "statementId": "s7",
+        "metricRef": "geof:reception/positive-feedback-rate/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "value": "UNOBSERVED",
+        "coverage": {
+          "withRecords": 0,
+          "population": "UNOBSERVED"
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x38294ea9452908065f5d918d35ded71815a7ab29eb9dde4b9e6bdac914300402"
+        },
+        "uncertainty": "UNOBSERVED",
+        "rationale": "No recipient-side source in this Frame."
+      },
+      {
+        "statementId": "s8",
+        "metricRef": "geof:attainment/attainment-rate/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "expectedChange": "understood",
+        "intentRef": {
+          "hash": "0x50e7473cf26f74f2891082900479e4f0ce4200534cbb59c4e4853894166d45a2"
+        },
+        "value": "UNOBSERVED",
+        "coverage": {
+          "withRecords": 0,
+          "population": "UNOBSERVED"
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x38294ea9452908065f5d918d35ded71815a7ab29eb9dde4b9e6bdac914300402"
+        },
+        "uncertainty": "UNOBSERVED",
+        "rationale": "Attainment of 'understood' needs recipient evidence. Claim coverage (s4) is a presentation fact, not attainment, and is not used as a proxy."
+      },
+      {
+        "statementId": "s9",
+        "metricRef": "geof:dynamics/run-to-run-volatility/v1",
+        "objectRef": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be",
+        "value": 0.18,
+        "coverage": {
+          "withRecords": 120,
+          "population": 120
+        },
+        "window": {
+          "start": "2026-10-01",
+          "end": "2026-10-31"
+        },
+        "frameRef": {
+          "hash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec"
+        },
+        "sourceRefs": [
+          {
+            "hash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003"
+          }
+        ],
+        "methodRef": {
+          "hash": "0x38294ea9452908065f5d918d35ded71815a7ab29eb9dde4b9e6bdac914300402"
+        },
+        "uncertainty": {
+          "kind": "stddev",
+          "value": 0.04
+        },
+        "rationale": "Share of the 120 prompt x engine cells whose representation kind for the claim differed across the 12 runs."
+      }
+    ]
+  },
+  "reading": "Wide spread (s1, s2), low fidelity on the proposition that mattered (s4), attainment unknown (s8). All three stand at once; a single score would hide the one that matters."
+}

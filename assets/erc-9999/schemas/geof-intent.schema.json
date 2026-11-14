@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-intent.schema.json",
+  "title": "GEOF Intent",
+  "description": "A dissemination intent: what a declarant wanted a dissemination to do, for whom, by when. Optional for a Process. An Intent never changes what was observed; it only decides which attainment and attribution statements can be made. Not to be confused with the recipient's query intent (an Event field) or an intervention (an Observation kind).",
+  "type": "object",
+  "required": ["type", "version", "mode", "audience", "content", "expectedChange", "provenance"],
+  "properties": {
+    "type": { "const": "geof:intent" },
+    "version": { "const": 1 },
+    "mode": { "type": "string", "enum": ["ex-ante", "ex-post"] },
+    "basis": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Required when mode is ex-post: the materials the reconstruction rests on (URIs, record references)"
+    },
+    "audience": {
+      "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+      "description": "Who the dissemination addressed: values are recipient classes, cohorts, or enumerated recipients (addresses, identities). A single authorized recipient is a valid audience."
+    },
+    "content": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+      "description": "The Objects this intent concerns"
+    },
+    "expectedChange": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "type": "string", "enum": ["received", "aware", "understood", "remembered", "relayed", "adopted", "invoked", "acted", "ceased", "maintained"] },
+          { "$ref": "geof-defs.schema.json#/$defs/extensionToken" }
+        ]
+      }
+    },
+    "conditions": { "type": "array", "items": { "type": "string" } },
+    "evaluationWindow": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "string" },
+        "end": { "type": "string" },
+        "deadline": { "type": "string" }
+      }
+    },
+    "description": { "type": "string" },
+    "provenance": { "$ref": "geof-defs.schema.json#/$defs/provenance" }
+  },
+  "if": { "properties": { "mode": { "const": "ex-post" } } },
+  "then": { "required": ["basis"] },
+  "additionalProperties": false
+}
