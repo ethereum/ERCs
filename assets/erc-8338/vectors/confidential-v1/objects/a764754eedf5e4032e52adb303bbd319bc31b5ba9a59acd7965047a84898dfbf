@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0",
+  "name": "daily-finance-brief",
+  "skillVersion": "0.3.1",
+  "summary": "English daily global finance briefing: 60-instrument asset dashboard, top-10 political/economic headlines, and a <=500-word analysis. Outputs report.md and report.pdf.",
+  "entrypoint": "daily_finance_brief.py",
+  "x-entry-profile": "python-v1",
+  "x-finchip/invocation-contract": "skill.json"
+}
