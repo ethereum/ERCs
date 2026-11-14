@@ -1,0 +1,102 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.direct",
+  "version": "1.0.0",
+  "title": "Direct: two parties address each other exclusively",
+  "labels": [
+    "aifp:paradigm/direct/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "feedback"
+  ],
+  "cardinality": {
+    "contributors": "roster",
+    "pairwise": true
+  },
+  "dimensions": {
+    "discovery": "directed",
+    "observation": {
+      "readScope": "members",
+      "submissionVisibility": "all",
+      "payloadProtection": "e2ee",
+      "metadataProtection": "partial"
+    },
+    "contribution": {
+      "actions": [
+        "publish",
+        "respond"
+      ],
+      "acquisition": "closed",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "none"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "none"
+      ],
+      "rules": [
+        "decision-body"
+      ],
+      "disclosure": [
+        "none"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": false
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "request-response",
+      "delivery": [
+        "push"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "prior-link"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "payload-protection",
+      "delivery-records"
+    ]
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.derive",
+  "version": "1.0.0",
+  "title": "Derive: a new object with a new responsible contributor, linked to its sources",
+  "labels": [
+    "aifp:paradigm/derive/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "derive",
+    "merge"
+  ],
+  "cardinality": {
+    "contributors": "qualified",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "open",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish"
+      ],
+      "acquisition": "predicate",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "protocol"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "none"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "none",
+      "delivery": [
+        "push"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "redistribute": {
+      "identity": {
+        "verifier": "0x0000000000000000000000000000000000000002",
+        "registry": "0x0000000000000000000000000000000000000003",
+        "requiredState": "active"
+      }
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association"
+    ]
+  }
+}
