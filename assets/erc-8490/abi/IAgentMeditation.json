@@ -601,6 +601,11 @@
             "internalType": "uint48"
           },
           {
+            "name": "completedAt",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          },
+          {
             "name": "nextPlannedAt",
             "type": "uint48",
             "internalType": "uint48"
@@ -1027,6 +1032,11 @@
             "name": "reportedEndedAt",
             "type": "uint48",
             "internalType": "uint48"
+          },
+          {
+            "name": "completedAt",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
           },
           {
             "name": "nextPlannedAt",

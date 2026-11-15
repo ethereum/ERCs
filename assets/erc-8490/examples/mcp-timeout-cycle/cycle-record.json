@@ -13,6 +13,7 @@
       "layer": 0,
       "scope": true,
       "completed": true,
+      "completedAt": 1762653900,
       "checks": [
         {"name": "doctor", "result": "pass"},
         {"name": "adapter-schema-walk", "result": "pass", "details": "2 adapters checked, schemas unchanged"},
@@ -30,6 +31,7 @@
       "layer": 1,
       "scope": true,
       "completed": true,
+      "completedAt": 1762654140,
       "checks": [
         {"name": "memory-dedup", "result": "pass", "details": "47 near-duplicate timeout entries merged into 3, sources kept"},
         {"name": "skill-package-hashes", "result": "pass"}
@@ -45,6 +47,7 @@
       "layer": 2,
       "scope": true,
       "completed": true,
+      "completedAt": 1762654320,
       "checks": [
         {"name": "in-flight-tasks", "result": "pass", "details": "2 tasks reviewed, bindings verified against tender-worker 1.4.0"},
         {"name": "interrupted-work", "result": "finding", "details": "tender 17 submission interrupted by a timeout; result not yet queried"}
@@ -59,6 +62,7 @@
       "layer": 3,
       "scope": true,
       "completed": true,
+      "completedAt": 1762654500,
       "checks": [
         {"name": "assumption-review", "result": "finding", "details": "timeout-means-failure contradicted by 11 of 12 replayed cases"}
       ],

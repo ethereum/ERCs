@@ -79,6 +79,7 @@ contract AgentMeditationRegistry is IAgentMeditation, IAgentMeditationStart, IER
     error InvalidTimeOrder();
     error StartBeforePreviousCycle();
     error CompletionNotMonotonic(uint8 layer);
+    error InvalidCompletionTime(uint8 layer);
     error InvalidRestore();
     error StartHeldByAnother();
     error NoOpenStart();
@@ -330,8 +331,14 @@ contract AgentMeditationRegistry is IAgentMeditation, IAgentMeditationStart, IER
             bool differs = r.postCommitments[i] != cps[i].commitment;
             if (!scoped && differs) revert UnscopedLayerChanged(i);
             if (differs) changed |= uint8(1 << i);
-            if (r.completedLayers & (1 << i) != 0 && r.reportedEndedAt <= cps[i].lastCompletedAt) {
-                revert CompletionNotMonotonic(i);
+            if (r.completedLayers & (1 << i) != 0) {
+                // each completed layer carries its own completion time, inside the cycle and after its last one
+                if (r.completedAt[i] < r.reportedStartedAt || r.completedAt[i] > r.reportedEndedAt) {
+                    revert InvalidCompletionTime(i);
+                }
+                if (r.completedAt[i] <= cps[i].lastCompletedAt) revert CompletionNotMonotonic(i);
+            } else if (r.completedAt[i] != 0) {
+                revert InvalidCompletionTime(i);
             }
         }
 
@@ -359,10 +366,10 @@ contract AgentMeditationRegistry is IAgentMeditation, IAgentMeditationStart, IER
                 emit LayerCommitmentChanged(subject, i, newVersion, previous, r.postCommitments[i]);
             }
             if (r.completedLayers & (1 << i) != 0) {
-                cps[i].lastCompletedAt = r.reportedEndedAt;
+                cps[i].lastCompletedAt = r.completedAt[i];
                 cps[i].lastCompletedRecordedAt = now_;
                 cps[i].completedUnderPolicy = r.policyVersion;
-                if (ds[i].demandedAt != 0 && r.reportedEndedAt >= ds[i].demandedAt) {
+                if (ds[i].demandedAt != 0 && r.completedAt[i] >= ds[i].demandedAt) {
                     delete ds[i];
                 }
             }

@@ -77,8 +77,9 @@ interface IAgentMeditation {
         uint8 outcome; // Outcome
         uint8 trigger; // 0 SCHEDULED, 1 EVENT, 2 COMMANDED, 3 SELF
         uint32 policyVersion; // policy version in effect when the cycle started
-        uint48 reportedStartedAt; // self-reported
-        uint48 reportedEndedAt; // self-reported; completion time of every completed layer
+        uint48 reportedStartedAt; // self-reported start of the cycle
+        uint48 reportedEndedAt; // self-reported end of the cycle; orders the subject's cycles
+        uint48[4] completedAt; // self-reported completion time of each layer in completedLayers, within the cycle; 0 for other layers
         uint48 nextPlannedAt; // planning hint, 0 = none
         uint64 restoresVersion; // non-zero when the post state restores an earlier state version
         bytes32 recordHash; // commitment to the off-chain cycle record document (may be zero)
@@ -88,7 +89,7 @@ interface IAgentMeditation {
     /// @notice Per-layer checkpoint.
     struct LayerCheckpoint {
         bytes32 commitment; // current registered state commitment
-        uint48 lastCompletedAt; // reported completion time of the last completed routine (0 = never)
+        uint48 lastCompletedAt; // reported completion time of the layer's last completed routine (0 = never)
         uint48 lastCompletedRecordedAt; // clock value when that completion was recorded
         uint32 completedUnderPolicy; // policy version governing that completion
         uint64 lastChangedVersion; // state version at which the commitment last changed

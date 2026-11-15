@@ -1,6 +1,6 @@
 {
   "description": "ERC-165 interface identifiers: IAgentMeditation (required) and IAgentMeditationStart (optional recorded-start extension); each is the XOR of the interface's function selectors.",
-  "interfaceId": "0x9c81b550",
+  "interfaceId": "0xe5b77145",
   "functions": [
     {
       "signature": "checkpointOf(address,uint8)",
@@ -55,8 +55,8 @@
       "selector": "0xb699ed0f"
     },
     {
-      "signature": "report(address,(uint64,bytes32,bytes32[4],uint8,uint8,uint16,uint8,uint8,uint32,uint48,uint48,uint48,uint64,bytes32,string))",
-      "selector": "0xb18c937f"
+      "signature": "report(address,(uint64,bytes32,bytes32[4],uint8,uint8,uint16,uint8,uint8,uint32,uint48,uint48,uint48[4],uint48,uint64,bytes32,string))",
+      "selector": "0xc8ba576a"
     },
     {
       "signature": "requirementsOf(address)",
