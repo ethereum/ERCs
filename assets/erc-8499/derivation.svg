@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500" role="img" aria-labelledby="title description">
+  <title id="title">The derivations of ERC-8499</title>
+  <desc id="description">PBKDF2 turns a BIP-39 phrase and passphrase into the BIP-39 seed S. HKDF-Extract under the salt "HBKD/v1" turns S, or optionally random input, into the root secret R. HKDF-Expand derives from R the seed of a stateless key and, optionally, the seed of a stateful key and an application secret. The key type's key generation turns a seed into a key pair. The BIP-32 tree, which also starts at S, is not used.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24292f"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8c959f"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: Helvetica, Arial, sans-serif; font-size: 14px; fill: #24292f; text-anchor: middle; }
+    .name { font-weight: 600; }
+    .mono { font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace; font-size: 13px; }
+    .small { font-size: 12.5px; }
+    .left { text-anchor: start; }
+    .muted { fill: #6e7781; }
+    .value { fill: #ffffff; stroke: #24292f; stroke-width: 1.4; }
+    .root { stroke-width: 2.4; }
+    .step { fill: #f0f2f4; stroke: #24292f; stroke-width: 1; }
+    .line { fill: none; stroke: #24292f; stroke-width: 1.4; }
+    .optional { stroke-dasharray: 6 4; }
+    .unused { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+    .unused-line { fill: none; stroke: #8c959f; stroke-width: 1.2; }
+  </style>
+  <rect width="760" height="500" fill="#ffffff"/>
+
+  <!-- phrase -->
+  <rect class="value" x="255" y="16" width="250" height="36" rx="5"/>
+  <text x="380" y="39">BIP-39 phrase M, passphrase P</text>
+  <path class="line" d="M 380 52 V 71" marker-end="url(#arrow)"/>
+
+  <rect class="step" x="215" y="72" width="330" height="28" rx="14"/>
+  <text class="mono" x="380" y="90.5">PBKDF2-HMAC-SHA512, 2048 iterations</text>
+  <path class="line" d="M 380 100 V 119" marker-end="url(#arrow)"/>
+
+  <!-- BIP-39 seed, and the BIP-32 tree this ERC does not use -->
+  <rect class="value" x="255" y="120" width="250" height="36" rx="5"/>
+  <text x="380" y="143">BIP-39 seed S, 64 bytes</text>
+  <path class="unused-line" d="M 255 138 H 204" marker-end="url(#arrow-muted)"/>
+  <rect class="unused" x="20" y="116" width="182" height="44" rx="5"/>
+  <text class="small muted" x="111" y="134">BIP-32 tree: ECDSA keys</text>
+  <text class="small muted" x="111" y="151">not used by this ERC</text>
+  <path class="line" d="M 380 156 V 175" marker-end="url(#arrow)"/>
+
+  <!-- root -->
+  <rect class="step" x="235" y="176" width="290" height="28" rx="14"/>
+  <text class="mono" x="380" y="194.5">HKDF-Extract, salt "HBKD/v1"</text>
+  <rect class="value optional" x="572" y="168" width="168" height="44" rx="5"/>
+  <text x="656" y="187">random input</text>
+  <text class="small" x="656" y="203">32 bytes or more</text>
+  <path class="line optional" d="M 572 190 H 527" marker-end="url(#arrow)"/>
+  <path class="line" d="M 380 204 V 223" marker-end="url(#arrow)"/>
+
+  <rect class="value root" x="255" y="224" width="250" height="36" rx="5"/>
+  <text class="name" x="380" y="247">root secret R, 64 bytes</text>
+  <path class="line" d="M 380 260 V 279" marker-end="url(#arrow)"/>
+
+  <!-- derived values -->
+  <rect class="step" x="235" y="280" width="290" height="28" rx="14"/>
+  <text class="mono" x="380" y="298.5">HKDF-Expand(R, info, L)</text>
+  <path class="line" d="M 380 308 V 326 H 130 V 345" marker-end="url(#arrow)"/>
+  <path class="line optional" d="M 380 326 V 345" marker-end="url(#arrow)"/>
+  <path class="line optional" d="M 380 326 H 630 V 345" marker-end="url(#arrow)"/>
+
+  <rect class="value" x="20" y="346" width="220" height="80" rx="5"/>
+  <text class="name" x="130" y="369">seed of a stateless key</text>
+  <text class="mono" x="130" y="390">purpose 0x01</text>
+  <text class="small" x="130" y="410">account, key type</text>
+
+  <rect class="value optional" x="270" y="346" width="220" height="80" rx="5"/>
+  <text class="name" x="380" y="367">seed of a stateful key</text>
+  <text class="mono" x="380" y="386">purpose 0x02</text>
+  <text class="small" x="380" y="403">account, key type,</text>
+  <text class="small" x="380" y="418">context, instance</text>
+
+  <rect class="value optional" x="520" y="346" width="220" height="80" rx="5"/>
+  <text class="name" x="630" y="369">application secret</text>
+  <text class="mono" x="630" y="390">purpose 0x03</text>
+  <text class="small" x="630" y="410">account, label</text>
+
+  <!-- key pairs -->
+  <path class="line" d="M 130 426 V 453" marker-end="url(#arrow)"/>
+  <text class="small left" x="140" y="444">key generation</text>
+  <rect class="value" x="70" y="454" width="120" height="30" rx="5"/>
+  <text x="130" y="474">key pair</text>
+
+  <path class="line optional" d="M 380 426 V 453" marker-end="url(#arrow)"/>
+  <text class="small left" x="390" y="444">key generation</text>
+  <rect class="value optional" x="320" y="454" width="120" height="30" rx="5"/>
+  <text x="380" y="474">key pair</text>
+
+  <!-- legend -->
+  <path class="line" d="M 556 461 H 600"/>
+  <text class="small left" x="610" y="465">core</text>
+  <path class="line optional" d="M 556 481 H 600"/>
+  <text class="small left" x="610" y="485">optional</text>
+</svg>
