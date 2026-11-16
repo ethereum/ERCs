@@ -1,0 +1,1182 @@
+{
+  "notes": [
+    "Each valid vector holds every log the source emitted for its task from the descriptor's fromBlock, as read from the chain, and the record a writer builds from them with the head given.",
+    "A log's data is cut to its head words, one per non-indexed parameter, which is all a record reads; dataHash is keccak256 of the full data. Briefs travel inline in Posted and would otherwise add up to 24 KB a log.",
+    "The head fields are inputs to the writer. Mainnet agent ids are the ERC-8004 agents BrainChain binds these workers to on Robinhood Chain; testnet agent ids are illustrative.",
+    "Every task here was posted, evaluated and recorded by BrainChain itself, and the writer key in the mainnet heads is the client of mainnet task 50. Disputes and appeals have happened only on BrainChain testnet so far.",
+    "node cli.mjs vectors --verify 274663=https://rpc.usebrainchain.com --verify 274630=https://rpc.testnet.usebrainchain.com re-reads every log from the chain and checks the transfers. The invalid cases run in test.mjs."
+  ],
+  "sources": {
+    "brainchain-mainnet": {
+      "chainId": 274663,
+      "contract": "0x44b8464342Bbfb9B565FAE494DfDefa37D33A211",
+      "asset": "eip155:274663/erc20:0x8eBFEce96c0AeF7Fd23425D846a302a552c8c451",
+      "fromBlock": 969,
+      "finality": "finalized",
+      "events": [
+        {
+          "step": "funded",
+          "event": "Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)",
+          "fields": {
+            "amount": "bounty",
+            "brief": "briefHash",
+            "client": "poster",
+            "task": "id"
+          }
+        },
+        {
+          "step": "assigned",
+          "event": "WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)",
+          "fields": {
+            "task": "id",
+            "worker": "model"
+          }
+        },
+        {
+          "step": "delivered",
+          "event": "WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)",
+          "fields": {
+            "result": "resultHash",
+            "task": "id",
+            "worker": "model"
+          }
+        },
+        {
+          "step": "verdict",
+          "event": "WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)",
+          "fields": {
+            "accepted": "accepted",
+            "ref": "decisionId",
+            "task": "id"
+          }
+        },
+        {
+          "step": "challenge",
+          "event": "GradeDisputed(uint256 indexed id, address indexed opener)",
+          "fields": {
+            "by": "opener",
+            "task": "id"
+          }
+        },
+        {
+          "step": "verdict",
+          "event": "Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)",
+          "fields": {
+            "accepted": "paid",
+            "ref": "decisionId",
+            "task": "id"
+          }
+        },
+        {
+          "step": "challenge",
+          "event": "Appealed(uint256 indexed id, address indexed appellant, uint128 bond)",
+          "fields": {
+            "bond": "bond",
+            "by": "appellant",
+            "task": "id"
+          }
+        },
+        {
+          "step": "verdict",
+          "event": "AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)",
+          "fields": {
+            "accepted": "paid",
+            "ref": "decisionId",
+            "task": "id"
+          }
+        },
+        {
+          "step": "paid",
+          "event": "BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)",
+          "fields": {
+            "amount": "bounty",
+            "fee": "fee",
+            "task": "id",
+            "to": "account",
+            "worker": "model"
+          },
+          "feeIncluded": true
+        },
+        {
+          "step": "refunded",
+          "event": "BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)",
+          "fields": {
+            "amount": "amount",
+            "task": "id",
+            "to": "poster"
+          }
+        }
+      ]
+    },
+    "brainchain-testnet": {
+      "chainId": 274630,
+      "contract": "0x7A7cC5D35A642CCc268C7B263fF800bc7eBD52A4",
+      "asset": "eip155:274630/erc20:0xC4ec72794bF3Ce9ba1DE4B38085464c2eb0cDCf2",
+      "fromBlock": 2294,
+      "finality": "finalized",
+      "events": [
+        {
+          "step": "funded",
+          "event": "Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)",
+          "fields": {
+            "amount": "bounty",
+            "brief": "briefHash",
+            "client": "poster",
+            "task": "id"
+          }
+        },
+        {
+          "step": "assigned",
+          "event": "WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)",
+          "fields": {
+            "task": "id",
+            "worker": "model"
+          }
+        },
+        {
+          "step": "delivered",
+          "event": "WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)",
+          "fields": {
+            "result": "resultHash",
+            "task": "id",
+            "worker": "model"
+          }
+        },
+        {
+          "step": "verdict",
+          "event": "WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)",
+          "fields": {
+            "accepted": "accepted",
+            "ref": "decisionId",
+            "task": "id"
+          }
+        },
+        {
+          "step": "challenge",
+          "event": "GradeDisputed(uint256 indexed id, address indexed opener)",
+          "fields": {
+            "by": "opener",
+            "task": "id"
+          }
+        },
+        {
+          "step": "verdict",
+          "event": "Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)",
+          "fields": {
+            "accepted": "paid",
+            "ref": "decisionId",
+            "task": "id"
+          }
+        },
+        {
+          "step": "challenge",
+          "event": "Appealed(uint256 indexed id, address indexed appellant, uint128 bond)",
+          "fields": {
+            "bond": "bond",
+            "by": "appellant",
+            "task": "id"
+          }
+        },
+        {
+          "step": "verdict",
+          "event": "AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)",
+          "fields": {
+            "accepted": "paid",
+            "ref": "decisionId",
+            "task": "id"
+          }
+        },
+        {
+          "step": "paid",
+          "event": "BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)",
+          "fields": {
+            "amount": "bounty",
+            "fee": "fee",
+            "task": "id",
+            "to": "account",
+            "worker": "model"
+          },
+          "feeIncluded": true
+        },
+        {
+          "step": "refunded",
+          "event": "BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)",
+          "fields": {
+            "amount": "amount",
+            "task": "id",
+            "to": "poster"
+          }
+        }
+      ]
+    }
+  },
+  "valid": [
+    {
+      "name": "mainnet task 50: accepted and paid",
+      "network": "BrainChain mainnet (chain id 274663)",
+      "source": "brainchain-mainnet",
+      "task": "50",
+      "terminalTime": 1794752128,
+      "head": {
+        "agentRegistry": "eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        "agentId": 20424,
+        "clientAddress": "eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2451,
+          "transactionHash": "0x749d4d838864ab5d9dce8a0a85bc371cd4d1f4945f95a3e9a991e5e8f8c3d5ef",
+          "logIndex": 2,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000097d558417c3d61f1074422ad843e1db1e565b952"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006afabb215ba72c55084629e1ef7c707922ed5d2cdd4df6a6ccf04f573789804a0ce8a9a90000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0x99eed843158227f6f721e5982f8bc79a87fd66a7d1582529c8d38d9c0f79aead"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2453,
+          "transactionHash": "0x082f5392ad53d98ff9025c9da3e52bb06de76d662626db4f0acc080a78924cf7",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x00000000000000000000000000000000000000000000000000000000000000e9"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2454,
+          "transactionHash": "0xef9af23cdbbed91002ce9905ecad5e34d13022bdface3139b8d5f44490cbbb40",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f"
+          ],
+          "data": "0xd6e3a43c3caa1c6be27f6905261bd6f3ce7e282f672de244a0748cc0ee5804160000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x99df1df31df2a5f27b4fc9b2ab4544a229b84c0b493be64fe713477037aa639a"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2456,
+          "transactionHash": "0x677299fa33db218c73a04555f80af134d6e4207e92a1e6050c579e26418cd0e5",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000000000000000000000000000000000000000000ea"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2471,
+          "transactionHash": "0xdca676cc74d71d049a4ae6f22fe18f95304c4ae3a945db802d0abf5ff12e8abf",
+          "logIndex": 3,
+          "topics": [
+            "0x57f4a57e16c2fbdacaa6cde8b489009fccc2eb26f17a4575009518349ca080d9",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x000000000000000000000000fb9c8d2544d34671f422d4c57db5945c4c53f84d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000007530",
+          "dataHash": "0xfda1479d9cf416caa5c55c8f751f485d3e57558fb67ef31bcd2f96252721e884"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "entry": {
+          "tag1": "work.outcome",
+          "tag2": "accepted",
+          "value": 100
+        },
+        "bytes": 3622,
+        "feedbackHash": "0x362bfa0b49ac22cabe8566773da906e0ca8b7cf1b0fe8960df2657e697b1259a",
+        "file": "{\"agentId\":20424,\"agentRegistry\":\"eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432\",\"clientAddress\":\"eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"createdAt\":\"2026-11-16T12:00:00Z\",\"tag1\":\"work.outcome\",\"tag2\":\"accepted\",\"value\":100,\"valueDecimals\":0,\"work\":{\"outcome\":\"accepted\",\"source\":{\"asset\":\"eip155:274663/erc20:0x8eBFEce96c0AeF7Fd23425D846a302a552c8c451\",\"chainId\":274663,\"contract\":\"0x44b8464342Bbfb9B565FAE494DfDefa37D33A211\",\"events\":[{\"event\":\"Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)\",\"fields\":{\"amount\":\"bounty\",\"brief\":\"briefHash\",\"client\":\"poster\",\"task\":\"id\"},\"step\":\"funded\"},{\"event\":\"WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)\",\"fields\":{\"task\":\"id\",\"worker\":\"model\"},\"step\":\"assigned\"},{\"event\":\"WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)\",\"fields\":{\"result\":\"resultHash\",\"task\":\"id\",\"worker\":\"model\"},\"step\":\"delivered\"},{\"event\":\"WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)\",\"fields\":{\"accepted\":\"accepted\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"GradeDisputed(uint256 indexed id, address indexed opener)\",\"fields\":{\"by\":\"opener\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"Appealed(uint256 indexed id, address indexed appellant, uint128 bond)\",\"fields\":{\"bond\":\"bond\",\"by\":\"appellant\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)\",\"feeIncluded\":true,\"fields\":{\"amount\":\"bounty\",\"fee\":\"fee\",\"task\":\"id\",\"to\":\"account\",\"worker\":\"model\"},\"step\":\"paid\"},{\"event\":\"BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)\",\"fields\":{\"amount\":\"amount\",\"task\":\"id\",\"to\":\"poster\"},\"step\":\"refunded\"}],\"finality\":\"finalized\",\"fromBlock\":969},\"steps\":[{\"amount\":\"1000000\",\"block\":2451,\"brief\":\"0x5ba72c55084629e1ef7c707922ed5d2cdd4df6a6ccf04f573789804a0ce8a9a9\",\"client\":\"0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"log\":2,\"step\":\"funded\",\"tx\":\"0x749d4d838864ab5d9dce8a0a85bc371cd4d1f4945f95a3e9a991e5e8f8c3d5ef\"},{\"block\":2453,\"log\":0,\"step\":\"assigned\",\"tx\":\"0x082f5392ad53d98ff9025c9da3e52bb06de76d662626db4f0acc080a78924cf7\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"},{\"block\":2454,\"log\":0,\"result\":\"0xd6e3a43c3caa1c6be27f6905261bd6f3ce7e282f672de244a0748cc0ee580416\",\"step\":\"delivered\",\"tx\":\"0xef9af23cdbbed91002ce9905ecad5e34d13022bdface3139b8d5f44490cbbb40\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"},{\"accepted\":true,\"block\":2456,\"log\":0,\"ref\":\"0x00000000000000000000000000000000000000000000000000000000000000ea\",\"step\":\"verdict\",\"tx\":\"0x677299fa33db218c73a04555f80af134d6e4207e92a1e6050c579e26418cd0e5\"},{\"amount\":\"1000000\",\"block\":2471,\"fee\":\"30000\",\"log\":3,\"step\":\"paid\",\"to\":\"0xFB9C8D2544D34671f422d4C57db5945c4c53f84D\",\"tx\":\"0xdca676cc74d71d049a4ae6f22fe18f95304c4ae3a945db802d0abf5ff12e8abf\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"}],\"task\":\"50\",\"v\":\"work-record/v1\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"}}"
+      }
+    },
+    {
+      "name": "mainnet task 51: rejected and refunded",
+      "network": "BrainChain mainnet (chain id 274663)",
+      "source": "brainchain-mainnet",
+      "task": "51",
+      "terminalTime": 1794825473,
+      "head": {
+        "agentRegistry": "eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        "agentId": 20424,
+        "clientAddress": "eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2483,
+          "transactionHash": "0xf558c41713a3b69dda67feeac5b471ec0af0ce0c4219bfc60a6563f4a3c628c5",
+          "logIndex": 2,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000033",
+            "0x00000000000000000000000097d558417c3d61f1074422ad843e1db1e565b952"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006afb63f1c8a518bc4e6f2a143e7b2e8fcf2e24a93284713b37b2622afda6882a2a7b83d50000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0xc0caeab374fa493902effc5764c077f3155ad186d7c3e6014058c11a2523cca0"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2486,
+          "transactionHash": "0x69755d5903e487c3609a2e2ad5d4e7c345a58fc9f951e24a62b6cea39a72c9c5",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000033",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x00000000000000000000000000000000000000000000000000000000000000eb"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2513,
+          "transactionHash": "0x625db55a2f242017c65b166c3f47e9d504ef30b0dd6d15fe7d219cf9e423cf58",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000033",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f"
+          ],
+          "data": "0xfd2b704421785949fcdf03e100ee7a60f525d6ad369686d84fe9b7c955b949e80000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x63e1495fb8d5b4ab7c8c0567f6c360bb1fc672bf5ec518fc391ccd7dc2df7e1d"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2515,
+          "transactionHash": "0x2850423bc6709917c5ef682576dfb985aabd3087ad4c02b55b2e2197f47911e0",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000033",
+            "0x00000000000000000000000000000000000000000000000000000000000000f0"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "dataHash": "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2540,
+          "transactionHash": "0xdec7ef20cc97c2edb06c4d640dd8ff71e509c03dfbe03561e9e8f13bff01340b",
+          "logIndex": 1,
+          "topics": [
+            "0x9ec89eb93e58f08b12aa171f67e14befc803eacf239f3e5592af898989ae3804",
+            "0x0000000000000000000000000000000000000000000000000000000000000033",
+            "0x00000000000000000000000097d558417c3d61f1074422ad843e1db1e565b952"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000003",
+          "dataHash": "0xcded6021ebd3021ee38d58d79fe26ccb7ffd25ab6eafc773adc1d096f46d8b08"
+        }
+      ],
+      "expect": {
+        "outcome": "rejected",
+        "entry": {
+          "tag1": "work.outcome",
+          "tag2": "rejected",
+          "value": 0
+        },
+        "bytes": 3533,
+        "feedbackHash": "0xa09598cb4c63f5e3309ed7e9e053d3c51e44a71f7cfac2c681af35361e6f4995",
+        "file": "{\"agentId\":20424,\"agentRegistry\":\"eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432\",\"clientAddress\":\"eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"createdAt\":\"2026-11-16T12:00:00Z\",\"tag1\":\"work.outcome\",\"tag2\":\"rejected\",\"value\":0,\"valueDecimals\":0,\"work\":{\"outcome\":\"rejected\",\"source\":{\"asset\":\"eip155:274663/erc20:0x8eBFEce96c0AeF7Fd23425D846a302a552c8c451\",\"chainId\":274663,\"contract\":\"0x44b8464342Bbfb9B565FAE494DfDefa37D33A211\",\"events\":[{\"event\":\"Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)\",\"fields\":{\"amount\":\"bounty\",\"brief\":\"briefHash\",\"client\":\"poster\",\"task\":\"id\"},\"step\":\"funded\"},{\"event\":\"WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)\",\"fields\":{\"task\":\"id\",\"worker\":\"model\"},\"step\":\"assigned\"},{\"event\":\"WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)\",\"fields\":{\"result\":\"resultHash\",\"task\":\"id\",\"worker\":\"model\"},\"step\":\"delivered\"},{\"event\":\"WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)\",\"fields\":{\"accepted\":\"accepted\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"GradeDisputed(uint256 indexed id, address indexed opener)\",\"fields\":{\"by\":\"opener\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"Appealed(uint256 indexed id, address indexed appellant, uint128 bond)\",\"fields\":{\"bond\":\"bond\",\"by\":\"appellant\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)\",\"feeIncluded\":true,\"fields\":{\"amount\":\"bounty\",\"fee\":\"fee\",\"task\":\"id\",\"to\":\"account\",\"worker\":\"model\"},\"step\":\"paid\"},{\"event\":\"BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)\",\"fields\":{\"amount\":\"amount\",\"task\":\"id\",\"to\":\"poster\"},\"step\":\"refunded\"}],\"finality\":\"finalized\",\"fromBlock\":969},\"steps\":[{\"amount\":\"1000000\",\"block\":2483,\"brief\":\"0xc8a518bc4e6f2a143e7b2e8fcf2e24a93284713b37b2622afda6882a2a7b83d5\",\"client\":\"0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"log\":2,\"step\":\"funded\",\"tx\":\"0xf558c41713a3b69dda67feeac5b471ec0af0ce0c4219bfc60a6563f4a3c628c5\"},{\"block\":2486,\"log\":0,\"step\":\"assigned\",\"tx\":\"0x69755d5903e487c3609a2e2ad5d4e7c345a58fc9f951e24a62b6cea39a72c9c5\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"},{\"block\":2513,\"log\":0,\"result\":\"0xfd2b704421785949fcdf03e100ee7a60f525d6ad369686d84fe9b7c955b949e8\",\"step\":\"delivered\",\"tx\":\"0x625db55a2f242017c65b166c3f47e9d504ef30b0dd6d15fe7d219cf9e423cf58\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"},{\"accepted\":false,\"block\":2515,\"log\":0,\"ref\":\"0x00000000000000000000000000000000000000000000000000000000000000f0\",\"step\":\"verdict\",\"tx\":\"0x2850423bc6709917c5ef682576dfb985aabd3087ad4c02b55b2e2197f47911e0\"},{\"amount\":\"1000000\",\"block\":2540,\"log\":1,\"step\":\"refunded\",\"to\":\"0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"tx\":\"0xdec7ef20cc97c2edb06c4d640dd8ff71e509c03dfbe03561e9e8f13bff01340b\"}],\"task\":\"51\",\"v\":\"work-record/v1\",\"worker\":\"0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f\"}}"
+      }
+    },
+    {
+      "name": "mainnet task 54: hired, never delivered, no act by the worker, refunded",
+      "network": "BrainChain mainnet (chain id 274663)",
+      "source": "brainchain-mainnet",
+      "task": "54",
+      "terminalTime": 1794826134,
+      "head": {
+        "agentRegistry": "eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        "agentId": 20426,
+        "clientAddress": "eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2517,
+          "transactionHash": "0x4e9f1f6a0b9f06de647f191feab3aa9197e0420b624c68e546afb1c60fd9889d",
+          "logIndex": 3,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000036",
+            "0x000000000000000000000000fd268ae2c1ec0db03c3c6b17e1aede973729fe29"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006afadf8dc9675eabc481ac5fd2ca956acce5b27c8dfe0d225b479f7b71525f13e28194590000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0x5ae7eb916544378a3716e2cfe6f379d1576522c87b67639274bcf71087732511"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2519,
+          "transactionHash": "0xd2501dadf3fc1bf2664e9dc98b82f40af01c6b81c915544859a9c73dc9109fbd",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000036",
+            "0x704db32081100dd74545f1a7597df9f7a92c207e699d6d04c58f7346952184e1",
+            "0x00000000000000000000000000000000000000000000000000000000000000f1"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2543,
+          "transactionHash": "0xfb6979b5d7207da270d83cbdea04b9a9a2cdff4ddfed566b3337e2f584725a0b",
+          "logIndex": 1,
+          "topics": [
+            "0x9ec89eb93e58f08b12aa171f67e14befc803eacf239f3e5592af898989ae3804",
+            "0x0000000000000000000000000000000000000000000000000000000000000036",
+            "0x000000000000000000000000fd268ae2c1ec0db03c3c6b17e1aede973729fe29"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0x51c8e99b8ade159b002e96707e266747f24fd3b39e99e749d353c3919b147db9"
+        }
+      ],
+      "expect": {
+        "outcome": "unstarted",
+        "entry": null
+      }
+    },
+    {
+      "name": "mainnet task 9: delivered, never graded, refunded",
+      "network": "BrainChain mainnet (chain id 274663)",
+      "source": "brainchain-mainnet",
+      "task": "9",
+      "terminalTime": 1794114351,
+      "head": {
+        "agentRegistry": "eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        "agentId": 20424,
+        "clientAddress": "eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 1786,
+          "transactionHash": "0xb2dc4527643cea3bf469166037e5fff59cfc394efb08a782479943078e56a875",
+          "logIndex": 2,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000009",
+            "0x000000000000000000000000afb0c4ef895d4895040cdc6435b96d3ee8350c6e"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006af0dee8a59668d4708b0a18ceec430bba11f9ae556b5a012843e9e52c6ec85c08900d940000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0xcd688f395c841a2f5398bdb25fbab04b8405480126db0922dfc1ecd34dbda048"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 1788,
+          "transactionHash": "0x74618de56cd69395bdf333a490107b2f563d805d43d7457ae1521a2fb3ff440d",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000009",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x0000000000000000000000000000000000000000000000000000000000000015"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 1801,
+          "transactionHash": "0x61165da4c8360cd0d77f9b8f68ac95c8b1e54a8bc96d44ba92119a2bd3230c3d",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000009",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f"
+          ],
+          "data": "0x2df7a06ccfad7fabdd697bbf904cb1182327dd9ec6e272ec13cad503cf0418030000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x30dfdceee7340dfb7c1b7edca2a9955b7856919d7c99ba785c58d4075106c198"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 1820,
+          "transactionHash": "0xca0127e7d66b339be5522bcf9065e9694b20cc619806129e27349b1d68d24318",
+          "logIndex": 1,
+          "topics": [
+            "0x9ec89eb93e58f08b12aa171f67e14befc803eacf239f3e5592af898989ae3804",
+            "0x0000000000000000000000000000000000000000000000000000000000000009",
+            "0x000000000000000000000000afb0c4ef895d4895040cdc6435b96d3ee8350c6e"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000002",
+          "dataHash": "0xebf7b892492e45c79218af2cc626f23a7eb300965674a8840456d4484cdecb96"
+        }
+      ],
+      "expect": {
+        "outcome": "unevaluated",
+        "entry": null
+      }
+    },
+    {
+      "name": "mainnet task 10: never hired, refunded",
+      "network": "BrainChain mainnet (chain id 274663)",
+      "source": "brainchain-mainnet",
+      "task": "10",
+      "terminalTime": 1794114680,
+      "head": {
+        "agentRegistry": "eip155:4663:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        "agentId": 20424,
+        "clientAddress": "eip155:4663:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 1804,
+          "transactionHash": "0xd27b00042bad591dbf1d739d6d384a9f395686006110e247b6748beffbbacd93",
+          "logIndex": 3,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x000000000000000000000000000000000000000000000000000000000000000a",
+            "0x000000000000000000000000fd268ae2c1ec0db03c3c6b17e1aede973729fe29"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006af0045a065903239abb3783ed449ee410ffc7e545a357161ec2d808dd72470a09c61d580000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0x46775346e69bec9074216c26271ac4ab53400531547930e3e48eab8c0d264103"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 1822,
+          "transactionHash": "0xda879316f21d2118d7e13ca461ccf7b177b5065dd9c6de18b474d61853fe53b0",
+          "logIndex": 1,
+          "topics": [
+            "0x9ec89eb93e58f08b12aa171f67e14befc803eacf239f3e5592af898989ae3804",
+            "0x000000000000000000000000000000000000000000000000000000000000000a",
+            "0x000000000000000000000000fd268ae2c1ec0db03c3c6b17e1aede973729fe29"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000",
+          "dataHash": "0xc553206141af50f1c64bb595fe30bb8fe8e42f04da0fe852ff18e572fe540016"
+        }
+      ],
+      "expect": {
+        "outcome": "no worker",
+        "entry": null
+      }
+    },
+    {
+      "name": "testnet task 3: evaluation rejects, a ruling on a dispute accepts, paid",
+      "network": "BrainChain testnet (chain id 274630)",
+      "source": "brainchain-testnet",
+      "task": "3",
+      "terminalTime": 1793718321,
+      "head": {
+        "agentRegistry": "eip155:46630:0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "agentId": 1,
+        "clientAddress": "eip155:46630:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2343,
+          "transactionHash": "0xb512f33f3454798e9998796198ae370a64565462d3fbfe19e0092faa825130b4",
+          "logIndex": 1,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x000000000000000000000000d019de9f1ed5135de692d8236d3aeb82b7ef747b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000001e8480000000000000000000000000000000000000000000000000000000006aea05df1ce88ee2ebfbdf64dff9baf27cddc132c88d9bae1c945720f8a1568580e843d00000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0xdb9cf5d06c5f295decca174bb8c781c632300616eb65c3f288078b35124d6345"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2345,
+          "transactionHash": "0xca79031a374ea400cb8cc122ef33547a753e363020d4d8a5e4f396d244062395",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62",
+            "0x0000000000000000000000000000000000000000000000000000000000000009"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2346,
+          "transactionHash": "0x51fbddb26786ed35b20458d6fb46069c889f7d5bb662533c7d3ab8bac463fe28",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62"
+          ],
+          "data": "0xe7b3d7bc299973227525e52f03cfada47c9c45f5537c351991d008159a1541ed0000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x777f3bb05b67a275ea64c42125d7852550d55c79a45a956b908c950d063a9398"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2348,
+          "transactionHash": "0x8fbbbe934320202a1b927dcd1a4c2b9ffa8d134add229d6c6535f3b6fae07d5c",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x000000000000000000000000000000000000000000000000000000000000000a"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "dataHash": "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2349,
+          "transactionHash": "0x0a0d754505174b9fa11f6f34dd0028fa0b8f4109315bd6bf3ced2fc2b4478f44",
+          "logIndex": 0,
+          "topics": [
+            "0x168a7fb5f3953c18f81183ec731fcf91a5ed9c1f0412d73d146997d5de2b6f51",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x000000000000000000000000d019de9f1ed5135de692d8236d3aeb82b7ef747b"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2351,
+          "transactionHash": "0xdb5a7780d678b496f96510218aea921067b622d0ea0a68968c2fe959a3ac04cd",
+          "logIndex": 0,
+          "topics": [
+            "0xfd10ffbb1a9c00bf949d99bfcce6533574bd52c1e00d865d611c6eb99675fd8a",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x000000000000000000000000000000000000000000000000000000000000000b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b688792f"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2364,
+          "transactionHash": "0xeb7cfac61cf76eb0f4663a57a71bf37ca23e279e6003e6ddf97bef3055895418",
+          "logIndex": 3,
+          "topics": [
+            "0x57f4a57e16c2fbdacaa6cde8b489009fccc2eb26f17a4575009518349ca080d9",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62",
+            "0x000000000000000000000000a1f966168e158090ab025f22e00233cb7afa524b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000001e8480000000000000000000000000000000000000000000000000000000000000ea60",
+          "dataHash": "0xbf961b2c04e75e1021aff725690a3eded16fe3f7ef1ece7be218e06e453b2f7d"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "entry": {
+          "tag1": "work.outcome",
+          "tag2": "accepted",
+          "value": 100
+        },
+        "bytes": 3992,
+        "feedbackHash": "0x47d65962996e82f376722e14015c47dd6bc1aa4390bbf086e8fc38d44d570730",
+        "file": "{\"agentId\":1,\"agentRegistry\":\"eip155:46630:0x8004A818BFB912233c491871b3d84c89A494BD9e\",\"clientAddress\":\"eip155:46630:0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"createdAt\":\"2026-11-16T12:00:00Z\",\"tag1\":\"work.outcome\",\"tag2\":\"accepted\",\"value\":100,\"valueDecimals\":0,\"work\":{\"outcome\":\"accepted\",\"source\":{\"asset\":\"eip155:274630/erc20:0xC4ec72794bF3Ce9ba1DE4B38085464c2eb0cDCf2\",\"chainId\":274630,\"contract\":\"0x7A7cC5D35A642CCc268C7B263fF800bc7eBD52A4\",\"events\":[{\"event\":\"Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)\",\"fields\":{\"amount\":\"bounty\",\"brief\":\"briefHash\",\"client\":\"poster\",\"task\":\"id\"},\"step\":\"funded\"},{\"event\":\"WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)\",\"fields\":{\"task\":\"id\",\"worker\":\"model\"},\"step\":\"assigned\"},{\"event\":\"WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)\",\"fields\":{\"result\":\"resultHash\",\"task\":\"id\",\"worker\":\"model\"},\"step\":\"delivered\"},{\"event\":\"WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)\",\"fields\":{\"accepted\":\"accepted\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"GradeDisputed(uint256 indexed id, address indexed opener)\",\"fields\":{\"by\":\"opener\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"Appealed(uint256 indexed id, address indexed appellant, uint128 bond)\",\"fields\":{\"bond\":\"bond\",\"by\":\"appellant\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)\",\"feeIncluded\":true,\"fields\":{\"amount\":\"bounty\",\"fee\":\"fee\",\"task\":\"id\",\"to\":\"account\",\"worker\":\"model\"},\"step\":\"paid\"},{\"event\":\"BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)\",\"fields\":{\"amount\":\"amount\",\"task\":\"id\",\"to\":\"poster\"},\"step\":\"refunded\"}],\"finality\":\"finalized\",\"fromBlock\":2294},\"steps\":[{\"amount\":\"2000000\",\"block\":2343,\"brief\":\"0x1ce88ee2ebfbdf64dff9baf27cddc132c88d9bae1c945720f8a1568580e843d0\",\"client\":\"0xD019DE9F1Ed5135dE692D8236d3aeB82b7Ef747b\",\"log\":1,\"step\":\"funded\",\"tx\":\"0xb512f33f3454798e9998796198ae370a64565462d3fbfe19e0092faa825130b4\"},{\"block\":2345,\"log\":0,\"step\":\"assigned\",\"tx\":\"0xca79031a374ea400cb8cc122ef33547a753e363020d4d8a5e4f396d244062395\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"},{\"block\":2346,\"log\":0,\"result\":\"0xe7b3d7bc299973227525e52f03cfada47c9c45f5537c351991d008159a1541ed\",\"step\":\"delivered\",\"tx\":\"0x51fbddb26786ed35b20458d6fb46069c889f7d5bb662533c7d3ab8bac463fe28\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"},{\"accepted\":false,\"block\":2348,\"log\":0,\"ref\":\"0x000000000000000000000000000000000000000000000000000000000000000a\",\"step\":\"verdict\",\"tx\":\"0x8fbbbe934320202a1b927dcd1a4c2b9ffa8d134add229d6c6535f3b6fae07d5c\"},{\"block\":2349,\"by\":\"0xD019DE9F1Ed5135dE692D8236d3aeB82b7Ef747b\",\"log\":0,\"step\":\"challenge\",\"tx\":\"0x0a0d754505174b9fa11f6f34dd0028fa0b8f4109315bd6bf3ced2fc2b4478f44\"},{\"accepted\":true,\"block\":2351,\"log\":0,\"ref\":\"0x000000000000000000000000000000000000000000000000000000000000000b\",\"step\":\"verdict\",\"tx\":\"0xdb5a7780d678b496f96510218aea921067b622d0ea0a68968c2fe959a3ac04cd\"},{\"amount\":\"2000000\",\"block\":2364,\"fee\":\"60000\",\"log\":3,\"step\":\"paid\",\"to\":\"0xA1f966168e158090ab025f22e00233CB7AFa524B\",\"tx\":\"0xeb7cfac61cf76eb0f4663a57a71bf37ca23e279e6003e6ddf97bef3055895418\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"}],\"task\":\"3\",\"v\":\"work-record/v1\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"}}"
+      }
+    },
+    {
+      "name": "testnet task 84: rejected, disputed, ruled against, appealed, ruled against, refunded",
+      "network": "BrainChain testnet (chain id 274630)",
+      "source": "brainchain-testnet",
+      "task": "84",
+      "terminalTime": 1793923545,
+      "head": {
+        "agentRegistry": "eip155:46630:0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "agentId": 1,
+        "clientAddress": "eip155:46630:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3584,
+          "transactionHash": "0x19569426fa3a0ef321c7e36d428b9af6c423b47d9a1b7e77212271ee44afa885",
+          "logIndex": 2,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x000000000000000000000000a3a40a2d46d54dc6e88c08a9d98ec47785cb2366"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006aed5cfcaea93194c2ab51d41ce80a10efbdf2cf0d4ba05fa2ad4275e7a3c1cd4e6cf7ac0000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0xba452f70137fc1dc44356451af1273aafbc50ae1c2c4a69227c6e5b4bdf6dcfb"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3586,
+          "transactionHash": "0xaf91206b5b89bc56bc706978f8d0c30a47e5dee6463a51bc79b2f22aec342560",
+          "logIndex": 1,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29",
+            "0x00000000000000000000000000000000000000000000000000000000000000cc"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3589,
+          "transactionHash": "0xfeee3ef5fa9d892c001eed51dd45d71264ba8df601e4d9199b084b6bf9051ac0",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29"
+          ],
+          "data": "0xb112c3fb0f989b0b0a0e5ec163068275c97de2a9afb298c8b97d9b5f354877150000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x4cca8c6978cc51447ad5a72dd4828b8b49077109e6017b1a53e6750efb4d2c2a"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3591,
+          "transactionHash": "0x8eee9ddef2ae67de1b78b658095af90232364bb1f0e066681cef8e7cd08b9b9e",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x00000000000000000000000000000000000000000000000000000000000000cd"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "dataHash": "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3595,
+          "transactionHash": "0x336a7c6e2f6bb00441164c1b0df7a9ce2d4c9cc869b4386bcd20386b7baa06ea",
+          "logIndex": 0,
+          "topics": [
+            "0x168a7fb5f3953c18f81183ec731fcf91a5ed9c1f0412d73d146997d5de2b6f51",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3597,
+          "transactionHash": "0x7ecbaf9976f1fd4533257566d9c0825f469f4f387bc2d9fbdc96f06d3727fe82",
+          "logIndex": 0,
+          "topics": [
+            "0xfd10ffbb1a9c00bf949d99bfcce6533574bd52c1e00d865d611c6eb99675fd8a",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x00000000000000000000000000000000000000000000000000000000000000ce"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3605,
+          "transactionHash": "0xb7b5e646158c5303e80070c399005f952edb76a65b7eea6873f10a0189b386e7",
+          "logIndex": 1,
+          "topics": [
+            "0x09a50155932ddac96cf4654cf2548337c3bf156df28f5f29187cc999dbbe3396",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29"
+          ],
+          "data": "0x000000000000000000000000000000000000000000000000000000000003d090",
+          "dataHash": "0x838dc89ef76790193b26c56949d3e721efedbce46e2041d64b3694263b5fa2e6"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3607,
+          "transactionHash": "0xbd305a949bda75088898ed783f5f60422489f08237b4a1ff017dc5b959e57232",
+          "logIndex": 0,
+          "topics": [
+            "0x3da7e9956a025bddb82c30bc7d443454f8bf0d4f2c37d4d16c71fb5f162375fc",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x00000000000000000000000000000000000000000000000000000000000000d0"
+          ],
+          "data": "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000",
+          "dataHash": "0x4a11e8d2ed8da733fcaa4e17f4412f9b9d61f5c42218367f3a293b19bfcdbd57"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 3607,
+          "transactionHash": "0xbd305a949bda75088898ed783f5f60422489f08237b4a1ff017dc5b959e57232",
+          "logIndex": 5,
+          "topics": [
+            "0x9ec89eb93e58f08b12aa171f67e14befc803eacf239f3e5592af898989ae3804",
+            "0x0000000000000000000000000000000000000000000000000000000000000054",
+            "0x000000000000000000000000a3a40a2d46d54dc6e88c08a9d98ec47785cb2366"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000004",
+          "dataHash": "0xdf4d6c35512571360fe3b0b3043d6c154b4147737094d44ac845c2faac0cc792"
+        }
+      ],
+      "expect": {
+        "outcome": "rejected",
+        "entry": {
+          "tag1": "work.outcome",
+          "tag2": "rejected",
+          "value": 0
+        },
+        "bytes": 4292,
+        "feedbackHash": "0x5eb2ad93e42a403d682de952532085265a6959a22da2b448c2de73c332570d5d",
+        "file": "{\"agentId\":1,\"agentRegistry\":\"eip155:46630:0x8004A818BFB912233c491871b3d84c89A494BD9e\",\"clientAddress\":\"eip155:46630:0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"createdAt\":\"2026-11-16T12:00:00Z\",\"tag1\":\"work.outcome\",\"tag2\":\"rejected\",\"value\":0,\"valueDecimals\":0,\"work\":{\"outcome\":\"rejected\",\"source\":{\"asset\":\"eip155:274630/erc20:0xC4ec72794bF3Ce9ba1DE4B38085464c2eb0cDCf2\",\"chainId\":274630,\"contract\":\"0x7A7cC5D35A642CCc268C7B263fF800bc7eBD52A4\",\"events\":[{\"event\":\"Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)\",\"fields\":{\"amount\":\"bounty\",\"brief\":\"briefHash\",\"client\":\"poster\",\"task\":\"id\"},\"step\":\"funded\"},{\"event\":\"WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)\",\"fields\":{\"task\":\"id\",\"worker\":\"model\"},\"step\":\"assigned\"},{\"event\":\"WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)\",\"fields\":{\"result\":\"resultHash\",\"task\":\"id\",\"worker\":\"model\"},\"step\":\"delivered\"},{\"event\":\"WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)\",\"fields\":{\"accepted\":\"accepted\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"GradeDisputed(uint256 indexed id, address indexed opener)\",\"fields\":{\"by\":\"opener\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"Appealed(uint256 indexed id, address indexed appellant, uint128 bond)\",\"fields\":{\"bond\":\"bond\",\"by\":\"appellant\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)\",\"feeIncluded\":true,\"fields\":{\"amount\":\"bounty\",\"fee\":\"fee\",\"task\":\"id\",\"to\":\"account\",\"worker\":\"model\"},\"step\":\"paid\"},{\"event\":\"BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)\",\"fields\":{\"amount\":\"amount\",\"task\":\"id\",\"to\":\"poster\"},\"step\":\"refunded\"}],\"finality\":\"finalized\",\"fromBlock\":2294},\"steps\":[{\"amount\":\"1000000\",\"block\":3584,\"brief\":\"0xaea93194c2ab51d41ce80a10efbdf2cf0d4ba05fa2ad4275e7a3c1cd4e6cf7ac\",\"client\":\"0xA3a40A2D46D54dc6e88c08a9d98Ec47785CB2366\",\"log\":2,\"step\":\"funded\",\"tx\":\"0x19569426fa3a0ef321c7e36d428b9af6c423b47d9a1b7e77212271ee44afa885\"},{\"block\":3586,\"log\":1,\"step\":\"assigned\",\"tx\":\"0xaf91206b5b89bc56bc706978f8d0c30a47e5dee6463a51bc79b2f22aec342560\",\"worker\":\"0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29\"},{\"block\":3589,\"log\":0,\"result\":\"0xb112c3fb0f989b0b0a0e5ec163068275c97de2a9afb298c8b97d9b5f35487715\",\"step\":\"delivered\",\"tx\":\"0xfeee3ef5fa9d892c001eed51dd45d71264ba8df601e4d9199b084b6bf9051ac0\",\"worker\":\"0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29\"},{\"accepted\":false,\"block\":3591,\"log\":0,\"ref\":\"0x00000000000000000000000000000000000000000000000000000000000000cd\",\"step\":\"verdict\",\"tx\":\"0x8eee9ddef2ae67de1b78b658095af90232364bb1f0e066681cef8e7cd08b9b9e\"},{\"block\":3595,\"by\":\"0x8A69A5e208f08828e4FE1b5c83B5080dbBf46D29\",\"log\":0,\"step\":\"challenge\",\"tx\":\"0x336a7c6e2f6bb00441164c1b0df7a9ce2d4c9cc869b4386bcd20386b7baa06ea\"},{\"accepted\":false,\"block\":3597,\"log\":0,\"ref\":\"0x00000000000000000000000000000000000000000000000000000000000000ce\",\"step\":\"verdict\",\"tx\":\"0x7ecbaf9976f1fd4533257566d9c0825f469f4f387bc2d9fbdc96f06d3727fe82\"},{\"block\":3605,\"bond\":\"250000\",\"by\":\"0x8A69A5e208f08828e4FE1b5c83B5080dbBf46D29\",\"log\":1,\"step\":\"challenge\",\"tx\":\"0xb7b5e646158c5303e80070c399005f952edb76a65b7eea6873f10a0189b386e7\"},{\"accepted\":false,\"block\":3607,\"log\":0,\"ref\":\"0x00000000000000000000000000000000000000000000000000000000000000d0\",\"step\":\"verdict\",\"tx\":\"0xbd305a949bda75088898ed783f5f60422489f08237b4a1ff017dc5b959e57232\"},{\"amount\":\"1000000\",\"block\":3607,\"log\":5,\"step\":\"refunded\",\"to\":\"0xA3a40A2D46D54dc6e88c08a9d98Ec47785CB2366\",\"tx\":\"0xbd305a949bda75088898ed783f5f60422489f08237b4a1ff017dc5b959e57232\"}],\"task\":\"84\",\"v\":\"work-record/v1\",\"worker\":\"0x0000000000000000000000008a69a5e208f08828e4fe1b5c83b5080dbbf46d29\"}}"
+      }
+    },
+    {
+      "name": "testnet task 1: accepted, disputed, ruled for, appealed, ruled for, paid",
+      "network": "BrainChain testnet (chain id 274630)",
+      "source": "brainchain-testnet",
+      "task": "1",
+      "terminalTime": 1793714454,
+      "head": {
+        "agentRegistry": "eip155:46630:0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "agentId": 1,
+        "clientAddress": "eip155:46630:0x97D558417c3D61f1074422AD843e1Db1E565b952",
+        "createdAt": "2026-11-16T12:00:00Z"
+      },
+      "logs": [
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2317,
+          "transactionHash": "0x59a15f26faf273f640ea0acf82c710f48d9be587edc427a43781962acde3ea6a",
+          "logIndex": 1,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000d019de9f1ed5135de692d8236d3aeb82b7ef747b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000003d0900000000000000000000000000000000000000000000000000000000006aea04ccc86707efee1ca7d16615a4c3c812f758664a1d4849975b4658656f564dccc1f80000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0x0a14e2ca2b596c5b7859c1939f29d2c9fb84195542516f920441ba077cdfdfa6"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2319,
+          "transactionHash": "0xe029f9f96ab78e0ff67a8e009fff1f82c7a39906ca2555949fcfa9f343f70cb1",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62",
+            "0x0000000000000000000000000000000000000000000000000000000000000001"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2320,
+          "transactionHash": "0x71cadae93129737b6d92f9837043eed3551234da6b0d7f5cd69cacb6301e61d8",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62"
+          ],
+          "data": "0x9227fd91e5dd5818b44582742cddd2335f4eda904040b3d239572aacde06a9800000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x50e59cc42d0f5405460b369c534d54ef0b22f5e943dcd8ccef13fd51f754d94e"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2322,
+          "transactionHash": "0x22e365c7818ab22df7f5eb1105ef586f14fdb7b1ffec67709dce116c0cb40d26",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000000000000000000000000000002"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2323,
+          "transactionHash": "0xfdd23c274a1fa56a282b8340dc73b393b188e14c88f921f3df69754edff55eb7",
+          "logIndex": 0,
+          "topics": [
+            "0x168a7fb5f3953c18f81183ec731fcf91a5ed9c1f0412d73d146997d5de2b6f51",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000d019de9f1ed5135de692d8236d3aeb82b7ef747b"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2325,
+          "transactionHash": "0x39661f4e9d7904b41f52e71dd028168724aa6f8086d056d4ad17cd5d1f20c954",
+          "logIndex": 0,
+          "topics": [
+            "0xfd10ffbb1a9c00bf949d99bfcce6533574bd52c1e00d865d611c6eb99675fd8a",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000000000000000000000000000003"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b688792f"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2326,
+          "transactionHash": "0xf04d964076571ea0d7291134241101489390ea67fb9b1988b9d2800e6ba9b604",
+          "logIndex": 1,
+          "topics": [
+            "0x09a50155932ddac96cf4654cf2548337c3bf156df28f5f29187cc999dbbe3396",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000d019de9f1ed5135de692d8236d3aeb82b7ef747b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+          "dataHash": "0xc1af4b94166cd32fc49b7b926cbb91ee421de2d04450e8ae57857b9b56ac7e53"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2328,
+          "transactionHash": "0xeecaea918c8080abb63ec737890eba803a3bd0345e16cfa91cfc0f2078b9d3a2",
+          "logIndex": 0,
+          "topics": [
+            "0x3da7e9956a025bddb82c30bc7d443454f8bf0d4f2c37d4d16c71fb5f162375fc",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000000000000000000000000000004"
+          ],
+          "data": "0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000",
+          "dataHash": "0xd5eb26a4673c3bf5bb325d407fe1544f0325b97d4b68afa6a28851b6dbbbd29f"
+        },
+        {
+          "address": "0x7a7cc5d35a642ccc268c7b263ff800bc7ebd52a4",
+          "blockNumber": 2328,
+          "transactionHash": "0xeecaea918c8080abb63ec737890eba803a3bd0345e16cfa91cfc0f2078b9d3a2",
+          "logIndex": 6,
+          "topics": [
+            "0x57f4a57e16c2fbdacaa6cde8b489009fccc2eb26f17a4575009518349ca080d9",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62",
+            "0x000000000000000000000000a1f966168e158090ab025f22e00233cb7afa524b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000003d0900000000000000000000000000000000000000000000000000000000000001d4c0",
+          "dataHash": "0x19675de68af8e3bbe4dff1c35c05dd87d63fe53a4f11b7b4abe4d25a7aa2eb6b"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "entry": {
+          "tag1": "work.outcome",
+          "tag2": "accepted",
+          "value": 100
+        },
+        "bytes": 4380,
+        "feedbackHash": "0x5d64947524a08eaaa7a69b9ba9c2a25fdd842af264680b7ac2d0967ef90db65e",
+        "file": "{\"agentId\":1,\"agentRegistry\":\"eip155:46630:0x8004A818BFB912233c491871b3d84c89A494BD9e\",\"clientAddress\":\"eip155:46630:0x97D558417c3D61f1074422AD843e1Db1E565b952\",\"createdAt\":\"2026-11-16T12:00:00Z\",\"tag1\":\"work.outcome\",\"tag2\":\"accepted\",\"value\":100,\"valueDecimals\":0,\"work\":{\"outcome\":\"accepted\",\"source\":{\"asset\":\"eip155:274630/erc20:0xC4ec72794bF3Ce9ba1DE4B38085464c2eb0cDCf2\",\"chainId\":274630,\"contract\":\"0x7A7cC5D35A642CCc268C7B263fF800bc7eBD52A4\",\"events\":[{\"event\":\"Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)\",\"fields\":{\"amount\":\"bounty\",\"brief\":\"briefHash\",\"client\":\"poster\",\"task\":\"id\"},\"step\":\"funded\"},{\"event\":\"WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)\",\"fields\":{\"task\":\"id\",\"worker\":\"model\"},\"step\":\"assigned\"},{\"event\":\"WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)\",\"fields\":{\"result\":\"resultHash\",\"task\":\"id\",\"worker\":\"model\"},\"step\":\"delivered\"},{\"event\":\"WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)\",\"fields\":{\"accepted\":\"accepted\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"GradeDisputed(uint256 indexed id, address indexed opener)\",\"fields\":{\"by\":\"opener\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"Appealed(uint256 indexed id, address indexed appellant, uint128 bond)\",\"fields\":{\"bond\":\"bond\",\"by\":\"appellant\",\"task\":\"id\"},\"step\":\"challenge\"},{\"event\":\"AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)\",\"fields\":{\"accepted\":\"paid\",\"ref\":\"decisionId\",\"task\":\"id\"},\"step\":\"verdict\"},{\"event\":\"BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)\",\"feeIncluded\":true,\"fields\":{\"amount\":\"bounty\",\"fee\":\"fee\",\"task\":\"id\",\"to\":\"account\",\"worker\":\"model\"},\"step\":\"paid\"},{\"event\":\"BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)\",\"fields\":{\"amount\":\"amount\",\"task\":\"id\",\"to\":\"poster\"},\"step\":\"refunded\"}],\"finality\":\"finalized\",\"fromBlock\":2294},\"steps\":[{\"amount\":\"4000000\",\"block\":2317,\"brief\":\"0xc86707efee1ca7d16615a4c3c812f758664a1d4849975b4658656f564dccc1f8\",\"client\":\"0xD019DE9F1Ed5135dE692D8236d3aeB82b7Ef747b\",\"log\":1,\"step\":\"funded\",\"tx\":\"0x59a15f26faf273f640ea0acf82c710f48d9be587edc427a43781962acde3ea6a\"},{\"block\":2319,\"log\":0,\"step\":\"assigned\",\"tx\":\"0xe029f9f96ab78e0ff67a8e009fff1f82c7a39906ca2555949fcfa9f343f70cb1\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"},{\"block\":2320,\"log\":0,\"result\":\"0x9227fd91e5dd5818b44582742cddd2335f4eda904040b3d239572aacde06a980\",\"step\":\"delivered\",\"tx\":\"0x71cadae93129737b6d92f9837043eed3551234da6b0d7f5cd69cacb6301e61d8\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"},{\"accepted\":true,\"block\":2322,\"log\":0,\"ref\":\"0x0000000000000000000000000000000000000000000000000000000000000002\",\"step\":\"verdict\",\"tx\":\"0x22e365c7818ab22df7f5eb1105ef586f14fdb7b1ffec67709dce116c0cb40d26\"},{\"block\":2323,\"by\":\"0xD019DE9F1Ed5135dE692D8236d3aeB82b7Ef747b\",\"log\":0,\"step\":\"challenge\",\"tx\":\"0xfdd23c274a1fa56a282b8340dc73b393b188e14c88f921f3df69754edff55eb7\"},{\"accepted\":true,\"block\":2325,\"log\":0,\"ref\":\"0x0000000000000000000000000000000000000000000000000000000000000003\",\"step\":\"verdict\",\"tx\":\"0x39661f4e9d7904b41f52e71dd028168724aa6f8086d056d4ad17cd5d1f20c954\"},{\"block\":2326,\"bond\":\"1000000\",\"by\":\"0xD019DE9F1Ed5135dE692D8236d3aeB82b7Ef747b\",\"log\":1,\"step\":\"challenge\",\"tx\":\"0xf04d964076571ea0d7291134241101489390ea67fb9b1988b9d2800e6ba9b604\"},{\"accepted\":true,\"block\":2328,\"log\":0,\"ref\":\"0x0000000000000000000000000000000000000000000000000000000000000004\",\"step\":\"verdict\",\"tx\":\"0xeecaea918c8080abb63ec737890eba803a3bd0345e16cfa91cfc0f2078b9d3a2\"},{\"amount\":\"4000000\",\"block\":2328,\"fee\":\"120000\",\"log\":6,\"step\":\"paid\",\"to\":\"0xA1f966168e158090ab025f22e00233CB7AFa524B\",\"tx\":\"0xeecaea918c8080abb63ec737890eba803a3bd0345e16cfa91cfc0f2078b9d3a2\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"}],\"task\":\"1\",\"v\":\"work-record/v1\",\"worker\":\"0x683eac6d7161e57da29b898582acbca020e9d7cb559023d4c58afd297f777c62\"}}"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "the record of mainnet task 50 with its verdict step removed",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "file",
+      "expectError": "where the chain has a verdict step",
+      "feedbackURI": "data:application/json;base64,eyJhZ2VudElkIjoyMDQyNCwiYWdlbnRSZWdpc3RyeSI6ImVpcDE1NTo0NjYzOjB4ODAwNEExNjlGQjRhMzMyNTEzNkVCMjlmQTBjZUI2RDJlNTM5YTQzMiIsImNsaWVudEFkZHJlc3MiOiJlaXAxNTU6NDY2MzoweDk3RDU1ODQxN2MzRDYxZjEwNzQ0MjJBRDg0M2UxRGIxRTU2NWI5NTIiLCJjcmVhdGVkQXQiOiIyMDI2LTExLTE2VDEyOjAwOjAwWiIsInRhZzEiOiJ3b3JrLm91dGNvbWUiLCJ0YWcyIjoiYWNjZXB0ZWQiLCJ2YWx1ZSI6MTAwLCJ2YWx1ZURlY2ltYWxzIjowLCJ3b3JrIjp7Im91dGNvbWUiOiJhY2NlcHRlZCIsInNvdXJjZSI6eyJhc3NldCI6ImVpcDE1NToyNzQ2NjMvZXJjMjA6MHg4ZUJGRWNlOTZjMEFlRjdGZDIzNDI1RDg0NmEzMDJhNTUyYzhjNDUxIiwiY2hhaW5JZCI6Mjc0NjYzLCJjb250cmFjdCI6IjB4NDRiODQ2NDM0MkJiZmI5QjU2NUZBRTQ5NERmRGVmYTM3RDMzQTIxMSIsImV2ZW50cyI6W3siZXZlbnQiOiJQb3N0ZWQodWludDI1NiBpbmRleGVkIGlkLCBhZGRyZXNzIGluZGV4ZWQgcG9zdGVyLCB1aW50MTI4IGJvdW50eSwgdWludDY0IGRlYWRsaW5lLCBieXRlczMyIGJyaWVmSGFzaCwgc3RyaW5nIGJyaWVmVVJJKSIsImZpZWxkcyI6eyJhbW91bnQiOiJib3VudHkiLCJicmllZiI6ImJyaWVmSGFzaCIsImNsaWVudCI6InBvc3RlciIsInRhc2siOiJpZCJ9LCJzdGVwIjoiZnVuZGVkIn0seyJldmVudCI6IldvcmtlckhpcmVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYnl0ZXMzMiBpbmRleGVkIG1vZGVsLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCkiLCJmaWVsZHMiOnsidGFzayI6ImlkIiwid29ya2VyIjoibW9kZWwifSwic3RlcCI6ImFzc2lnbmVkIn0seyJldmVudCI6IldvcmtTdWJtaXR0ZWQodWludDI1NiBpbmRleGVkIGlkLCBieXRlczMyIGluZGV4ZWQgbW9kZWwsIGJ5dGVzMzIgcmVzdWx0SGFzaCwgc3RyaW5nIHJlc3VsdFVSSSkiLCJmaWVsZHMiOnsicmVzdWx0IjoicmVzdWx0SGFzaCIsInRhc2siOiJpZCIsIndvcmtlciI6Im1vZGVsIn0sInN0ZXAiOiJkZWxpdmVyZWQifSx7ImV2ZW50IjoiV29ya0dyYWRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIHVpbnQyNTYgaW5kZXhlZCBkZWNpc2lvbklkLCBib29sIGFjY2VwdGVkKSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6ImFjY2VwdGVkIiwicmVmIjoiZGVjaXNpb25JZCIsInRhc2siOiJpZCJ9LCJzdGVwIjoidmVyZGljdCJ9LHsiZXZlbnQiOiJHcmFkZURpc3B1dGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIG9wZW5lcikiLCJmaWVsZHMiOnsiYnkiOiJvcGVuZXIiLCJ0YXNrIjoiaWQifSwic3RlcCI6ImNoYWxsZW5nZSJ9LHsiZXZlbnQiOiJSdWxlZCh1aW50MjU2IGluZGV4ZWQgaWQsIHVpbnQyNTYgaW5kZXhlZCBkZWNpc2lvbklkLCBib29sIHBhaWQsIGJvb2wgY29uZmlkZW50KSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6InBhaWQiLCJyZWYiOiJkZWNpc2lvbklkIiwidGFzayI6ImlkIn0sInN0ZXAiOiJ2ZXJkaWN0In0seyJldmVudCI6IkFwcGVhbGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIGFwcGVsbGFudCwgdWludDEyOCBib25kKSIsImZpZWxkcyI6eyJib25kIjoiYm9uZCIsImJ5IjoiYXBwZWxsYW50IiwidGFzayI6ImlkIn0sInN0ZXAiOiJjaGFsbGVuZ2UifSx7ImV2ZW50IjoiQXBwZWFsUnVsZWQodWludDI1NiBpbmRleGVkIGlkLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCwgYm9vbCBwYWlkLCBib29sIGNvbmZpZGVudCwgYm9vbCBvdmVydHVybmVkKSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6InBhaWQiLCJyZWYiOiJkZWNpc2lvbklkIiwidGFzayI6ImlkIn0sInN0ZXAiOiJ2ZXJkaWN0In0seyJldmVudCI6IkJvdW50eVBhaWQodWludDI1NiBpbmRleGVkIGlkLCBieXRlczMyIGluZGV4ZWQgbW9kZWwsIGFkZHJlc3MgaW5kZXhlZCBhY2NvdW50LCB1aW50MTI4IGJvdW50eSwgdWludDEyOCBmZWUpIiwiZmVlSW5jbHVkZWQiOnRydWUsImZpZWxkcyI6eyJhbW91bnQiOiJib3VudHkiLCJmZWUiOiJmZWUiLCJ0YXNrIjoiaWQiLCJ0byI6ImFjY291bnQiLCJ3b3JrZXIiOiJtb2RlbCJ9LCJzdGVwIjoicGFpZCJ9LHsiZXZlbnQiOiJCb3VudHlSZWZ1bmRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIGFkZHJlc3MgaW5kZXhlZCBwb3N0ZXIsIHVpbnQxMjggYW1vdW50LCB1aW50OCByZWFzb24pIiwiZmllbGRzIjp7ImFtb3VudCI6ImFtb3VudCIsInRhc2siOiJpZCIsInRvIjoicG9zdGVyIn0sInN0ZXAiOiJyZWZ1bmRlZCJ9XSwiZmluYWxpdHkiOiJmaW5hbGl6ZWQiLCJmcm9tQmxvY2siOjk2OX0sInN0ZXBzIjpbeyJhbW91bnQiOiIxMDAwMDAwIiwiYmxvY2siOjI0NTEsImJyaWVmIjoiMHg1YmE3MmM1NTA4NDYyOWUxZWY3YzcwNzkyMmVkNWQyY2RkNGRmNmE2Y2NmMDRmNTczNzg5ODA0YTBjZThhOWE5IiwiY2xpZW50IjoiMHg5N0Q1NTg0MTdjM0Q2MWYxMDc0NDIyQUQ4NDNlMURiMUU1NjViOTUyIiwibG9nIjoyLCJzdGVwIjoiZnVuZGVkIiwidHgiOiIweDc0OWQ0ZDgzODg2NGFiNWQ5ZGNlOGEwYTg1YmMzNzFjZDRkMWY0OTQ1Zjk1YTNlOWE5OTFlNWU4ZjhjM2Q1ZWYifSx7ImJsb2NrIjoyNDUzLCJsb2ciOjAsInN0ZXAiOiJhc3NpZ25lZCIsInR4IjoiMHgwODJmNTM5MmFkNTNkOThmZjkwMjVjOWRhM2U1MmJiMDZkZTc2ZDY2MjYyNmRiNGYwYWNjMDgwYTc4OTI0Y2Y3Iiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn0seyJibG9jayI6MjQ1NCwibG9nIjowLCJyZXN1bHQiOiIweGQ2ZTNhNDNjM2NhYTFjNmJlMjdmNjkwNTI2MWJkNmYzY2U3ZTI4MmY2NzJkZTI0NGEwNzQ4Y2MwZWU1ODA0MTYiLCJzdGVwIjoiZGVsaXZlcmVkIiwidHgiOiIweGVmOWFmMjNjZGJiZWQ5MTAwMmNlOTkwNWVjYWQ1ZTM0ZDEzMDIyYmRmYWNlMzEzOWI4ZDVmNDQ0OTBjYmJiNDAiLCJ3b3JrZXIiOiIweDVmMWMyODc0MWVlNzRiZTJhODI4ZmQzMzcyODNjYTQ3ZTQ3N2EwY2Q1NmJmNWFkMzFjNjFlMWNlM2NlMWQyMmYifSx7ImFtb3VudCI6IjEwMDAwMDAiLCJibG9jayI6MjQ3MSwiZmVlIjoiMzAwMDAiLCJsb2ciOjMsInN0ZXAiOiJwYWlkIiwidG8iOiIweEZCOUM4RDI1NDREMzQ2NzFmNDIyZDRDNTdkYjU5NDVjNGM1M2Y4NEQiLCJ0eCI6IjB4ZGNhNjc2Y2M3NGQ3MWQwNDlhNGFlNmYyMmZlMThmOTUzMDRjNGFlM2E5NDVkYjgwMmQwYWJmNWZmMTJlOGFiZiIsIndvcmtlciI6IjB4NWYxYzI4NzQxZWU3NGJlMmE4MjhmZDMzNzI4M2NhNDdlNDc3YTBjZDU2YmY1YWQzMWM2MWUxY2UzY2UxZDIyZiJ9XSwidGFzayI6IjUwIiwidiI6IndvcmstcmVjb3JkL3YxIiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn19",
+      "feedbackHash": "0xeda1e329baa6616ed6540573c09aa8953688fc182df434a410e301250cf6a81b"
+    },
+    {
+      "name": "the record of mainnet task 50 relabelled rejected",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "file",
+      "expectError": "outcome is accepted",
+      "feedbackURI": "data:application/json;base64,eyJhZ2VudElkIjoyMDQyNCwiYWdlbnRSZWdpc3RyeSI6ImVpcDE1NTo0NjYzOjB4ODAwNEExNjlGQjRhMzMyNTEzNkVCMjlmQTBjZUI2RDJlNTM5YTQzMiIsImNsaWVudEFkZHJlc3MiOiJlaXAxNTU6NDY2MzoweDk3RDU1ODQxN2MzRDYxZjEwNzQ0MjJBRDg0M2UxRGIxRTU2NWI5NTIiLCJjcmVhdGVkQXQiOiIyMDI2LTExLTE2VDEyOjAwOjAwWiIsInRhZzEiOiJ3b3JrLm91dGNvbWUiLCJ0YWcyIjoicmVqZWN0ZWQiLCJ2YWx1ZSI6MCwidmFsdWVEZWNpbWFscyI6MCwid29yayI6eyJvdXRjb21lIjoicmVqZWN0ZWQiLCJzb3VyY2UiOnsiYXNzZXQiOiJlaXAxNTU6Mjc0NjYzL2VyYzIwOjB4OGVCRkVjZTk2YzBBZUY3RmQyMzQyNUQ4NDZhMzAyYTU1MmM4YzQ1MSIsImNoYWluSWQiOjI3NDY2MywiY29udHJhY3QiOiIweDQ0Yjg0NjQzNDJCYmZiOUI1NjVGQUU0OTREZkRlZmEzN0QzM0EyMTEiLCJldmVudHMiOlt7ImV2ZW50IjoiUG9zdGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIHBvc3RlciwgdWludDEyOCBib3VudHksIHVpbnQ2NCBkZWFkbGluZSwgYnl0ZXMzMiBicmllZkhhc2gsIHN0cmluZyBicmllZlVSSSkiLCJmaWVsZHMiOnsiYW1vdW50IjoiYm91bnR5IiwiYnJpZWYiOiJicmllZkhhc2giLCJjbGllbnQiOiJwb3N0ZXIiLCJ0YXNrIjoiaWQifSwic3RlcCI6ImZ1bmRlZCJ9LHsiZXZlbnQiOiJXb3JrZXJIaXJlZCh1aW50MjU2IGluZGV4ZWQgaWQsIGJ5dGVzMzIgaW5kZXhlZCBtb2RlbCwgdWludDI1NiBpbmRleGVkIGRlY2lzaW9uSWQpIiwiZmllbGRzIjp7InRhc2siOiJpZCIsIndvcmtlciI6Im1vZGVsIn0sInN0ZXAiOiJhc3NpZ25lZCJ9LHsiZXZlbnQiOiJXb3JrU3VibWl0dGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYnl0ZXMzMiBpbmRleGVkIG1vZGVsLCBieXRlczMyIHJlc3VsdEhhc2gsIHN0cmluZyByZXN1bHRVUkkpIiwiZmllbGRzIjp7InJlc3VsdCI6InJlc3VsdEhhc2giLCJ0YXNrIjoiaWQiLCJ3b3JrZXIiOiJtb2RlbCJ9LCJzdGVwIjoiZGVsaXZlcmVkIn0seyJldmVudCI6IldvcmtHcmFkZWQodWludDI1NiBpbmRleGVkIGlkLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCwgYm9vbCBhY2NlcHRlZCkiLCJmaWVsZHMiOnsiYWNjZXB0ZWQiOiJhY2NlcHRlZCIsInJlZiI6ImRlY2lzaW9uSWQiLCJ0YXNrIjoiaWQifSwic3RlcCI6InZlcmRpY3QifSx7ImV2ZW50IjoiR3JhZGVEaXNwdXRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIGFkZHJlc3MgaW5kZXhlZCBvcGVuZXIpIiwiZmllbGRzIjp7ImJ5Ijoib3BlbmVyIiwidGFzayI6ImlkIn0sInN0ZXAiOiJjaGFsbGVuZ2UifSx7ImV2ZW50IjoiUnVsZWQodWludDI1NiBpbmRleGVkIGlkLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCwgYm9vbCBwYWlkLCBib29sIGNvbmZpZGVudCkiLCJmaWVsZHMiOnsiYWNjZXB0ZWQiOiJwYWlkIiwicmVmIjoiZGVjaXNpb25JZCIsInRhc2siOiJpZCJ9LCJzdGVwIjoidmVyZGljdCJ9LHsiZXZlbnQiOiJBcHBlYWxlZCh1aW50MjU2IGluZGV4ZWQgaWQsIGFkZHJlc3MgaW5kZXhlZCBhcHBlbGxhbnQsIHVpbnQxMjggYm9uZCkiLCJmaWVsZHMiOnsiYm9uZCI6ImJvbmQiLCJieSI6ImFwcGVsbGFudCIsInRhc2siOiJpZCJ9LCJzdGVwIjoiY2hhbGxlbmdlIn0seyJldmVudCI6IkFwcGVhbFJ1bGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgdWludDI1NiBpbmRleGVkIGRlY2lzaW9uSWQsIGJvb2wgcGFpZCwgYm9vbCBjb25maWRlbnQsIGJvb2wgb3ZlcnR1cm5lZCkiLCJmaWVsZHMiOnsiYWNjZXB0ZWQiOiJwYWlkIiwicmVmIjoiZGVjaXNpb25JZCIsInRhc2siOiJpZCJ9LCJzdGVwIjoidmVyZGljdCJ9LHsiZXZlbnQiOiJCb3VudHlQYWlkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYnl0ZXMzMiBpbmRleGVkIG1vZGVsLCBhZGRyZXNzIGluZGV4ZWQgYWNjb3VudCwgdWludDEyOCBib3VudHksIHVpbnQxMjggZmVlKSIsImZlZUluY2x1ZGVkIjp0cnVlLCJmaWVsZHMiOnsiYW1vdW50IjoiYm91bnR5IiwiZmVlIjoiZmVlIiwidGFzayI6ImlkIiwidG8iOiJhY2NvdW50Iiwid29ya2VyIjoibW9kZWwifSwic3RlcCI6InBhaWQifSx7ImV2ZW50IjoiQm91bnR5UmVmdW5kZWQodWludDI1NiBpbmRleGVkIGlkLCBhZGRyZXNzIGluZGV4ZWQgcG9zdGVyLCB1aW50MTI4IGFtb3VudCwgdWludDggcmVhc29uKSIsImZpZWxkcyI6eyJhbW91bnQiOiJhbW91bnQiLCJ0YXNrIjoiaWQiLCJ0byI6InBvc3RlciJ9LCJzdGVwIjoicmVmdW5kZWQifV0sImZpbmFsaXR5IjoiZmluYWxpemVkIiwiZnJvbUJsb2NrIjo5Njl9LCJzdGVwcyI6W3siYW1vdW50IjoiMTAwMDAwMCIsImJsb2NrIjoyNDUxLCJicmllZiI6IjB4NWJhNzJjNTUwODQ2MjllMWVmN2M3MDc5MjJlZDVkMmNkZDRkZjZhNmNjZjA0ZjU3Mzc4OTgwNGEwY2U4YTlhOSIsImNsaWVudCI6IjB4OTdENTU4NDE3YzNENjFmMTA3NDQyMkFEODQzZTFEYjFFNTY1Yjk1MiIsImxvZyI6Miwic3RlcCI6ImZ1bmRlZCIsInR4IjoiMHg3NDlkNGQ4Mzg4NjRhYjVkOWRjZThhMGE4NWJjMzcxY2Q0ZDFmNDk0NWY5NWEzZTlhOTkxZTVlOGY4YzNkNWVmIn0seyJibG9jayI6MjQ1MywibG9nIjowLCJzdGVwIjoiYXNzaWduZWQiLCJ0eCI6IjB4MDgyZjUzOTJhZDUzZDk4ZmY5MDI1YzlkYTNlNTJiYjA2ZGU3NmQ2NjI2MjZkYjRmMGFjYzA4MGE3ODkyNGNmNyIsIndvcmtlciI6IjB4NWYxYzI4NzQxZWU3NGJlMmE4MjhmZDMzNzI4M2NhNDdlNDc3YTBjZDU2YmY1YWQzMWM2MWUxY2UzY2UxZDIyZiJ9LHsiYmxvY2siOjI0NTQsImxvZyI6MCwicmVzdWx0IjoiMHhkNmUzYTQzYzNjYWExYzZiZTI3ZjY5MDUyNjFiZDZmM2NlN2UyODJmNjcyZGUyNDRhMDc0OGNjMGVlNTgwNDE2Iiwic3RlcCI6ImRlbGl2ZXJlZCIsInR4IjoiMHhlZjlhZjIzY2RiYmVkOTEwMDJjZTk5MDVlY2FkNWUzNGQxMzAyMmJkZmFjZTMxMzliOGQ1ZjQ0NDkwY2JiYjQwIiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn0seyJhY2NlcHRlZCI6dHJ1ZSwiYmxvY2siOjI0NTYsImxvZyI6MCwicmVmIjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMGVhIiwic3RlcCI6InZlcmRpY3QiLCJ0eCI6IjB4Njc3Mjk5ZmEzM2RiMjE4YzczYTA0NTU1ZjgwYWYxMzRkNmU0MjA3ZTkyYTFlNjA1MGM1NzllMjY0MThjZDBlNSJ9LHsiYW1vdW50IjoiMTAwMDAwMCIsImJsb2NrIjoyNDcxLCJmZWUiOiIzMDAwMCIsImxvZyI6Mywic3RlcCI6InBhaWQiLCJ0byI6IjB4RkI5QzhEMjU0NEQzNDY3MWY0MjJkNEM1N2RiNTk0NWM0YzUzZjg0RCIsInR4IjoiMHhkY2E2NzZjYzc0ZDcxZDA0OWE0YWU2ZjIyZmUxOGY5NTMwNGM0YWUzYTk0NWRiODAyZDBhYmY1ZmYxMmU4YWJmIiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn1dLCJ0YXNrIjoiNTAiLCJ2Ijoid29yay1yZWNvcmQvdjEiLCJ3b3JrZXIiOiIweDVmMWMyODc0MWVlNzRiZTJhODI4ZmQzMzcyODNjYTQ3ZTQ3N2EwY2Q1NmJmNWFkMzFjNjFlMWNlM2NlMWQyMmYifX0=",
+      "feedbackHash": "0x18ee8eb4d11b577724a3b2b03daf98c20cd781fc1ee5cb1d801f65f567fb0735"
+    },
+    {
+      "name": "the record of mainnet task 50 with a descriptor other than the pinned one",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "file",
+      "expectError": "descriptor differs",
+      "feedbackURI": "data:application/json;base64,eyJhZ2VudElkIjoyMDQyNCwiYWdlbnRSZWdpc3RyeSI6ImVpcDE1NTo0NjYzOjB4ODAwNEExNjlGQjRhMzMyNTEzNkVCMjlmQTBjZUI2RDJlNTM5YTQzMiIsImNsaWVudEFkZHJlc3MiOiJlaXAxNTU6NDY2MzoweDk3RDU1ODQxN2MzRDYxZjEwNzQ0MjJBRDg0M2UxRGIxRTU2NWI5NTIiLCJjcmVhdGVkQXQiOiIyMDI2LTExLTE2VDEyOjAwOjAwWiIsInRhZzEiOiJ3b3JrLm91dGNvbWUiLCJ0YWcyIjoiYWNjZXB0ZWQiLCJ2YWx1ZSI6MTAwLCJ2YWx1ZURlY2ltYWxzIjowLCJ3b3JrIjp7Im91dGNvbWUiOiJhY2NlcHRlZCIsInNvdXJjZSI6eyJhc3NldCI6ImVpcDE1NToyNzQ2NjMvZXJjMjA6MHg4ZUJGRWNlOTZjMEFlRjdGZDIzNDI1RDg0NmEzMDJhNTUyYzhjNDUxIiwiY2hhaW5JZCI6Mjc0NjYzLCJjb250cmFjdCI6IjB4NDRiODQ2NDM0MkJiZmI5QjU2NUZBRTQ5NERmRGVmYTM3RDMzQTIxMSIsImV2ZW50cyI6W3siZXZlbnQiOiJQb3N0ZWQodWludDI1NiBpbmRleGVkIGlkLCBhZGRyZXNzIGluZGV4ZWQgcG9zdGVyLCB1aW50MTI4IGJvdW50eSwgdWludDY0IGRlYWRsaW5lLCBieXRlczMyIGJyaWVmSGFzaCwgc3RyaW5nIGJyaWVmVVJJKSIsImZpZWxkcyI6eyJhbW91bnQiOiJib3VudHkiLCJicmllZiI6ImJyaWVmSGFzaCIsImNsaWVudCI6InBvc3RlciIsInRhc2siOiJpZCJ9LCJzdGVwIjoiZnVuZGVkIn0seyJldmVudCI6IldvcmtlckhpcmVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYnl0ZXMzMiBpbmRleGVkIG1vZGVsLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCkiLCJmaWVsZHMiOnsidGFzayI6ImlkIiwid29ya2VyIjoibW9kZWwifSwic3RlcCI6ImFzc2lnbmVkIn0seyJldmVudCI6IldvcmtTdWJtaXR0ZWQodWludDI1NiBpbmRleGVkIGlkLCBieXRlczMyIGluZGV4ZWQgbW9kZWwsIGJ5dGVzMzIgcmVzdWx0SGFzaCwgc3RyaW5nIHJlc3VsdFVSSSkiLCJmaWVsZHMiOnsicmVzdWx0IjoicmVzdWx0SGFzaCIsInRhc2siOiJpZCIsIndvcmtlciI6Im1vZGVsIn0sInN0ZXAiOiJkZWxpdmVyZWQifSx7ImV2ZW50IjoiV29ya0dyYWRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIHVpbnQyNTYgaW5kZXhlZCBkZWNpc2lvbklkLCBib29sIGFjY2VwdGVkKSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6ImFjY2VwdGVkIiwicmVmIjoiZGVjaXNpb25JZCIsInRhc2siOiJpZCJ9LCJzdGVwIjoidmVyZGljdCJ9LHsiZXZlbnQiOiJHcmFkZURpc3B1dGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIG9wZW5lcikiLCJmaWVsZHMiOnsiYnkiOiJvcGVuZXIiLCJ0YXNrIjoiaWQifSwic3RlcCI6ImNoYWxsZW5nZSJ9LHsiZXZlbnQiOiJSdWxlZCh1aW50MjU2IGluZGV4ZWQgaWQsIHVpbnQyNTYgaW5kZXhlZCBkZWNpc2lvbklkLCBib29sIHBhaWQsIGJvb2wgY29uZmlkZW50KSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6InBhaWQiLCJyZWYiOiJkZWNpc2lvbklkIiwidGFzayI6ImlkIn0sInN0ZXAiOiJ2ZXJkaWN0In0seyJldmVudCI6IkFwcGVhbGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIGFwcGVsbGFudCwgdWludDEyOCBib25kKSIsImZpZWxkcyI6eyJib25kIjoiYm9uZCIsImJ5IjoiYXBwZWxsYW50IiwidGFzayI6ImlkIn0sInN0ZXAiOiJjaGFsbGVuZ2UifSx7ImV2ZW50IjoiQXBwZWFsUnVsZWQodWludDI1NiBpbmRleGVkIGlkLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCwgYm9vbCBwYWlkLCBib29sIGNvbmZpZGVudCwgYm9vbCBvdmVydHVybmVkKSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6InBhaWQiLCJyZWYiOiJkZWNpc2lvbklkIiwidGFzayI6ImlkIn0sInN0ZXAiOiJ2ZXJkaWN0In0seyJldmVudCI6IkJvdW50eVBhaWQodWludDI1NiBpbmRleGVkIGlkLCBieXRlczMyIGluZGV4ZWQgbW9kZWwsIGFkZHJlc3MgaW5kZXhlZCBhY2NvdW50LCB1aW50MTI4IGJvdW50eSwgdWludDEyOCBmZWUpIiwiZmVlSW5jbHVkZWQiOnRydWUsImZpZWxkcyI6eyJhbW91bnQiOiJib3VudHkiLCJmZWUiOiJmZWUiLCJ0YXNrIjoiaWQiLCJ0byI6ImFjY291bnQiLCJ3b3JrZXIiOiJtb2RlbCJ9LCJzdGVwIjoicGFpZCJ9LHsiZXZlbnQiOiJCb3VudHlSZWZ1bmRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIGFkZHJlc3MgaW5kZXhlZCBwb3N0ZXIsIHVpbnQxMjggYW1vdW50LCB1aW50OCByZWFzb24pIiwiZmllbGRzIjp7ImFtb3VudCI6ImFtb3VudCIsInRhc2siOiJpZCIsInRvIjoicG9zdGVyIn0sInN0ZXAiOiJyZWZ1bmRlZCJ9XSwiZmluYWxpdHkiOiJmaW5hbGl6ZWQiLCJmcm9tQmxvY2siOjB9LCJzdGVwcyI6W3siYW1vdW50IjoiMTAwMDAwMCIsImJsb2NrIjoyNDUxLCJicmllZiI6IjB4NWJhNzJjNTUwODQ2MjllMWVmN2M3MDc5MjJlZDVkMmNkZDRkZjZhNmNjZjA0ZjU3Mzc4OTgwNGEwY2U4YTlhOSIsImNsaWVudCI6IjB4OTdENTU4NDE3YzNENjFmMTA3NDQyMkFEODQzZTFEYjFFNTY1Yjk1MiIsImxvZyI6Miwic3RlcCI6ImZ1bmRlZCIsInR4IjoiMHg3NDlkNGQ4Mzg4NjRhYjVkOWRjZThhMGE4NWJjMzcxY2Q0ZDFmNDk0NWY5NWEzZTlhOTkxZTVlOGY4YzNkNWVmIn0seyJibG9jayI6MjQ1MywibG9nIjowLCJzdGVwIjoiYXNzaWduZWQiLCJ0eCI6IjB4MDgyZjUzOTJhZDUzZDk4ZmY5MDI1YzlkYTNlNTJiYjA2ZGU3NmQ2NjI2MjZkYjRmMGFjYzA4MGE3ODkyNGNmNyIsIndvcmtlciI6IjB4NWYxYzI4NzQxZWU3NGJlMmE4MjhmZDMzNzI4M2NhNDdlNDc3YTBjZDU2YmY1YWQzMWM2MWUxY2UzY2UxZDIyZiJ9LHsiYmxvY2siOjI0NTQsImxvZyI6MCwicmVzdWx0IjoiMHhkNmUzYTQzYzNjYWExYzZiZTI3ZjY5MDUyNjFiZDZmM2NlN2UyODJmNjcyZGUyNDRhMDc0OGNjMGVlNTgwNDE2Iiwic3RlcCI6ImRlbGl2ZXJlZCIsInR4IjoiMHhlZjlhZjIzY2RiYmVkOTEwMDJjZTk5MDVlY2FkNWUzNGQxMzAyMmJkZmFjZTMxMzliOGQ1ZjQ0NDkwY2JiYjQwIiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn0seyJhY2NlcHRlZCI6dHJ1ZSwiYmxvY2siOjI0NTYsImxvZyI6MCwicmVmIjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMGVhIiwic3RlcCI6InZlcmRpY3QiLCJ0eCI6IjB4Njc3Mjk5ZmEzM2RiMjE4YzczYTA0NTU1ZjgwYWYxMzRkNmU0MjA3ZTkyYTFlNjA1MGM1NzllMjY0MThjZDBlNSJ9LHsiYW1vdW50IjoiMTAwMDAwMCIsImJsb2NrIjoyNDcxLCJmZWUiOiIzMDAwMCIsImxvZyI6Mywic3RlcCI6InBhaWQiLCJ0byI6IjB4RkI5QzhEMjU0NEQzNDY3MWY0MjJkNEM1N2RiNTk0NWM0YzUzZjg0RCIsInR4IjoiMHhkY2E2NzZjYzc0ZDcxZDA0OWE0YWU2ZjIyZmUxOGY5NTMwNGM0YWUzYTk0NWRiODAyZDBhYmY1ZmYxMmU4YWJmIiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn1dLCJ0YXNrIjoiNTAiLCJ2Ijoid29yay1yZWNvcmQvdjEiLCJ3b3JrZXIiOiIweDVmMWMyODc0MWVlNzRiZTJhODI4ZmQzMzcyODNjYTQ3ZTQ3N2EwY2Q1NmJmNWFkMzFjNjFlMWNlM2NlMWQyMmYifX0=",
+      "feedbackHash": "0x211e653092df60da9b992acc80a36442b1b2e6dfa5487e39373a5ba5b2dfd1ae"
+    },
+    {
+      "name": "the record of mainnet task 50 behind a UTF-8 byte order mark",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "file",
+      "expectError": "byte order mark",
+      "feedbackURI": "data:application/json;base64,77u/eyJhZ2VudElkIjoyMDQyNCwiYWdlbnRSZWdpc3RyeSI6ImVpcDE1NTo0NjYzOjB4ODAwNEExNjlGQjRhMzMyNTEzNkVCMjlmQTBjZUI2RDJlNTM5YTQzMiIsImNsaWVudEFkZHJlc3MiOiJlaXAxNTU6NDY2MzoweDk3RDU1ODQxN2MzRDYxZjEwNzQ0MjJBRDg0M2UxRGIxRTU2NWI5NTIiLCJjcmVhdGVkQXQiOiIyMDI2LTExLTE2VDEyOjAwOjAwWiIsInRhZzEiOiJ3b3JrLm91dGNvbWUiLCJ0YWcyIjoiYWNjZXB0ZWQiLCJ2YWx1ZSI6MTAwLCJ2YWx1ZURlY2ltYWxzIjowLCJ3b3JrIjp7Im91dGNvbWUiOiJhY2NlcHRlZCIsInNvdXJjZSI6eyJhc3NldCI6ImVpcDE1NToyNzQ2NjMvZXJjMjA6MHg4ZUJGRWNlOTZjMEFlRjdGZDIzNDI1RDg0NmEzMDJhNTUyYzhjNDUxIiwiY2hhaW5JZCI6Mjc0NjYzLCJjb250cmFjdCI6IjB4NDRiODQ2NDM0MkJiZmI5QjU2NUZBRTQ5NERmRGVmYTM3RDMzQTIxMSIsImV2ZW50cyI6W3siZXZlbnQiOiJQb3N0ZWQodWludDI1NiBpbmRleGVkIGlkLCBhZGRyZXNzIGluZGV4ZWQgcG9zdGVyLCB1aW50MTI4IGJvdW50eSwgdWludDY0IGRlYWRsaW5lLCBieXRlczMyIGJyaWVmSGFzaCwgc3RyaW5nIGJyaWVmVVJJKSIsImZpZWxkcyI6eyJhbW91bnQiOiJib3VudHkiLCJicmllZiI6ImJyaWVmSGFzaCIsImNsaWVudCI6InBvc3RlciIsInRhc2siOiJpZCJ9LCJzdGVwIjoiZnVuZGVkIn0seyJldmVudCI6IldvcmtlckhpcmVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYnl0ZXMzMiBpbmRleGVkIG1vZGVsLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCkiLCJmaWVsZHMiOnsidGFzayI6ImlkIiwid29ya2VyIjoibW9kZWwifSwic3RlcCI6ImFzc2lnbmVkIn0seyJldmVudCI6IldvcmtTdWJtaXR0ZWQodWludDI1NiBpbmRleGVkIGlkLCBieXRlczMyIGluZGV4ZWQgbW9kZWwsIGJ5dGVzMzIgcmVzdWx0SGFzaCwgc3RyaW5nIHJlc3VsdFVSSSkiLCJmaWVsZHMiOnsicmVzdWx0IjoicmVzdWx0SGFzaCIsInRhc2siOiJpZCIsIndvcmtlciI6Im1vZGVsIn0sInN0ZXAiOiJkZWxpdmVyZWQifSx7ImV2ZW50IjoiV29ya0dyYWRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIHVpbnQyNTYgaW5kZXhlZCBkZWNpc2lvbklkLCBib29sIGFjY2VwdGVkKSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6ImFjY2VwdGVkIiwicmVmIjoiZGVjaXNpb25JZCIsInRhc2siOiJpZCJ9LCJzdGVwIjoidmVyZGljdCJ9LHsiZXZlbnQiOiJHcmFkZURpc3B1dGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIG9wZW5lcikiLCJmaWVsZHMiOnsiYnkiOiJvcGVuZXIiLCJ0YXNrIjoiaWQifSwic3RlcCI6ImNoYWxsZW5nZSJ9LHsiZXZlbnQiOiJSdWxlZCh1aW50MjU2IGluZGV4ZWQgaWQsIHVpbnQyNTYgaW5kZXhlZCBkZWNpc2lvbklkLCBib29sIHBhaWQsIGJvb2wgY29uZmlkZW50KSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6InBhaWQiLCJyZWYiOiJkZWNpc2lvbklkIiwidGFzayI6ImlkIn0sInN0ZXAiOiJ2ZXJkaWN0In0seyJldmVudCI6IkFwcGVhbGVkKHVpbnQyNTYgaW5kZXhlZCBpZCwgYWRkcmVzcyBpbmRleGVkIGFwcGVsbGFudCwgdWludDEyOCBib25kKSIsImZpZWxkcyI6eyJib25kIjoiYm9uZCIsImJ5IjoiYXBwZWxsYW50IiwidGFzayI6ImlkIn0sInN0ZXAiOiJjaGFsbGVuZ2UifSx7ImV2ZW50IjoiQXBwZWFsUnVsZWQodWludDI1NiBpbmRleGVkIGlkLCB1aW50MjU2IGluZGV4ZWQgZGVjaXNpb25JZCwgYm9vbCBwYWlkLCBib29sIGNvbmZpZGVudCwgYm9vbCBvdmVydHVybmVkKSIsImZpZWxkcyI6eyJhY2NlcHRlZCI6InBhaWQiLCJyZWYiOiJkZWNpc2lvbklkIiwidGFzayI6ImlkIn0sInN0ZXAiOiJ2ZXJkaWN0In0seyJldmVudCI6IkJvdW50eVBhaWQodWludDI1NiBpbmRleGVkIGlkLCBieXRlczMyIGluZGV4ZWQgbW9kZWwsIGFkZHJlc3MgaW5kZXhlZCBhY2NvdW50LCB1aW50MTI4IGJvdW50eSwgdWludDEyOCBmZWUpIiwiZmVlSW5jbHVkZWQiOnRydWUsImZpZWxkcyI6eyJhbW91bnQiOiJib3VudHkiLCJmZWUiOiJmZWUiLCJ0YXNrIjoiaWQiLCJ0byI6ImFjY291bnQiLCJ3b3JrZXIiOiJtb2RlbCJ9LCJzdGVwIjoicGFpZCJ9LHsiZXZlbnQiOiJCb3VudHlSZWZ1bmRlZCh1aW50MjU2IGluZGV4ZWQgaWQsIGFkZHJlc3MgaW5kZXhlZCBwb3N0ZXIsIHVpbnQxMjggYW1vdW50LCB1aW50OCByZWFzb24pIiwiZmllbGRzIjp7ImFtb3VudCI6ImFtb3VudCIsInRhc2siOiJpZCIsInRvIjoicG9zdGVyIn0sInN0ZXAiOiJyZWZ1bmRlZCJ9XSwiZmluYWxpdHkiOiJmaW5hbGl6ZWQiLCJmcm9tQmxvY2siOjk2OX0sInN0ZXBzIjpbeyJhbW91bnQiOiIxMDAwMDAwIiwiYmxvY2siOjI0NTEsImJyaWVmIjoiMHg1YmE3MmM1NTA4NDYyOWUxZWY3YzcwNzkyMmVkNWQyY2RkNGRmNmE2Y2NmMDRmNTczNzg5ODA0YTBjZThhOWE5IiwiY2xpZW50IjoiMHg5N0Q1NTg0MTdjM0Q2MWYxMDc0NDIyQUQ4NDNlMURiMUU1NjViOTUyIiwibG9nIjoyLCJzdGVwIjoiZnVuZGVkIiwidHgiOiIweDc0OWQ0ZDgzODg2NGFiNWQ5ZGNlOGEwYTg1YmMzNzFjZDRkMWY0OTQ1Zjk1YTNlOWE5OTFlNWU4ZjhjM2Q1ZWYifSx7ImJsb2NrIjoyNDUzLCJsb2ciOjAsInN0ZXAiOiJhc3NpZ25lZCIsInR4IjoiMHgwODJmNTM5MmFkNTNkOThmZjkwMjVjOWRhM2U1MmJiMDZkZTc2ZDY2MjYyNmRiNGYwYWNjMDgwYTc4OTI0Y2Y3Iiwid29ya2VyIjoiMHg1ZjFjMjg3NDFlZTc0YmUyYTgyOGZkMzM3MjgzY2E0N2U0NzdhMGNkNTZiZjVhZDMxYzYxZTFjZTNjZTFkMjJmIn0seyJibG9jayI6MjQ1NCwibG9nIjowLCJyZXN1bHQiOiIweGQ2ZTNhNDNjM2NhYTFjNmJlMjdmNjkwNTI2MWJkNmYzY2U3ZTI4MmY2NzJkZTI0NGEwNzQ4Y2MwZWU1ODA0MTYiLCJzdGVwIjoiZGVsaXZlcmVkIiwidHgiOiIweGVmOWFmMjNjZGJiZWQ5MTAwMmNlOTkwNWVjYWQ1ZTM0ZDEzMDIyYmRmYWNlMzEzOWI4ZDVmNDQ0OTBjYmJiNDAiLCJ3b3JrZXIiOiIweDVmMWMyODc0MWVlNzRiZTJhODI4ZmQzMzcyODNjYTQ3ZTQ3N2EwY2Q1NmJmNWFkMzFjNjFlMWNlM2NlMWQyMmYifSx7ImFjY2VwdGVkIjp0cnVlLCJibG9jayI6MjQ1NiwibG9nIjowLCJyZWYiOiIweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwZWEiLCJzdGVwIjoidmVyZGljdCIsInR4IjoiMHg2NzcyOTlmYTMzZGIyMThjNzNhMDQ1NTVmODBhZjEzNGQ2ZTQyMDdlOTJhMWU2MDUwYzU3OWUyNjQxOGNkMGU1In0seyJhbW91bnQiOiIxMDAwMDAwIiwiYmxvY2siOjI0NzEsImZlZSI6IjMwMDAwIiwibG9nIjozLCJzdGVwIjoicGFpZCIsInRvIjoiMHhGQjlDOEQyNTQ0RDM0NjcxZjQyMmQ0QzU3ZGI1OTQ1YzRjNTNmODREIiwidHgiOiIweGRjYTY3NmNjNzRkNzFkMDQ5YTRhZTZmMjJmZTE4Zjk1MzA0YzRhZTNhOTQ1ZGI4MDJkMGFiZjVmZjEyZThhYmYiLCJ3b3JrZXIiOiIweDVmMWMyODc0MWVlNzRiZTJhODI4ZmQzMzcyODNjYTQ3ZTQ3N2EwY2Q1NmJmNWFkMzFjNjFlMWNlM2NlMWQyMmYifV0sInRhc2siOiI1MCIsInYiOiJ3b3JrLXJlY29yZC92MSIsIndvcmtlciI6IjB4NWYxYzI4NzQxZWU3NGJlMmE4MjhmZDMzNzI4M2NhNDdlNDc3YTBjZDU2YmY1YWQzMWM2MWUxY2UzY2UxZDIyZiJ9fQ==",
+      "feedbackHash": "0xf199e23ac4188b86649ee5e0789e6f79d782636576437130c91096a76f099c71"
+    },
+    {
+      "name": "mainnet task 50's logs with the payment replaced by a refund (synthetic)",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "logs",
+      "expectError": "accepted task ends in refunded",
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2451,
+          "transactionHash": "0x749d4d838864ab5d9dce8a0a85bc371cd4d1f4945f95a3e9a991e5e8f8c3d5ef",
+          "logIndex": 2,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000097d558417c3d61f1074422ad843e1db1e565b952"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006afabb215ba72c55084629e1ef7c707922ed5d2cdd4df6a6ccf04f573789804a0ce8a9a90000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0x99eed843158227f6f721e5982f8bc79a87fd66a7d1582529c8d38d9c0f79aead"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2453,
+          "transactionHash": "0x082f5392ad53d98ff9025c9da3e52bb06de76d662626db4f0acc080a78924cf7",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x00000000000000000000000000000000000000000000000000000000000000e9"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2454,
+          "transactionHash": "0xef9af23cdbbed91002ce9905ecad5e34d13022bdface3139b8d5f44490cbbb40",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f"
+          ],
+          "data": "0xd6e3a43c3caa1c6be27f6905261bd6f3ce7e282f672de244a0748cc0ee5804160000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x99df1df31df2a5f27b4fc9b2ab4544a229b84c0b493be64fe713477037aa639a"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2456,
+          "transactionHash": "0x677299fa33db218c73a04555f80af134d6e4207e92a1e6050c579e26418cd0e5",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000000000000000000000000000000000000000000ea"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2471,
+          "transactionHash": "0xdca676cc74d71d049a4ae6f22fe18f95304c4ae3a945db802d0abf5ff12e8abf",
+          "logIndex": 3,
+          "topics": [
+            "0x9ec89eb93e58f08b12aa171f67e14befc803eacf239f3e5592af898989ae3804",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000097d558417c3d61f1074422ad843e1db1e565b952"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000003"
+        }
+      ]
+    },
+    {
+      "name": "mainnet task 50's logs with the paid amount cut to 900000 (synthetic)",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "logs",
+      "expectError": "settles 900000 of 1000000 funded",
+      "logs": [
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2451,
+          "transactionHash": "0x749d4d838864ab5d9dce8a0a85bc371cd4d1f4945f95a3e9a991e5e8f8c3d5ef",
+          "logIndex": 2,
+          "topics": [
+            "0x7c1c491e8c1a7f70f8859b23eac675ac153697f160a98688e35aecdea187174f",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000097d558417c3d61f1074422ad843e1db1e565b952"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006afabb215ba72c55084629e1ef7c707922ed5d2cdd4df6a6ccf04f573789804a0ce8a9a90000000000000000000000000000000000000000000000000000000000000080",
+          "dataHash": "0x99eed843158227f6f721e5982f8bc79a87fd66a7d1582529c8d38d9c0f79aead"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2453,
+          "transactionHash": "0x082f5392ad53d98ff9025c9da3e52bb06de76d662626db4f0acc080a78924cf7",
+          "logIndex": 0,
+          "topics": [
+            "0x7f7a82d4575241f009e05a1e1f78161e77964fe144f4a97535e78e8d253e4d06",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x00000000000000000000000000000000000000000000000000000000000000e9"
+          ],
+          "data": "0x",
+          "dataHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2454,
+          "transactionHash": "0xef9af23cdbbed91002ce9905ecad5e34d13022bdface3139b8d5f44490cbbb40",
+          "logIndex": 0,
+          "topics": [
+            "0x87a7eafd4c28cbdbcbe48b79f9a77fcb753a71b21ca435c2724d7d767216ae89",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f"
+          ],
+          "data": "0xd6e3a43c3caa1c6be27f6905261bd6f3ce7e282f672de244a0748cc0ee5804160000000000000000000000000000000000000000000000000000000000000040",
+          "dataHash": "0x99df1df31df2a5f27b4fc9b2ab4544a229b84c0b493be64fe713477037aa639a"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2456,
+          "transactionHash": "0x677299fa33db218c73a04555f80af134d6e4207e92a1e6050c579e26418cd0e5",
+          "logIndex": 0,
+          "topics": [
+            "0x1459acc5585bcb7eddfd1078fae5187de2a517f53e8dfdfd44bec913c6ca8280",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x00000000000000000000000000000000000000000000000000000000000000ea"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
+          "dataHash": "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6"
+        },
+        {
+          "address": "0x44b8464342bbfb9b565fae494dfdefa37d33a211",
+          "blockNumber": 2471,
+          "transactionHash": "0xdca676cc74d71d049a4ae6f22fe18f95304c4ae3a945db802d0abf5ff12e8abf",
+          "logIndex": 3,
+          "topics": [
+            "0x57f4a57e16c2fbdacaa6cde8b489009fccc2eb26f17a4575009518349ca080d9",
+            "0x0000000000000000000000000000000000000000000000000000000000000032",
+            "0x5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f",
+            "0x000000000000000000000000fb9c8d2544d34671f422d4c57db5945c4c53f84d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000dbba00000000000000000000000000000000000000000000000000000000000006978"
+        }
+      ]
+    },
+    {
+      "name": "two entries from one writer for mainnet task 50",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "duplicate",
+      "expectError": "duplicate",
+      "entries": [
+        "0x362bfa0b49ac22cabe8566773da906e0ca8b7cf1b0fe8960df2657e697b1259a",
+        "0x362bfa0b49ac22cabe8566773da906e0ca8b7cf1b0fe8960df2657e697b1259a"
+      ]
+    },
+    {
+      "name": "a record of mainnet task 50 written before its payout",
+      "base": "mainnet task 50: accepted and paid",
+      "kind": "build",
+      "expectError": "precedes the terminal step",
+      "createdAt": "2026-11-15T14:15:27Z"
+    }
+  ]
+}
