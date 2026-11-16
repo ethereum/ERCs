@@ -1,0 +1,83 @@
+{
+  "section": "Section1",
+  "vectors": {
+    "V1-01": {
+      "claim": "H(ss) = SHA256(DS_offset || ss), range-checked",
+      "given": {
+        "ss": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+      },
+      "expect": {
+        "base": "d8b37e9fb5fd784cc30b719589811092fce202abc0f500d6609a2f69f78b171f",
+        "offset": "d8b37e9fb5fd784cc30b719589811092fce202abc0f500d6609a2f69f78b171f"
+      }
+    },
+    "V1-02": {
+      "claim": "every digest is big-endian",
+      "given": {
+        "ss": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "base": "d8b37e9fb5fd784cc30b719589811092fce202abc0f500d6609a2f69f78b171f"
+      },
+      "expect": {
+        "offset_big_endian": "d8b37e9fb5fd784cc30b719589811092fce202abc0f500d6609a2f69f78b171f"
+      },
+      "wrong": {
+        "offset_little_endian": "1f178bf7692f9a60d600f5c0ab02e2fc9210818995710bc34c78fdb59f7eb3d8",
+        "note": "a different scalar, therefore a different address, therefore funds the recipient cannot spend. Silent and total"
+      }
+    },
+    "V1-03": {
+      "claim": "the range check MUST reject base = 0",
+      "given": {
+        "base": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expect": {
+        "outcome": "fail"
+      },
+      "wrong": {
+        "offset": "0000000000000000000000000000000000000000000000000000000000000000",
+        "note": "no range check: offset 0 makes the stealth address the address of spending_pk itself, which links the payment to the registered key"
+      }
+    },
+    "V1-04": {
+      "claim": "the range check MUST reject base = n",
+      "given": {
+        "base": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+      },
+      "expect": {
+        "outcome": "fail"
+      },
+      "wrong": {
+        "offset_reduced_mod_n": "0000000000000000000000000000000000000000000000000000000000000000",
+        "note": "reducing mod n instead of failing, which some libraries do silently and which gives offset 0"
+      }
+    },
+    "V1-05": {
+      "claim": "base = n - 1 is valid",
+      "given": {
+        "base": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"
+      },
+      "expect": {
+        "offset": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"
+      },
+      "wrong": {
+        "note": "rejected -- an off-by-one in the bound loses a legitimate payment"
+      }
+    },
+    "V1-07": {
+      "claim": "view_tag = SHA256(DS_viewtag || ss)[0]",
+      "given": {
+        "ss": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+      },
+      "expect": {
+        "view_tag": "fe",
+        "view_tag_bytes": 1
+      },
+      "wrong": {
+        "superseded_eight_byte_width": "feaba572e3c54d12",
+        "trailing_byte_of_own_digest": "25",
+        "leading_byte_of_H_ss": "d8",
+        "note": "the tag was eight bytes until the announced stealthAddress became the authoritative check (Section 2.5) and the tag was narrowed to a prefilter; an implementation carrying the old width matches nothing"
+      }
+    }
+  }
+}

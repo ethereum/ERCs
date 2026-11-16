@@ -5,9 +5,13 @@ use crate::hash::hash32;
 
 /// Validate that a timestamp is within reasonable bounds.
 /// Lower bound: 2021-01-01 (1609459200). Upper bound: 2^40 (~year 36812).
+/// Range-check to 64 bits before the cast: `as u64` truncates, so
+/// `2^64 + 1700000000` would alias to a valid 2023 timestamp.
 pub fn validate_timestamp(timestamp: Field) {
-    assert(timestamp as u64 > 1609459200, "Timestamp before 2021");
-    assert(timestamp as u64 < 1099511627776, "Timestamp unreasonably far future"); // 2^40
+    timestamp.assert_max_bit_size::<64>();
+    let ts = timestamp as u64;
+    assert(ts > 1609459200, "Timestamp before 2021");
+    assert(ts < 1099511627776, "Timestamp unreasonably far future"); // 2^40
 }
 
 /// Validate the per-provider slot invariants for circuits that accept screening
@@ -59,6 +63,17 @@ fn test_validate_timestamp_valid() {
 #[test(should_fail_with = "Timestamp before 2021")]
 fn test_validate_timestamp_too_early() {
     validate_timestamp(1000000000); // 2001
+}
+
+#[test(should_fail)]
+fn test_validate_timestamp_rejects_u64_wraparound() {
+    // 2^64 + 1700000000: truncation would alias to 2023.
+    validate_timestamp(18446744073709551616 + 1700000000);
+}
+
+#[test(should_fail_with = "Timestamp unreasonably far future")]
+fn test_validate_timestamp_too_far_future() {
+    validate_timestamp(1099511627776); // 2^40
 }
 
 #[test]
