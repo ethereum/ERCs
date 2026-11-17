@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-method.schema.json",
+  "title": "GEOF Method",
+  "description": "An immutable, versioned method descriptor. Any change to parameters, inputs or outputs is a new Method with supersedes set. The framework mandates no method; it mandates declaration.",
+  "type": "object",
+  "required": ["type", "version", "class", "role", "parameters", "inputs", "outputs", "limitations", "provenance"],
+  "properties": {
+    "type": { "const": "geof:method" },
+    "version": { "const": 1 },
+    "name": { "type": "string" },
+    "class": {
+      "type": "string",
+      "enum": ["sampling", "detection", "scoring", "attribution", "aggregation", "verification", "replay"],
+      "description": "sampling: frame and panel design. detection: how mention/citation/attribution is recognised. scoring: prominence, stance, impression scores. attribution: intervention-to-change and counterfactual estimation. aggregation: rates, shares, intervals. verification: fidelity, claim support, consensus. replay: reproducibility."
+    },
+    "role": { "type": "string", "enum": ["engine", "observer", "evaluator"] },
+    "parameters": {
+      "type": "object",
+      "description": "Every parameter that fixes this version (seeds, decay constants, judge model and prompt hash, rater protocol, thresholds used for detection, ...)"
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "enum": ["engine-native", "observer-sampled", "publisher-side", "recipient-side", "third-party-corpus", "onchain"] }
+    },
+    "outputs": {
+      "type": "array",
+      "items": { "$ref": "geof-defs.schema.json#/$defs/metricId" },
+      "description": "Metric definitions this method produces readings for"
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Known limitations; may be empty but must be present"
+    },
+    "reproducibility": {
+      "type": "string",
+      "enum": ["deterministic", "seeded", "statistical", "none"]
+    },
+    "supersedes": { "$ref": "geof-defs.schema.json#/$defs/hash32" },
+    "description": { "type": "string" },
+    "provenance": { "$ref": "geof-defs.schema.json#/$defs/provenance" }
+  },
+  "additionalProperties": false
+}

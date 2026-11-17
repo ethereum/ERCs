@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IConversionOracle} from "../IConversionOracle.sol";
+import {IConversionOracleHistory} from "../IConversionOracleHistory.sol";
+import {FreshnessHistory} from "./FreshnessHistory.sol";
 
 /// @notice Adapter for indices with no on-chain feed (e.g. UVA, UF): an
 ///         authorized attester publishes the rate periodically.
@@ -12,8 +14,15 @@ import {IConversionOracle} from "../IConversionOracle.sol";
 ///      only when no verifiable on-chain feed exists for the reference
 ///      index, and state this assumption explicitly in the due
 ///      diligence of any lease that consumes this oracle.
-contract AttestedConversionOracle is IConversionOracle, Ownable {
+contract AttestedConversionOracle is IConversionOracle, IConversionOracleHistory, Ownable {
     address public attester;
+    /// @dev Recording time of every attestation (append-only), so freshness
+    ///      over a past window can be verified on-chain. asOf is the recording
+    ///      time, not the off-chain observation time: a publication delay by the
+    ///      attester is not visible on-chain, and the attester is trusted to
+    ///      record each value promptly (see the spec's recording bound). Zero
+    ///      rates are rejected, so every stored entry is usable.
+    uint64[] public attestationTimes;
     uint256 public rate;
     uint64 public asOf;
 
@@ -43,11 +52,21 @@ contract AttestedConversionOracle is IConversionOracle, Ownable {
         if (newRate == 0) revert InvalidRate();
         rate = newRate;
         asOf = uint64(block.timestamp);
+        attestationTimes.push(asOf);
         emit RateAttested(newRate, asOf);
     }
 
     function latestRate() external view returns (uint256, uint64) {
         if (asOf == 0) revert NotYetAttested();
         return (rate, asOf);
+    }
+
+    function attestationCount() external view returns (uint256) {
+        return attestationTimes.length;
+    }
+
+    /// @inheritdoc IConversionOracleHistory
+    function continuouslyFresh(uint64 from, uint64 to, uint64 tolerance) external view returns (bool) {
+        return FreshnessHistory.walkStored(attestationTimes, from, to, tolerance);
     }
 }

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-frame.schema.json",
+  "title": "GEOF Frame",
+  "description": "The observation boundary of a Process: seven scoped dimensions, two granularities and three clocks. No reading is meaningful without the Frame it was taken in.",
+  "type": "object",
+  "required": ["type", "version", "dimensions", "observationGranularity", "disclosureGranularity", "clocks", "provenance"],
+  "properties": {
+    "type": { "const": "geof:frame" },
+    "version": { "const": 1 },
+    "dimensions": {
+      "type": "object",
+      "required": ["time", "engines", "queries", "locales", "objects", "observers", "repetition"],
+      "properties": {
+        "time": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: [{start, end, cadence}] in registry clock values or ISO 8601 with a declared mapping"
+        },
+        "engines": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: [{id, version, surface}]"
+        },
+        "queries": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: [{promptSetHash, promptSetUri, intentClasses[]}]; not-applicable for unsolicited delivery"
+        },
+        "locales": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: [{region, language, modality, surface}]"
+        },
+        "objects": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: subjectIds"
+        },
+        "observers": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: observer addresses"
+        },
+        "repetition": {
+          "allOf": [{ "$ref": "geof-defs.schema.json#/$defs/scopeRecord" }],
+          "description": "values: [{runsPerCell, timingPolicy}]"
+        }
+      },
+      "additionalProperties": false
+    },
+    "observationGranularity": { "$ref": "geof-defs.schema.json#/$defs/granularity" },
+    "disclosureGranularity": { "$ref": "geof-defs.schema.json#/$defs/granularity" },
+    "clocks": {
+      "type": "object",
+      "description": "How the three clock points are determined for this Frame",
+      "required": ["eventEnd", "processClose", "observationCutoff"],
+      "properties": {
+        "eventEnd": { "type": "string", "description": "rule fixing when a run's representation is final, e.g. 'answer delivered'" },
+        "processClose": { "type": "string", "description": "rule or planned clock value for freezing the evidence version" },
+        "observationCutoff": { "type": "string", "description": "rule or planned clock value after which receptions are not attributed to the frozen version" }
+      },
+      "additionalProperties": false
+    },
+    "description": { "type": "string" },
+    "provenance": { "$ref": "geof-defs.schema.json#/$defs/provenance" }
+  },
+  "additionalProperties": false
+}
