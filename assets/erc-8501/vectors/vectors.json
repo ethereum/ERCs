@@ -1,0 +1,197 @@
+{
+  "note": "Derived by tools/geof.js. canonicalization = RFC 8785 (JCS); hash = keccak256(utf8(canonical)). Declaration id = keccak256(abi.encode(uint8 kind, address declarant, bytes32 contentHash)). Kind codes: object 0, frame 1, source 2, method 3, intent 4, metric 5.",
+  "subjectIds": [
+    {
+      "canonicalSubject": "claim:example.com:warranty-correction-2026-10",
+      "subjectId": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be"
+    },
+    {
+      "canonicalSubject": "content:example.com:/notices/warranty-correction",
+      "subjectId": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35"
+    },
+    {
+      "canonicalSubject": "caip19:eip155:11155111:erc721:0x8338000000000000000000000000000000000001/42",
+      "subjectId": "0x61e9e8198037099f9e23259a635015d175ba0b0931bca3277f32e560f0b71339"
+    }
+  ],
+  "declarationIdExample": {
+    "kind": 1,
+    "declarant": "0x2222222222222222222222222222222222222222",
+    "contentHash": "0x25e7c2a96531eb50246780c1f25742e489bf55210e26981dc02992bb585feb97",
+    "declarationId": "0x63e896c7b07a742ec2b46a06cf40acd1396b1e62c8bbcd46b17110bba182a195"
+  },
+  "profileIdExample": {
+    "processId": "0x7000000000000000000000000000000000000000000000000000000000000a01",
+    "version": 1,
+    "publisher": "0x2222222222222222222222222222222222222222",
+    "profileHash": "0x39c6eef0731b991fda8c1165ce3ca386371f943806e05306e0394d74d165a623",
+    "profileId": "0xfe992dd35a73050fed34911d62ff377cb2ecf07b19ec216a6e834df7673b1211"
+  },
+  "cases": [
+    {
+      "case": "case-a-web-correction",
+      "records": [
+        {
+          "label": "objects[0]",
+          "type": "geof:object",
+          "contentHash": "0x15c3ba080c1cd14a1e875f422f6cd377ac764feddfe4bb03271eae160c23e2fe",
+          "declarant": "0x1111111111111111111111111111111111111111",
+          "declarationId": "0x2832bd84afddf928f61f096c84a406b79d1dddb10841b84713a89a344c4c451c",
+          "subjectId": "0x218830d41525a8cc55a22cc008a9af9b5b323861dcf5a9dba950d9e9290407be"
+        },
+        {
+          "label": "objects[1]",
+          "type": "geof:object",
+          "contentHash": "0xd40cd02fc938aac51e78d170f571ff6b0349918ee5012b9aca5297e547bce644",
+          "declarant": "0x1111111111111111111111111111111111111111",
+          "declarationId": "0x128b7375da8f866bdbf5b01f060c67b86bc77131c9cc2b171c2a8bba301176f6",
+          "subjectId": "0x141a89f70943b33aae98e8c533f418b73c6ee87e7a28eee2f49e13d2b37d4e35"
+        },
+        {
+          "label": "intent",
+          "type": "geof:intent",
+          "contentHash": "0x50e7473cf26f74f2891082900479e4f0ce4200534cbb59c4e4853894166d45a2",
+          "declarant": "0x1111111111111111111111111111111111111111",
+          "declarationId": "0xdcb1f47fc6f2c233d6f0b10aafd32b07e6e1043011df6a8ade168e389724cd3d"
+        },
+        {
+          "label": "frame",
+          "type": "geof:frame",
+          "contentHash": "0xb79afc64c038d76785e6980f8dc66c42d38a8fe404bb99d655ce60d3bd67dfec",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0x75753232a987b0c3141020eace644ed3e1274e8dabcfae8351592d4846f1f1a2"
+        },
+        {
+          "label": "sources[0]",
+          "type": "geof:source",
+          "contentHash": "0xd9fbc113b1219de3f63e040836ed9e44368306d7ea694986e9fc0e5db592d003",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0x5a56989425d9db931b79254c5dc3a1d15dce9e3b4d261eef4659260a045b3120"
+        },
+        {
+          "label": "sources[1]",
+          "type": "geof:source",
+          "contentHash": "0x0cbf9df3556454edfdeca359c64b532311c4c05df6e1562bb5d3b872e3cf4cba",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0x66e044679f4a8a1c85c4b18c0b097a8bab7c0671d7016426379c71fafbdfaad8"
+        },
+        {
+          "label": "sources[2]",
+          "type": "geof:source",
+          "contentHash": "0x6b4e47663b11dfdfcc9ae31655c13d5cd3a8d1d5e49c2bd57481a7bbbc8c4a73",
+          "declarant": "0x1111111111111111111111111111111111111111",
+          "declarationId": "0xd8dadb65ef0d9c8e1fe4fadb1dd55ae6dc8ac12da2c5bce59f379b018dbb3b6c"
+        },
+        {
+          "label": "methods[0]",
+          "type": "geof:method",
+          "contentHash": "0x93eb573cc8fbf5ff506000eebe966c17898dce957fe1e961100f4f7557d374d1",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0x09f2a1410b22100246db4832b99665c2e68d8f8c0cc520dad5ea37ba1d393b14"
+        },
+        {
+          "label": "methods[1]",
+          "type": "geof:method",
+          "contentHash": "0x71d6bcdc0cfaf89802736df78f53fa78ff796ed7262e85b5bdcffa520cd9c5b9",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0xadc996b109d467e8834adc6ebf439b8c3b9ade9ca224a8fbe140fe003f58f463"
+        },
+        {
+          "label": "methods[2]",
+          "type": "geof:method",
+          "contentHash": "0x80fbef370654b532e16d05be3557e9d64f98020ee10ad2fd77f5ce96a62a6f85",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0xdf3da1ef3f804e0774fd17b000a55a9b380b7f8706db838d27bfce3d7a500ae7"
+        },
+        {
+          "label": "methods[3]",
+          "type": "geof:method",
+          "contentHash": "0x38294ea9452908065f5d918d35ded71815a7ab29eb9dde4b9e6bdac914300402",
+          "declarant": "0x2222222222222222222222222222222222222222",
+          "declarationId": "0xf2ac9940def480ee038ba7bc7ec874416153241a94c156e9d15793e7cb00e603"
+        },
+        {
+          "label": "profile",
+          "type": "geof:profile",
+          "contentHash": "0xe9cdb5371b4096d30e2a74c9309106123d7572be3aea48a3de0f1b834a24eca9",
+          "declarant": "0x2222222222222222222222222222222222222222"
+        }
+      ]
+    },
+    {
+      "case": "case-b-agentic-skill",
+      "records": [
+        {
+          "label": "objects[0]",
+          "type": "geof:object",
+          "contentHash": "0xacae306849305838ffbfea3d4919622f4c76994cfaa7c8169ee4e51892f375b7",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0x0a492f6aa812bcae5b0aeb39aa3d72d7a70fef6bfa6ae8cded5f844e307da080",
+          "subjectId": "0x61e9e8198037099f9e23259a635015d175ba0b0931bca3277f32e560f0b71339"
+        },
+        {
+          "label": "intent",
+          "type": "geof:intent",
+          "contentHash": "0x1e20128c449e0418c70f68aa68536699b808240b294eca433ef46151c6c1d04b",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0x7fc1ec9daea3d99b682429060ee7ff92cf39bbd79419e0aa9e4727a016c3ea84"
+        },
+        {
+          "label": "frame",
+          "type": "geof:frame",
+          "contentHash": "0xc1f05e997b31d3682fd7c70d9309dbe4af4c069ec64a0330c0a85d6b924baa86",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0xd8dbe17b18edd7b26bd56236b2c268b999c8e6613a14ceda2c2766214c88af91"
+        },
+        {
+          "label": "sources[0]",
+          "type": "geof:source",
+          "contentHash": "0x77e650a22ea4fccc04e00ee41d927f029d1e8b1eab7dc9868e265190da31a000",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0xa27013d9b8bf06b9f7532122571447a756695a51a2250ef52ab42f4606136dc0"
+        },
+        {
+          "label": "sources[1]",
+          "type": "geof:source",
+          "contentHash": "0x9d6cf68d7d8ff0d4a2fec19ec6b41b05cf6991856025cd2289505afd6dbaa50b",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0x5316c2fb3c11ea0c71a99e817721963e5d1b8485b7e548f6b8bb9dddab19925e"
+        },
+        {
+          "label": "sources[2]",
+          "type": "geof:source",
+          "contentHash": "0x03c532526018a1bd3ff87f4edf9dd943bd06a469213bfacd1a330bb9cf53ff76",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0xc31a06a1962cb72bd94206ece0f2d99bfa4bb42b724610bec20ba8c7063d08b9"
+        },
+        {
+          "label": "methods[0]",
+          "type": "geof:method",
+          "contentHash": "0xbc0e160b3141cab90d81ad29d44b64050e5105052ea30f45b829f3a9fd885ef7",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0xc66e2b3349f24b9b67f0c3619db731b42e00114f8e1c168a5443832c813d85f6"
+        },
+        {
+          "label": "methods[1]",
+          "type": "geof:method",
+          "contentHash": "0xbe331bf9f6b0b3db73f6caf49a397eafcd2da7b0c06b09fd6f268122cc9ad570",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0xe930fb900a0b83ded2e5d15c562c56ad13dd9a0bb94d6042faba6b89b615d90c"
+        },
+        {
+          "label": "methods[2]",
+          "type": "geof:method",
+          "contentHash": "0x9334b562b58c801ad9f5564cc080b0bcb1563e37cf33da6c1f98926e1fd1b380",
+          "declarant": "0x3333333333333333333333333333333333333333",
+          "declarationId": "0xba172fde93776f93ad2f1f957bf5c85b2e37320447415fac9587020c5104d12b"
+        },
+        {
+          "label": "profile",
+          "type": "geof:profile",
+          "contentHash": "0xbc16b391a51bc834c314c731320509c390b6dcc3c5eeb2713be8a6cabacd6f3e",
+          "declarant": "0x3333333333333333333333333333333333333333"
+        }
+      ]
+    }
+  ]
+}
