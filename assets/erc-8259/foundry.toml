@@ -1,0 +1,11 @@
+[profile.default]
+src = "."
+test = "."
+out = "out"
+libs = []
+solc_version = "0.8.24"
+evm_version = "cancun"
+optimizer = true
+
+[fmt]
+line_length = 120
