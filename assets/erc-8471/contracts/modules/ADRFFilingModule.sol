@@ -10,10 +10,11 @@ import {IADRFObligationSource} from "../interfaces/IADRFObligationSource.sol";
 
 /// @title  ADRFFilingModule — filing and admission (module of the dispute registry)
 /// @notice Admission is the algorithmic check of the five criteria against the obligation source's
-///         attestations: identifiable object and event, accountable respondent, pre-declared norm that
-///         recognizes the claim (the decisive sub-question, in the claim's direction, is a breach the source
-///         attests), available method for every sub-question, open window; plus standing, authorized effects,
-///         clock compatibility and exclusivity on the decisive proposition. It never pre-judges the merits.
+///         attestations: identifiable object and event under a binding in force at the event (PRE_COMMIT) or at
+///         filing (POST_DISPUTE), accountable respondent, pre-declared norm that recognizes the claim (the
+///         decisive sub-question, in the claim's direction, is a breach the source attests), available method for
+///         every sub-question, open window; plus standing, authorized effects, clock compatibility and exclusivity
+///         on the decisive proposition. It never pre-judges the merits.
 contract ADRFFilingModule is ADRFModule {
     constructor(IADRFPolicyRegistry policies_) ADRFModule(policies_) {}
 
@@ -23,7 +24,10 @@ contract ADRFFilingModule is ADRFModule {
         address sender = msg.sender;
         T.Binding storage b = _s.bindings[bindingId];
         if (b.source == address(0)) revert E.ADRF_UnknownBinding(bindingId);
-        if (b.revoked || (b.validUntil != 0 && S.now64() > b.validUntil)) revert E.ADRF_BindingInactive(bindingId);
+        // POST_DISPUTE: an offer the respondent accepts case by case, open to filings until revoked or expired
+        if (b.mode == T.AcceptanceMode.POST_DISPUTE && (b.revoked || (b.validUntil != 0 && S.now64() > b.validUntil))) {
+            revert E.ADRF_BindingInactive(bindingId);
+        }
         if (b.scopeKey != bytes32(0) && b.scopeKey != S.objectKey(claim.object)) revert E.ADRF_NoStanding(sender);
         checkShape(claim);
         if (claim.respondent == sender) revert E.ADRF_NotAccountable(claim.respondent);
@@ -33,6 +37,11 @@ contract ADRFFilingModule is ADRFModule {
         T.EventInfo memory info = src.eventInfo(claim.object, claim.eventRef);
 
         if (!info.known || info.eventAt == 0 || info.eventAt > S.now64()) revert E.ADRF_NotIdentifiable("event");
+        // PRE_COMMIT: the procedure in force at the event governs it, also after the binding has ended; a binding
+        // registered after the event does not reach back to it, and one that ended before it does not cover it
+        if (b.mode == T.AcceptanceMode.PRE_COMMIT && !inForceAt(b, info.eventAt)) {
+            revert E.ADRF_BindingNotInForce(bindingId, info.eventAt);
+        }
         if (info.obligationRef == bytes32(0)) revert E.ADRF_MissingElement("obligation");
         if (info.normRef == bytes32(0) || info.normDeclaredAt == 0) revert E.ADRF_MissingElement("norm");
         if (info.normRef != claim.normRef) revert E.ADRF_NormNotApplicable("norm not recognised by source");
@@ -151,6 +160,16 @@ contract ADRFFilingModule is ADRFModule {
     function contains(bytes32[] calldata xs, bytes32 x) internal pure returns (bool) {
         for (uint256 i = 0; i < xs.length; i++) if (xs[i] == x) return true;
         return false;
+    }
+
+    /// Whether a PRE_COMMIT binding covers an event at instant `t`: registered at or before it, and neither revoked
+    /// nor past `validUntil` before it. An event at the instant of the revocation is covered: a revocation in the
+    /// same block cannot take the procedure away from it.
+    function inForceAt(T.Binding storage b, uint64 t) internal view returns (bool) {
+        if (t < b.createdAt) return false;
+        if (b.revoked && t > b.revokedAt) return false;
+        if (b.validUntil != 0 && t > b.validUntil) return false;
+        return true;
     }
 
     function hasStanding(T.Binding storage b, bytes32 bindingId, IADRFObligationSource src, T.ClaimInput calldata claim, address who)

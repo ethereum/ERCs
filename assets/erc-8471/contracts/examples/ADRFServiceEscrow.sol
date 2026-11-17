@@ -186,6 +186,9 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
 
     // ------------------------------------------------------------------ binding (admin)
 
+    /// Binds the escrow to a policy version; the latest binding is the one new events run under. Moving to amended
+    /// terms means revoking the current binding and binding again: the earlier binding keeps governing the events
+    /// that occurred while it was in force.
     function bindTo(T.BindingInput calldata input) external returns (bytes32) {
         if (msg.sender != admin) revert Escrow_NotAdmin();
         bindingId = adrf.bind(input);
@@ -259,9 +262,10 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
 
     /// Enacts a Final REFUND ruling on a call of this escrow: a sustained payment claim refunds the settlement the
     /// case was about, a sustained delivery claim refunds the earliest charge of the call. The executor checks
-    /// finality, effect class, the allowed effect, its own object and binding, its own anti-duplication record
-    /// and that the settlement is still held; it reports Enacted, or Failed with the reason, and never touches
-    /// the ruling. A settlement released before enactment is the executor's own failure against the deadline it
+    /// finality, effect class, the allowed effect, its own object and that the case runs under one of its own
+    /// bindings (the one in force at the event, also after the escrow has moved to amended terms), its own
+    /// anti-duplication record and that the settlement is still held; it reports Enacted, or Failed with the
+    /// reason, and never touches the ruling. A settlement released before enactment is the executor's own failure against the deadline it
     /// attested, and the Failed report says so.
     function enact(bytes32 caseId, bytes32 effectId) external {
         if (bindingId == bytes32(0)) revert Escrow_NotBound();
@@ -269,7 +273,8 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
         T.CaseHeader memory h = adrf.getCase(caseId);
         if (u.state != T.ProcedureState.Final || u.effectClass != T.EffectClass.Binding) revert Escrow_NotEnactable(caseId);
         if (effectId != EFFECT_REFUND || u.allowedEffect != EFFECT_REFUND) revert Escrow_NotEnactable(caseId);
-        if (h.source != address(this) || h.object.target != address(this) || h.bindingId != bindingId) revert Escrow_NotEnactable(caseId);
+        // any binding this escrow registered: a later binding does not take enactment away from earlier cases
+        if (h.source != address(this) || h.object.target != address(this)) revert Escrow_NotEnactable(caseId);
         if (refunded[caseId]) revert Escrow_NotEnactable(caseId);
 
         uint256 callId = h.object.id;

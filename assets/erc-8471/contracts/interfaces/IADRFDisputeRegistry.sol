@@ -38,6 +38,8 @@ interface IADRFDisputeRegistry {
 
     // ------------------------------------------------------------------ bindings
     function bind(T.BindingInput calldata input) external returns (bytes32 bindingId);
+    /// Ends the binding from now on, once: a PRE_COMMIT binding keeps governing the events that occurred while it
+    /// was in force; a POST_DISPUTE binding admits no new filing.
     function revokeBinding(bytes32 bindingId) external;
 
     // ------------------------------------------------------------------ filing and admission
@@ -51,6 +53,8 @@ interface IADRFDisputeRegistry {
     function submitEvidence(bytes32 caseId, uint32 subQuestion, bytes32 commitment, string calldata uri) external;
     function answer(bytes32 caseId) external;
     function applySilence(bytes32 caseId) external;
+    /// Anyone may resolve; a finding is recorded once. An UNDETERMINED from the method is recorded only after the
+    /// case's evidence window has closed: before that the call reverts (WindowOpen("evidence")) and records nothing.
     function resolveFormal(bytes32 caseId, uint32 subQuestion, bytes calldata inputs) external;
     function resolveEvidenced(bytes32 caseId, uint32 subQuestion, bytes calldata bundle) external;
     function openJudgment(bytes32 caseId, uint32 subQuestion) external;

@@ -10,8 +10,10 @@ import {IADRFObligationSource} from "../interfaces/IADRFObligationSource.sol";
 
 /// @title  ADRFBindingModule — bindings and their reads, acceptance and withdrawal (module of the dispute registry)
 /// @notice A binding is the obligation source's own statement of which policy it accepts for its objects and
-///         which effects a ruling may authorize: the only source of a ruling's authority. Acceptance opens a
-///         POST_DISPUTE case; withdrawal and a lapsed acceptance window close it before admission.
+///         which effects a ruling may authorize: the only source of a ruling's authority. It is in force from its
+///         registration until it is revoked or reaches `validUntil`; revocation ends it for what comes after and
+///         takes nothing from what happened while it was in force. Acceptance opens a POST_DISPUTE case;
+///         withdrawal and a lapsed acceptance window close it before admission.
 contract ADRFBindingModule is ADRFModule {
     constructor(IADRFPolicyRegistry policies_) ADRFModule(policies_) {}
 
@@ -61,7 +63,10 @@ contract ADRFBindingModule is ADRFModule {
         T.Binding storage b = _s.bindings[bindingId];
         if (b.source == address(0)) revert E.ADRF_UnknownBinding(bindingId);
         if (msg.sender != b.source) revert E.ADRF_NotSource(bindingId);
+        // revocation ends the binding for what comes after it; a second revocation would move the end
+        if (b.revoked) revert E.ADRF_BindingInactive(bindingId);
         b.revoked = true;
+        b.revokedAt = S.now64();
         emit BindingRevoked(bindingId, msg.sender);
     }
 

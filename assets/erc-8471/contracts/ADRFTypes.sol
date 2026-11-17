@@ -22,7 +22,8 @@ library ADRFTypes {
 
     /// How a binding establishes the respondent's acceptance of the procedure.
     enum AcceptanceMode {
-        PRE_COMMIT,   // the obligation source accepted the procedure before the event; filing admits atomically
+        PRE_COMMIT,   // the obligation source accepted the procedure before the event: the binding governs the events that
+                      // occur while it is in force, also after it ends; filing admits atomically
         POST_DISPUTE  // the respondent accepts after filing and before any hearing; otherwise the case is not admitted
     }
 
@@ -162,7 +163,7 @@ library ADRFTypes {
         address[]      beneficiaries;      // third parties with filing standing (policy standing >= BENEFICIARIES)
         bool           openChallenge;      // anyone may file (policy standing == OPEN)
         bool           downgradeOnClock;   // admit as Advisory when the business window is too short
-        uint64         validUntil;         // 0 = none; stops new filings only
+        uint64         validUntil;         // 0 = none; ends the binding: PRE_COMMIT covers events up to it, POST_DISPUTE filings up to it
         bytes32        termsHash;          // hash of the binding document (fund authorization, third-party terms)
     }
 
@@ -176,8 +177,9 @@ library ADRFTypes {
         bool           downgradeOnClock;
         bool           revoked;
         uint64         validUntil;
-        uint64         createdAt;
+        uint64         createdAt;          // the binding is in force from this instant
         bytes32        termsHash;
+        uint64         revokedAt;          // 0 = not revoked; a PRE_COMMIT binding covers events up to this instant
     }
 
     /// What an obligation source attests about an event on one of its objects.

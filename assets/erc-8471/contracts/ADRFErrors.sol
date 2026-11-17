@@ -15,6 +15,7 @@ library ADRFErrors {
     error ADRF_UnknownBinding(bytes32 bindingId);
     error ADRF_NotSource(bytes32 bindingId);
     error ADRF_BindingInactive(bytes32 bindingId);
+    error ADRF_BindingNotInForce(bytes32 bindingId, uint64 eventAt);
 
     // admission (five criteria and standing)
     error ADRF_MissingElement(string which);

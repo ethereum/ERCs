@@ -15,8 +15,11 @@ import {IADRFJudgmentMethod} from "../interfaces/IADRFJudgmentMethod.sol";
 ///         finding records what was decided, by which method, with which support kinds, and on which premises.
 ///         A formal question runs a verifier over inputs pinned at filing (support `computed`); a question of
 ///         fact runs an evidence rule (support as the rule declares, never `judged`); a question of judgment is
-///         opened with a judgment method, which records the finding it imports (support `judged`). A review
-///         resets the targeted sub-questions and their dependents and opens a new round.
+///         opened with a judgment method, which records the finding it imports (support `judged`). Anyone may
+///         resolve, and a finding is recorded once, so an UNDETERMINED from a verifier or an evidence rule is
+///         recorded only after the case's evidence window has closed: an early caller cannot turn evidence that is
+///         still pending into a final finding. A review resets the targeted sub-questions and their dependents and
+///         opens a new round with its own windows.
 contract ADRFResolutionModule is ADRFModule {
     constructor(IADRFPolicyRegistry policies_) ADRFModule(policies_) {}
 
@@ -43,6 +46,7 @@ contract ADRFResolutionModule is ADRFModule {
         }
         if (keccak256(inputs) != q.inputsHash) revert E.ADRF_InputsMismatch(sq);
         (T.Value value, bytes32 resultHash) = IADRFVerifier(q.method).verify(q.proposition, q.params, inputs);
+        notPending(caseId, value);
         _record(caseId, sq, value, T.SUPPORT_COMPUTED, resultHash, q.method,
             value == T.Value.UNDETERMINED ? T.Reason.METHOD_UNDETERMINED : T.Reason.NONE);
     }
@@ -56,6 +60,7 @@ contract ADRFResolutionModule is ADRFModule {
         (T.Value value, bytes32 resultHash, uint8 kinds) =
             IADRFEvidenceRule(q.method).evaluate(caseId, sq, q.proposition, q.params, bundle);
         kinds &= ~T.SUPPORT_JUDGED; // an evidence rule does not form a judgment
+        notPending(caseId, value);
         _record(caseId, sq, value, kinds, resultHash, q.method,
             value == T.Value.UNDETERMINED ? T.Reason.METHOD_UNDETERMINED : T.Reason.NONE);
     }
@@ -148,6 +153,17 @@ contract ADRFResolutionModule is ADRFModule {
         if (_s.findings[caseId][sq].resolved) revert E.ADRF_AlreadyResolved(sq);
         for (uint256 d = 0; d < q.dependsOn.length; d++) {
             if (!_s.findings[caseId][q.dependsOn[d]].resolved) revert E.ADRF_PremisePending(sq, q.dependsOn[d]);
+        }
+    }
+
+    /// A finding is recorded once and is final for its round, so a method's "not yet" must not be recorded as its
+    /// "never": an UNDETERMINED from a verifier or an evidence rule is recorded only once the current round's
+    /// evidence window has closed. The window is inclusive, as for submitEvidence and the other windows. Before
+    /// that the call reverts, nothing is recorded and the sub-question stays open for a later call; TRUE and FALSE
+    /// are recorded at any time, and a method returns them only when they are final.
+    function notPending(bytes32 caseId, T.Value value) internal view {
+        if (value == T.Value.UNDETERMINED && S.now64() <= _s.clocks[caseId].evidenceCloseAt) {
+            revert E.ADRF_WindowOpen("evidence");
         }
     }
 
