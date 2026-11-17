@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "geof-observation.schema.json",
+  "title": "GEOF Observation",
+  "description": "Something that happened: one run or delivery instance (event), period counts from a source whose granularity does not reach instances (aggregate), a recipient action after a representation (followup), or an action on the Object or its carriers (intervention). Reported time and recorded time stay distinct.",
+  "type": "object",
+  "required": ["type", "version", "kind", "observer", "sourceRefs", "recordedAt"],
+  "properties": {
+    "type": { "const": "geof:observation" },
+    "version": { "const": 1 },
+    "kind": { "type": "string", "enum": ["event", "aggregate", "followup", "intervention"] },
+    "observer": { "$ref": "geof-defs.schema.json#/$defs/address" },
+    "sourceRefs": { "type": "array", "minItems": 1, "items": { "$ref": "geof-defs.schema.json#/$defs/recordRef" } },
+    "recordedAt": { "$ref": "geof-defs.schema.json#/$defs/clockValue" },
+    "reportedAt": { "type": "string", "description": "Time as reported by the source, in the source's own domain; never copied into recordedAt" },
+    "event": { "$ref": "#/$defs/event" },
+    "aggregate": { "$ref": "#/$defs/aggregate" },
+    "followup": { "$ref": "#/$defs/followup" },
+    "intervention": { "$ref": "#/$defs/intervention" },
+    "evidence": { "type": "array", "items": { "type": "string" }, "description": "URIs, signatures or hashes of raw material" }
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "event" } } }, "then": { "required": ["event"] } },
+    { "if": { "properties": { "kind": { "const": "aggregate" } } }, "then": { "required": ["aggregate"] } },
+    { "if": { "properties": { "kind": { "const": "followup" } } }, "then": { "required": ["followup"] } },
+    { "if": { "properties": { "kind": { "const": "intervention" } } }, "then": { "required": ["intervention"] } }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "stageState": {
+      "oneOf": [
+        { "type": "object" },
+        { "type": "string", "enum": ["OBSERVED"] },
+        { "$ref": "geof-defs.schema.json#/$defs/state" }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "required": ["origin", "course", "conclusion"],
+      "properties": {
+        "runId": { "type": "string", "description": "Observer-local identifier of the run" },
+        "origin": {
+          "type": "object",
+          "required": ["trigger", "engine", "recipientClass", "delivery", "time"],
+          "properties": {
+            "trigger": {
+              "type": "object",
+              "required": ["initiator", "priorAuthorization", "immediateQuery"],
+              "properties": {
+                "initiator": { "type": "string", "enum": ["recipient", "engine", "schedule", "third-party"] },
+                "priorAuthorization": { "type": "string", "enum": ["none", "subscribed", "delegated", "unknown"] },
+                "immediateQuery": { "type": "boolean" },
+                "queryRef": { "type": "string", "description": "hash or text of the query" },
+                "queryIntent": { "type": "string", "enum": ["informational", "navigational", "transactional", "agentic-task", "unstated"] }
+              },
+              "additionalProperties": false
+            },
+            "engine": {
+              "type": "object",
+              "required": ["id"],
+              "properties": {
+                "id": { "type": "string" },
+                "version": { "type": "string" },
+                "surface": { "type": "string" }
+              }
+            },
+            "recipientClass": { "type": "string", "enum": ["human", "agent", "unknown"] },
+            "delivery": {
+              "type": "object",
+              "required": ["channel"],
+              "properties": {
+                "channel": { "type": "string", "enum": ["answer", "notification", "feed", "tool-result", "voice", "other"] },
+                "surface": { "type": "string" }
+              }
+            },
+            "time": { "type": "string", "description": "clock value or source time with declared mapping" },
+            "locale": {
+              "type": "object",
+              "properties": {
+                "region": { "type": "string" },
+                "language": { "type": "string" },
+                "modality": { "type": "string" }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "course": {
+          "type": "object",
+          "description": "One state per stage. A stage the observer could not see is UNOBSERVED, never omitted.",
+          "required": ["retrieved", "selected", "synthesized", "attributed", "delivered"],
+          "properties": {
+            "retrieved": { "$ref": "#/$defs/stageState" },
+            "selected": { "$ref": "#/$defs/stageState" },
+            "synthesized": { "$ref": "#/$defs/stageState" },
+            "attributed": { "$ref": "#/$defs/stageState" },
+            "delivered": { "$ref": "#/$defs/stageState" }
+          },
+          "additionalProperties": false
+        },
+        "conclusion": {
+          "type": "array",
+          "description": "One entry per Object touched by the run",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["objectRef", "kind", "actor"],
+            "properties": {
+              "objectRef": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+              "kind": { "type": "string", "enum": ["OMITTED", "RETRIEVED_NOT_USED", "MENTIONED", "CITED", "RECOMMENDED", "INVOKED"] },
+              "actor": { "type": "string", "enum": ["engine", "recipient", "unknown"] },
+              "prominence": {
+                "type": "object",
+                "properties": {
+                  "position": { "type": "integer", "minimum": 1 },
+                  "shareOfAnswer": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "firstCitation": { "type": "boolean" },
+                  "scoreRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef", "description": "scoring Method applied" },
+                  "score": { "type": "number" }
+                }
+              },
+              "stance": { "type": "string", "enum": ["introduces", "supports", "questions", "opposes", "unstated"] },
+              "claimCoverage": {
+                "type": "object",
+                "description": "For claim Objects: proposition id -> present | ABSENT | UNDETERMINABLE",
+                "additionalProperties": { "oneOf": [{ "const": "present" }, { "$ref": "geof-defs.schema.json#/$defs/state" }] }
+              },
+              "fidelityFlags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["flag", "reference"],
+                  "properties": {
+                    "flag": { "type": "string", "enum": ["misrepresented", "stale", "misattributed"] },
+                    "reference": { "type": "string", "description": "what it was checked against" },
+                    "methodRef": { "$ref": "geof-defs.schema.json#/$defs/recordRef" }
+                  }
+                }
+              },
+              "citation": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string" },
+                  "canonicalUrl": { "type": "string" },
+                  "supportsStatement": { "oneOf": [{ "type": "boolean" }, { "$ref": "geof-defs.schema.json#/$defs/state" }] }
+                }
+              },
+              "reception": {
+                "type": "object",
+                "description": "Recipient signals recorded before eventEnd; later actions are followup observations",
+                "additionalProperties": { "$ref": "geof-defs.schema.json#/$defs/valueOrState" }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["period", "granularity", "counts"],
+      "properties": {
+        "period": { "type": "object", "required": ["start", "end"], "properties": { "start": { "type": "string" }, "end": { "type": "string" } } },
+        "granularity": { "type": "string", "description": "e.g. month, engine, object" },
+        "objectRef": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+        "engine": { "type": "string" },
+        "counts": {
+          "type": "object",
+          "description": "metric definition id -> count or state",
+          "additionalProperties": { "oneOf": [{ "type": "number" }, { "$ref": "geof-defs.schema.json#/$defs/state" }] }
+        }
+      },
+      "additionalProperties": false
+    },
+    "followup": {
+      "type": "object",
+      "required": ["action", "linkBasis", "linkedEvents"],
+      "properties": {
+        "action": {
+          "oneOf": [
+            { "type": "string", "enum": ["ADOPTED", "INVOKED", "ACTED", "TRANSACTED", "RELAYED", "CEASED", "MAINTAINED", "FEEDBACK", "CLICKED"] },
+            { "$ref": "geof-defs.schema.json#/$defs/extensionToken" }
+          ]
+        },
+        "polarity": { "type": "string", "enum": ["positive", "negative", "neutral"], "description": "for FEEDBACK" },
+        "objectRef": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+        "recipientRef": { "type": "string", "description": "recipient identity or cohort, per the Frame's disclosure granularity" },
+        "time": { "type": "string" },
+        "linkBasis": { "type": "string", "enum": ["deterministic", "probabilistic", "declared", "unknown"] },
+        "linkedEvents": { "type": "array", "items": { "type": "string" }, "description": "runIds or observation hashes; may be empty when linkBasis is unknown" },
+        "externalRecord": {
+          "type": "object",
+          "description": "On-chain or off-chain record of the action (transaction hash, settlement id)",
+          "properties": { "system": { "type": "string" }, "ref": { "type": "string" }, "chainId": { "type": "string" } }
+        },
+        "amount": { "type": "object", "properties": { "value": { "type": "string" }, "unit": { "type": "string" } } }
+      },
+      "additionalProperties": false
+    },
+    "intervention": {
+      "type": "object",
+      "required": ["actor", "interventionType", "objectRef", "time"],
+      "properties": {
+        "actor": { "type": "string", "description": "address or role of the party that acted" },
+        "interventionType": {
+          "oneOf": [
+            { "type": "string", "enum": ["content-change", "structured-data", "crawler-directive", "licensing-change", "descriptor-change", "distribution", "other"] },
+            { "$ref": "geof-defs.schema.json#/$defs/extensionToken" }
+          ]
+        },
+        "objectRef": { "$ref": "geof-defs.schema.json#/$defs/subjectId" },
+        "time": { "type": "string" },
+        "beforeHash": { "$ref": "geof-defs.schema.json#/$defs/hash32" },
+        "afterHash": { "$ref": "geof-defs.schema.json#/$defs/hash32" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
