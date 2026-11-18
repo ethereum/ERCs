@@ -3,7 +3,7 @@ eip: XXXX
 title: Onchain Announcements
 description: Events and a call wrapper that couple a human-readable disclosure and content URI with the state changes it describes
 author: Conner Swenberg (@ilikesymmetry) <conner.swenberg@coinbase.com>, Shaun Martinak <shaun.martinak@coinbase.com>, Daniel Reed <daniel.reed@coinbase.com>, Steve Katzman
-discussions-to: TODO
+discussions-to: https://ethereum-magicians.org/t/erc-onchain-announcements/30428
 status: Draft
 type: Standards Track
 category: ERC
