@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.35;
 
-interface ITradeUSDC {
-    function tradeUSDC() external;
+interface ITrade {
+    function trade() external;
 }
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external;
+}
+
+interface IWETH {
     function withdraw(uint256 wad) external;
 }
 
@@ -137,17 +140,20 @@ contract Swap {
     
     /**
      * @dev Maximum number of bytes that a cache entry can contain.
-     *
-     * This limit protects the transient-storage cache implementation and is
-     * not part of the Solver protocol semantics.
      */
     uint64 constant MAX_TOTAL_LENGTH = type(uint64).max;
+    
+    address constant SIGNER = 0xA8B05fdd5460b9727838e88c3ffFd63F3E64999f;
 
-    address constant USDC_POOL = 0x6418EEC70f50913ff0d756B48d32Ce7C02b47C47;
+    address constant POL_POOL = 0x510dE933db6d6ce457bdD1d94802B6a6eBaE4232;
 
-    address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+    address constant POL = 0x44499312f493F62f2DFd3C6435Ca3603EbFCeeBa;
 
     address constant WETH = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
+
+    uint256 constant AMOUNT_IN = 5447 ether;
+
+    uint256 constant MIN_AMOUNT_OUT = 873.88 ether;
     
     /**
      * @dev Reverts when transient-storage slot arithmetic overflows.
@@ -171,20 +177,25 @@ contract Swap {
         assembly ("memory-safe") {
             selector := shl(224, shr(224, mload(add(data, 0x20))))
         }
-        if (selector == ITradeUSDC.tradeUSDC.selector) {
+        if (selector == ITrade.trade.selector) {
+            require(msg.sender == SIGNER);
             _tstore(bytes32(HANDLER_SLOT), 1);
-            IUniswapV3PoolActions(USDC_POOL).swap(address(this), true, 20_000_000, 4295128740, hex"");
-            (bool success, ) = payable(msg.sender).call{value : address(this).balance}("");
+            (, int256 amount1) = IUniswapV3PoolActions(POL_POOL).swap(
+                address(this),
+                true,
+                int256(AMOUNT_IN),
+                4295128740,
+                msg.data[0 : 0]
+            );
+            _tstore(bytes32(HANDLER_SLOT), 0);
+            uint256 amountOut = uint256(-amount1);
+            require(amountOut >= MIN_AMOUNT_OUT);
+            IWETH(WETH).withdraw(amountOut);
+            (bool success, ) = payable(SIGNER).call{value : amountOut}("");
             require(success);
         } else if (selector == IUniswapV3SwapCallback.uniswapV3SwapCallback.selector) {
-            int256 amount1Delta;
-            assembly ("memory-safe") {
-                amount1Delta := mload(add(add(data, 0x20), 0x24))
-            }
-            require(msg.sender == USDC_POOL);
-            IERC20(USDC).transfer(USDC_POOL, 20_000_000);
-            _tstore(bytes32(HANDLER_SLOT), 0);
-            IERC20(WETH).withdraw(uint256(-amount1Delta));
+            require(msg.sender == POL_POOL);
+            IERC20(POL).transfer(POL_POOL, AMOUNT_IN);
         }
     }
 
