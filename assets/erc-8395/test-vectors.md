@@ -308,6 +308,19 @@ The expected Principal is Root, and the Signer is identified by Delegate E's JWK
 | Revoke `p0.id` or advance Root's epoch | All descendants reject with `authorization_revoked` or `authorization_epoch_mismatch` |
 | Substitute a grant's proof with another valid encoding over the same input and re-sign the HTTP request | Parent digests and registry handles remain unchanged |
 
+## Account-code change vector
+
+Start from the single-link request vector at a verifier that caches grant proofs. Each later request is re-signed with a new nonce at the stated time; `g0` and its proof are unchanged.
+
+| Root's state and verifier | Expected result |
+| --- | --- |
+| No code; the verifier stores the `g0` proof result | Authenticates |
+| Root then sets an EIP-7702 delegation to code without `isValidSignature`; a verifier without an entry | `bad_grant_signature` |
+| Same, the verifier with the entry, less than 60 seconds after storing it | Authenticates |
+| Same verifier, more than 60 seconds after storing it | `bad_grant_signature` |
+| Root instead delegates to code whose ERC-1271 accepts the Root key's signature over `D` | Authenticates, with or without an entry |
+| Depth-two vector, with Delegate A delegated to any code | Authenticates, with or without an entry |
+
 ## Authority metadata vectors
 
 The following authority challenge metadata is valid; `future` is ignored:
