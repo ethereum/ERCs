@@ -798,6 +798,48 @@
       }
     },
     {
+      "id": "reason-array",
+      "basis": "spec",
+      "note": "reason must be an enum string, not an array",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": [],
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "reason-unknown"
+        ]
+      }
+    },
+    {
+      "id": "reason-object",
+      "basis": "spec",
+      "note": "reason must be an enum string, not an object",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": {},
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "reason-unknown"
+        ]
+      }
+    },
+    {
       "id": "nested-unknown",
       "basis": "spec",
       "note": "nested outside the enum",
@@ -827,6 +869,48 @@
         "gaps": [
           {
             "path": "calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-syntax"
+        ]
+      }
+    },
+    {
+      "id": "path-array",
+      "basis": "spec",
+      "note": "path must be a string, not an array",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": [],
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-syntax"
+        ]
+      }
+    },
+    {
+      "id": "path-object",
+      "basis": "spec",
+      "note": "path must be a string, not an object",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": {},
             "reason": "unsupported-selector",
             "nested": "not-inspected"
           }

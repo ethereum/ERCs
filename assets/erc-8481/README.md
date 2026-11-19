@@ -79,9 +79,10 @@ keccak256 and RFC 8785 from `on-list/onlist_vectors.py`); `--write` regenerates 
 - `wrapped-approve-decoded-batch`: the batch sent to a source that decodes ERC-7821: `complete`, and the approval
   entity carries `path` `tx.calls[0].inner[0]`.
 - `coverage-is-signed`: the first report with `coverage` rewritten to `complete` has another `reportHash`.
-- `conformance`: 16 malformed `coverage` values (absent, status and gaps disagreeing, values outside the enums, bad
+- `conformance`: 20 malformed `coverage` values (absent, status and gaps disagreeing, values outside the enums, bad
   or out-of-range paths, a duplicate path, `nested` disagreeing with `reason`, an extra member) and 3 valid ones;
   4 approval `path` cases (bad syntax, out of range, disagreeing with `callIndex`, and a valid `callIndex` + `path`).
+  Array and object values for `path` and `reason` return conformance errors instead of raising a Python exception.
 
 Each vector carries the subject digest, `reportHash` and the EIP-712 digest the source would sign; `signature` is a
 placeholder. The batch calldata and one EIP-712 digest were also recomputed with Foundry's `cast`, and agree. CC0-1.0.

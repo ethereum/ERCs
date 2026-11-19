@@ -153,14 +153,15 @@ def coverage_errors(report, request):
         e = path_error(g["path"], request)
         if e:
             errs.append(e)
-        if g["path"] in seen:
-            errs.append("path-duplicate")
-        seen.add(g["path"])
+        if isinstance(g["path"], str):
+            if g["path"] in seen:
+                errs.append("path-duplicate")
+            seen.add(g["path"])
         if g["reason"] not in REASONS:
             errs.append("reason-unknown")
         if g["nested"] not in NESTED:
             errs.append("nested-unknown")
-        elif NESTED_BY_REASON.get(g["reason"]) not in (None, g["nested"]):
+        elif g["reason"] in REASONS and NESTED_BY_REASON.get(g["reason"]) not in (None, g["nested"]):
             errs.append("nested-disagrees-with-reason")
     return errs
 
@@ -323,8 +324,16 @@ def build():
         ("partial-without-gaps", "status partial with no gap", {"status": "partial", "gaps": []}, False),
         ("status-unknown", "status outside the enum", {"status": "full", "gaps": []}, False),
         ("reason-unknown", "reason outside the enum", {"status": "partial", "gaps": [dict(g, reason="unknown-selector")]}, False),
+        ("reason-array", "reason must be an enum string, not an array",
+         {"status": "partial", "gaps": [dict(g, reason=[])]}, False),
+        ("reason-object", "reason must be an enum string, not an object",
+         {"status": "partial", "gaps": [dict(g, reason={})]}, False),
         ("nested-unknown", "nested outside the enum", {"status": "partial", "gaps": [dict(g, nested="partly")]}, False),
         ("path-no-root", "a path starts at tx or typedData", {"status": "partial", "gaps": [dict(g, path="calls[0]")]}, False),
+        ("path-array", "path must be a string, not an array",
+         {"status": "partial", "gaps": [dict(g, path=[])]}, False),
+        ("path-object", "path must be a string, not an object",
+         {"status": "partial", "gaps": [dict(g, path={})]}, False),
         ("path-leading-zero", "indexes have no leading zero", {"status": "partial", "gaps": [dict(g, path="tx.calls[00]")]}, False),
         ("path-out-of-range", "the request has one call", {"status": "partial", "gaps": [dict(g, path="tx.calls[1]")]}, False),
         ("path-typeddata-absent", "the request has no typed data", {"status": "partial", "gaps": [dict(g, path="typedData")]}, False),
