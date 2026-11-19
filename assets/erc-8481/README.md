@@ -86,3 +86,13 @@ keccak256 and RFC 8785 from `on-list/onlist_vectors.py`); `--write` regenerates 
 
 Each vector carries the subject digest, `reportHash` and the EIP-712 digest the source would sign; `signature` is a
 placeholder. The batch calldata and one EIP-712 digest were also recomputed with Foundry's `cast`, and agree. CC0-1.0.
+
+## Text injection cases
+
+`text-injection/` adds 26 executable cases for the `text.injection` format in d622089:
+declared normalization, fixed class order and uniqueness, exact-byte pattern-set
+hashes, unsupported versus empty results, and composition with partial coverage.
+Run `python3 text-injection/test_injection.py` (Python 3.9+, standard library only).
+See [the fixture README](./text-injection/README.md) for the pinned pattern set,
+consumer policy and limits. These are deterministic format/composition examples,
+not a claim that the pattern set detects every instruction. CC0-1.0, Ted (@haot3x).
