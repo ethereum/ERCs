@@ -52,10 +52,11 @@ interface IExamplePolicy is IERC8473Policy {
   error ExamplePolicy_HoldersNotAscending(uint256 _index);
 
   /**
-   * @notice Thrown when `afterTransfer` or `onInstall` is called by anyone but the token, or for another token
+   * @notice Thrown when `afterTransfer` or `onInstall` is called by anyone but the token or the policy the token has
+   *         installed, or for another token
    * @param _caller The caller
    */
-  error ExamplePolicy_OnlyToken(address _caller);
+  error ExamplePolicy_UnauthorizedCaller(address _caller);
 
   /// @notice Thrown when the token is the zero address
   error ExamplePolicy_ZeroAddress();

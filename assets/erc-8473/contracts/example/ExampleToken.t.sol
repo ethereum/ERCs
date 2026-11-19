@@ -60,7 +60,7 @@ contract ExampleTokenUnitTest is Helpers {
     vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.checkTransfer.selector), abi.encode(TRANSFER_OK));
     vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.checkSend.selector), abi.encode(TRANSFER_OK));
     vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.checkReceive.selector), abi.encode(TRANSFER_OK));
-    vm.mockCall(_mocked, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), abi.encode(false));
+    vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.wantsAfterTransfer.selector), abi.encode(false));
     vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.onInstall.selector), '');
   }
 
@@ -160,7 +160,7 @@ contract ExampleTokenUnitTest is Helpers {
     IERC8473Policy.TransferContext memory _expected =
       _ctx(_alice, _bob, 10, _alice, IERC8473Policy.TransferKind.TRANSFER);
     vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.checkTransfer, (_expected)), 1);
-    vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), 1);
+    vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, (address(_token))), 1);
     vm.expectCall(_policy, abi.encodeWithSelector(IERC8473Policy.afterTransfer.selector), 0);
     vm.prank(_alice);
     assertTrue(_token.transfer(_bob, 10));
@@ -183,7 +183,7 @@ contract ExampleTokenUnitTest is Helpers {
   }
 
   function test_WhenThePolicyWantsTheCallback_ItCallsAfterTransferWithTheSameContext() public {
-    vm.mockCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), abi.encode(true));
+    vm.mockCall(_policy, abi.encodeWithSelector(IERC8473Policy.wantsAfterTransfer.selector), abi.encode(true));
     vm.mockCall(_policy, abi.encodeWithSelector(IERC8473Policy.afterTransfer.selector), '');
     IERC8473Policy.TransferContext memory _expected =
       _ctx(_alice, _bob, 10, _alice, IERC8473Policy.TransferKind.TRANSFER);

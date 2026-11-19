@@ -228,7 +228,9 @@ contract AllowlistGasPolicy is PermissivePolicy {
   }
 
   /// @inheritdoc IERC8473Policy
-  function wantsAfterTransfer() external view override returns (bool _wantsAfter) {
+  function wantsAfterTransfer(
+    address
+  ) external view override returns (bool _wantsAfter) {
     _wantsAfter = WANTS_AFTER;
   }
 }
@@ -288,7 +290,7 @@ contract PolicyGasToken is ERC20, ReentrancyGuardTransient {
 
     super._update(_from, _to, _value);
 
-    if (_activePolicy.wantsAfterTransfer()) _activePolicy.afterTransfer(_ctx);
+    if (_activePolicy.wantsAfterTransfer(address(this))) _activePolicy.afterTransfer(_ctx);
   }
 
   /**

@@ -68,7 +68,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
       _mocked, abi.encodeCall(IERC165.supportsInterface, (type(IERC8473Policy).interfaceId)), abi.encode(true)
     );
     vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.checkTransfer.selector), abi.encode(TRANSFER_OK));
-    vm.mockCall(_mocked, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), abi.encode(false));
+    vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.wantsAfterTransfer.selector), abi.encode(false));
     vm.mockCall(_mocked, abi.encodeWithSelector(IERC8473Policy.onInstall.selector), '');
   }
 
@@ -136,7 +136,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
     IERC8473Policy.TransferContext memory _expected = _executedCtx(_executor);
 
     vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.checkTransfer, (_expected)), 1);
-    vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), 1);
+    vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, (address(_token))), 1);
     vm.expectCall(_policy, abi.encodeWithSelector(IERC8473Policy.afterTransfer.selector), 0);
     vm.expectEmit(address(_token));
     emit IExampleExecutorToken.InstructionExecuted(_alice, _REF, _executor);
@@ -154,7 +154,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
     IExampleExecutorToken.Instruction memory _built = _instruction();
     bytes memory _signature = _sign(_aliceKey, address(_token), _built);
     IERC8473Policy.TransferContext memory _expected = _executedCtx(_executor);
-    vm.mockCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), abi.encode(true));
+    vm.mockCall(_policy, abi.encodeWithSelector(IERC8473Policy.wantsAfterTransfer.selector), abi.encode(true));
     vm.mockCall(_policy, abi.encodeWithSelector(IERC8473Policy.afterTransfer.selector), '');
 
     vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.afterTransfer, (_expected)), 1);

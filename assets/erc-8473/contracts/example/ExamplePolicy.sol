@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC165} from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
+import {IERC8473} from 'interfaces/IERC8473.sol';
 import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExamplePolicy} from 'interfaces/IExamplePolicy.sol';
 
@@ -78,12 +79,15 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
 
   /**
    * @inheritdoc IERC8473Policy
-   * @dev Only the token may report its movements, so the count only follows real balance changes
+   * @dev Only the token, or the policy the token has installed, may report its movements, so the count only follows
+   *      real balance changes
    */
   function afterTransfer(
     TransferContext calldata _context
   ) external {
-    if (msg.sender != TOKEN || _context.token != TOKEN) revert ExamplePolicy_OnlyToken(msg.sender);
+    if (_context.token != TOKEN || !_isTokenOrItsPolicy(msg.sender)) {
+      revert ExamplePolicy_UnauthorizedCaller(msg.sender);
+    }
     if (_context.amount == 0 || _context.from == _context.to) return;
     // A holder is an account with a non-zero balance: exact comparisons are the definition, not a price check.
     // slither-disable-next-line incorrect-equality
@@ -109,7 +113,7 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
     address,
     bytes calldata _data
   ) external {
-    if (msg.sender != TOKEN || _token != TOKEN) revert ExamplePolicy_OnlyToken(msg.sender);
+    if (_token != TOKEN || !_isTokenOrItsPolicy(msg.sender)) revert ExamplePolicy_UnauthorizedCaller(msg.sender);
     address[] memory _holders = abi.decode(_data, (address[]));
     // The sum, the count and the previous address start at zero.
     // slither-disable-start uninitialized-local
@@ -161,8 +165,10 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
   }
 
   /// @inheritdoc IERC8473Policy
-  function wantsAfterTransfer() external pure returns (bool _wantsAfter) {
-    _wantsAfter = true;
+  function wantsAfterTransfer(
+    address _token
+  ) external view returns (bool _wantsAfter) {
+    _wantsAfter = _token == TOKEN;
   }
 
   /// @inheritdoc IERC8473Policy
@@ -211,5 +217,19 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
     // slither-disable-next-line incorrect-equality
     bool _senderLeaves = _context.from != address(0) && IERC20(TOKEN).balanceOf(_context.from) == _context.amount;
     _admits = holderCount + (_senderLeaves ? 0 : 1) <= cap;
+  }
+
+  /**
+   * @notice Whether `_caller` may make the callbacks: the token, or the policy the token has installed, which forwards
+   *         them when it is built from other policies (policy requirements 10 and 15)
+   * @dev Reads `policy()` only when the caller is not the token, and on every call, so a policy the token has replaced
+   *      is refused
+   * @param _caller The caller
+   * @return _authorised True if the caller may make the callbacks
+   */
+  function _isTokenOrItsPolicy(
+    address _caller
+  ) internal view returns (bool _authorised) {
+    _authorised = _caller == TOKEN || _caller == IERC8473(TOKEN).policy();
   }
 }

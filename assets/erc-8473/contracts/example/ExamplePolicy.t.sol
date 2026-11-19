@@ -5,6 +5,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
+import {IERC8473} from 'interfaces/IERC8473.sol';
 import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExamplePolicy} from 'interfaces/IExamplePolicy.sol';
 
@@ -25,6 +26,7 @@ contract ExamplePolicyUnitTest is Helpers {
   function setUp() public {
     _token = _mockContract('token');
     _policy = new ExamplePolicy(_token, _owner, 10);
+    _installedPolicy(address(_policy));
     vm.startPrank(_owner);
     _policy.setAllowlisted(_alice, true);
     _policy.setAllowlisted(_bob, true);
@@ -34,6 +36,16 @@ contract ExamplePolicyUnitTest is Helpers {
     _balance(_bob, 0);
     _balance(_carol, 0);
     _balance(_stranger, 0);
+  }
+
+  /**
+   * @notice Sets what the mocked token's `policy()` returns
+   * @param _installed The policy the token has installed
+   */
+  function _installedPolicy(
+    address _installed
+  ) internal {
+    vm.mockCall(_token, abi.encodeCall(IERC8473.policy, ()), abi.encode(_installed));
   }
 
   function _balance(
@@ -175,14 +187,26 @@ contract ExamplePolicyUnitTest is Helpers {
   function test_OnInstall_WhenTheCallerIsNotTheToken_ItReverts() public {
     _supply(0);
     vm.prank(_stranger);
-    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_OnlyToken.selector, _stranger));
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, _stranger));
     _policy.onInstall(_token, address(0), abi.encode(new address[](0)));
+  }
+
+  function test_OnInstall_WhenTheCallerIsThePolicyTheTokenInstalled_ItSetsTheCount() public {
+    address _forwarder = makeAddr('forwarder');
+    _installedPolicy(_forwarder);
+    _balance(_FIRST, 5);
+    _supply(5);
+    address[] memory _list = new address[](1);
+    _list[0] = _FIRST;
+    vm.prank(_forwarder);
+    _policy.onInstall(_token, address(0), abi.encode(_list));
+    assertEq(_policy.holderCount(), 1);
   }
 
   function test_OnInstall_WhenTheTokenArgumentIsAnotherToken_ItReverts() public {
     _supply(0);
     vm.prank(_token);
-    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_OnlyToken.selector, _token));
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, _token));
     _policy.onInstall(_stranger, address(0), abi.encode(new address[](0)));
   }
 
@@ -407,7 +431,24 @@ contract ExamplePolicyUnitTest is Helpers {
 
   function test_AfterTransfer_WhenTheCallerIsNotTheToken_ItReverts() public {
     vm.prank(_stranger);
-    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_OnlyToken.selector, _stranger));
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, _stranger));
+    _policy.afterTransfer(_ctx(address(0), _alice, 1, IERC8473Policy.TransferKind.MINT));
+  }
+
+  function test_AfterTransfer_WhenTheCallerIsThePolicyTheTokenInstalled_ItCounts() public {
+    address _forwarder = makeAddr('forwarder');
+    _installedPolicy(_forwarder);
+    _balance(_alice, 1);
+    vm.prank(_forwarder);
+    _policy.afterTransfer(_ctx(address(0), _alice, 1, IERC8473Policy.TransferKind.MINT));
+    assertEq(_policy.holderCount(), 1);
+  }
+
+  /// @notice Called by the token itself, the policy does not ask the token for its policy: direct use costs nothing more
+  function test_AfterTransfer_WhenTheTokenCalls_ItDoesNotReadThePolicy() public {
+    _balance(_alice, 1);
+    vm.expectCall(_token, abi.encodeCall(IERC8473.policy, ()), 0);
+    vm.prank(_token);
     _policy.afterTransfer(_ctx(address(0), _alice, 1, IERC8473Policy.TransferKind.MINT));
   }
 
@@ -415,7 +456,7 @@ contract ExamplePolicyUnitTest is Helpers {
     IERC8473Policy.TransferContext memory _context = _ctx(address(0), _alice, 1, IERC8473Policy.TransferKind.MINT);
     _context.token = _stranger;
     vm.prank(_token);
-    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_OnlyToken.selector, _token));
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, _token));
     _policy.afterTransfer(_context);
   }
 
@@ -447,7 +488,8 @@ contract ExamplePolicyUnitTest is Helpers {
   }
 
   function test_WantsAfterTransferAndSupportsInterface() public view {
-    assertTrue(_policy.wantsAfterTransfer());
+    assertTrue(_policy.wantsAfterTransfer(_token));
+    assertFalse(_policy.wantsAfterTransfer(_stranger));
     assertTrue(_policy.supportsInterface(type(IERC8473Policy).interfaceId));
     assertTrue(_policy.supportsInterface(type(IERC165).interfaceId));
     assertFalse(_policy.supportsInterface(0xffffffff));

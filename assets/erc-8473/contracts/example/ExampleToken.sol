@@ -244,7 +244,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
 
     super._update(_from, _to, _value);
 
-    if (_activePolicy.wantsAfterTransfer()) _activePolicy.afterTransfer(_ctx);
+    if (_activePolicy.wantsAfterTransfer(address(this))) _activePolicy.afterTransfer(_ctx);
   }
 
   /**

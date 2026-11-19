@@ -64,7 +64,7 @@ interface IERC8473Policy is IERC165 {
 
   /**
    * @notice Records a movement after balances changed, in the same transaction
-   * @dev Only the token named in the context may call it
+   * @dev Only the token named in the context, or the policy that token returns from `policy()`, may call it
    * @param _context The context the token passed to `checkTransfer` for this movement
    */
   function afterTransfer(
@@ -73,7 +73,8 @@ interface IERC8473Policy is IERC165 {
 
   /**
    * @notice Initialises the policy for a token that installs it
-   * @dev Called by the token on every installation, once its `policy()` returns this policy. Only `_token` may call it
+   * @dev Called by the token on every installation, once its `policy()` returns this policy. Only `_token`, or the
+   *      policy `_token` returns from `policy()`, may call it
    * @param _token The token installing the policy
    * @param _previousPolicy The policy the token consulted until now; address(0) on the first installation
    * @param _data Data from the account that installs the policy, passed on unchanged
@@ -117,9 +118,12 @@ interface IERC8473Policy is IERC165 {
   ) external view returns (bytes32 _reason);
 
   /**
-   * @notice Whether the token must call `afterTransfer` after each movement
+   * @notice Whether `_token` must call `afterTransfer` after each of its movements
    * @dev May change with the policy's configuration
+   * @param _token The token
    * @return _wantsAfter True if the token must call `afterTransfer`
    */
-  function wantsAfterTransfer() external view returns (bool _wantsAfter);
+  function wantsAfterTransfer(
+    address _token
+  ) external view returns (bool _wantsAfter);
 }

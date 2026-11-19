@@ -42,7 +42,9 @@ abstract contract PermissivePolicy is ERC165, IERC8473Policy {
     _reason = TRANSFER_OK;
   }
 
-  function wantsAfterTransfer() external view virtual returns (bool _wantsAfter) {
+  function wantsAfterTransfer(
+    address
+  ) external view virtual returns (bool _wantsAfter) {
     _wantsAfter = false;
   }
 
@@ -114,7 +116,9 @@ contract ShortReturnPolicy is PermissivePolicy {
 
 /// @notice Answers `wantsAfterTransfer` with the word 2, which is not a valid bool
 contract BadBoolPolicy is PermissivePolicy {
-  function wantsAfterTransfer() external pure override returns (bool) {
+  function wantsAfterTransfer(
+    address
+  ) external pure override returns (bool) {
     assembly {
       mstore(0x00, 2)
       return(0x00, 0x20)
@@ -124,7 +128,9 @@ contract BadBoolPolicy is PermissivePolicy {
 
 /// @notice Answers `wantsAfterTransfer` with 31 bytes
 contract ShortBoolPolicy is PermissivePolicy {
-  function wantsAfterTransfer() external pure override returns (bool) {
+  function wantsAfterTransfer(
+    address
+  ) external pure override returns (bool) {
     assembly {
       mstore(0x00, 0)
       return(0x00, 31)
@@ -132,9 +138,35 @@ contract ShortBoolPolicy is PermissivePolicy {
   }
 }
 
+/// @notice Serves any token, wants the callback for one of them only, and counts the callbacks it gets
+contract CallbackForOneTokenPolicy is PermissivePolicy {
+  address public immutable WANTED;
+  uint256 public afterTransferCalls;
+
+  constructor(
+    address _wanted
+  ) {
+    WANTED = _wanted;
+  }
+
+  function afterTransfer(
+    TransferContext calldata
+  ) external override {
+    ++afterTransferCalls;
+  }
+
+  function wantsAfterTransfer(
+    address _token
+  ) external view override returns (bool _wantsAfter) {
+    _wantsAfter = _token == WANTED;
+  }
+}
+
 /// @notice Tries to start a second movement from inside `afterTransfer`
 contract ReentrantPolicy is PermissivePolicy {
-  function wantsAfterTransfer() external pure override returns (bool _wantsAfter) {
+  function wantsAfterTransfer(
+    address
+  ) external pure override returns (bool _wantsAfter) {
     _wantsAfter = true;
   }
 
@@ -196,7 +228,9 @@ contract ReentrantExecutorPolicy is PermissivePolicy {
     _signature = _newSignature;
   }
 
-  function wantsAfterTransfer() external pure override returns (bool _wantsAfter) {
+  function wantsAfterTransfer(
+    address
+  ) external pure override returns (bool _wantsAfter) {
     _wantsAfter = true;
   }
 

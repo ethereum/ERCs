@@ -14,6 +14,7 @@ import {ExamplePolicy} from 'contracts/example/ExamplePolicy.sol';
 import {ExampleToken} from 'contracts/example/ExampleToken.sol';
 import {
   BadBoolPolicy,
+  CallbackForOneTokenPolicy,
   EchoContract,
   ForgetfulPolicy,
   GasBurningPolicy,
@@ -26,6 +27,7 @@ import {
   ShortReturnPolicy
 } from 'contracts/test/FaultyPolicies.sol';
 import {ForcedThenTransfer} from 'contracts/test/ForcedThenTransfer.sol';
+import {ForwardingPolicy} from 'contracts/test/ForwardingPolicy.sol';
 import {Helpers} from 'contracts/test/Helpers.sol';
 
 /// @notice The ERC-20 Transfer event, for `vm.expectEmit`
@@ -129,7 +131,7 @@ contract ERC8473IntegrationTest is Helpers {
     assertEq(IERC8473Policy.checkSend.selector, bytes4(0xec1cb5d7));
     assertEq(IERC8473Policy.checkReceive.selector, bytes4(0x8b203e96));
     assertEq(IERC8473Policy.checkTransfer.selector, bytes4(0x64a1a08e));
-    assertEq(IERC8473Policy.wantsAfterTransfer.selector, bytes4(0x38bff1a5));
+    assertEq(IERC8473Policy.wantsAfterTransfer.selector, bytes4(0xd44844f3));
     assertEq(IERC8473Policy.afterTransfer.selector, bytes4(0x2595b359));
     assertEq(IERC8473Policy.onInstall.selector, bytes4(0x820203aa));
     assertEq(IERC8473.policy.selector, bytes4(0x0505c8c9));
@@ -138,7 +140,7 @@ contract ERC8473IntegrationTest is Helpers {
       IERC8473Policy.checkTransfer.selector,
       bytes4(keccak256('checkTransfer((address,address,address,uint256,uint256,address,uint8,bytes))'))
     );
-    assertEq(type(IERC8473Policy).interfaceId, bytes4(0x9cb56a99));
+    assertEq(type(IERC8473Policy).interfaceId, bytes4(0x7042dfcf));
     assertEq(type(IERC8473).interfaceId, bytes4(0x0505c8c9));
     assertEq(type(IERC7943Fungible).interfaceId, bytes4(0x3edbb4c4)); // as stated in ERC-7943
   }
@@ -218,6 +220,27 @@ contract ERC8473IntegrationTest is Helpers {
                             CALLBACK
   //////////////////////////////////////////////////////////////*/
 
+  /// @notice One policy serves two tokens and wants the callback for one: the other token's movements never call it
+  function test_WhenAPolicyWantsTheCallbackForOneTokenOnly_TheOtherTokenNeverCallsIt() public {
+    ExampleToken _second = new ExampleToken('Second', 'SEC', _admin);
+    CallbackForOneTokenPolicy _shared = new CallbackForOneTokenPolicy(address(_token));
+    _install(address(_shared));
+    vm.startPrank(_admin);
+    _second.setPolicy(address(_shared), '');
+    _second.grantRole(_second.MINTER_ROLE(), _minter);
+    vm.stopPrank();
+
+    vm.prank(_minter);
+    _second.mint(_actors[0], 10);
+    vm.prank(_actors[0]);
+    _second.transfer(_actors[1], 1);
+    assertEq(_shared.afterTransferCalls(), 0);
+
+    vm.prank(_actors[0]);
+    _token.transfer(_actors[1], 1);
+    assertEq(_shared.afterTransferCalls(), 1);
+  }
+
   function test_AfterTransferCannotStartAnotherMovement() public {
     ReentrantPolicy _reentrant = new ReentrantPolicy();
     // Fund it while the example policy is installed, then install it.
@@ -230,6 +253,80 @@ contract ERC8473IntegrationTest is Helpers {
     vm.prank(_actors[0]);
     vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
     _token.transfer(_actors[1], 1);
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                            POLICIES BUILT FROM POLICIES
+  //////////////////////////////////////////////////////////////*/
+
+  /// @notice Installs a forwarder over the example policy, with the two current holders as the list
+  function _installForwarder() internal returns (ForwardingPolicy _forwarder) {
+    _forwarder = new ForwardingPolicy(IERC8473Policy(address(_policy)));
+    address[] memory _holders = new address[](2);
+    (_holders[0], _holders[1]) = (_actors[0], _actors[1]);
+    _installWithHolders(address(_forwarder), _holders);
+  }
+
+  function test_WhenAForwarderIsInstalled_TheModuleTakesItsCallbacks() public {
+    ForwardingPolicy _forwarder = new ForwardingPolicy(IERC8473Policy(address(_policy)));
+    address[] memory _holders = new address[](2);
+    (_holders[0], _holders[1]) = (_actors[0], _actors[1]);
+
+    // The forwarded onInstall reaches the module, which sets its count from the list.
+    vm.expectEmit(address(_policy));
+    emit IExamplePolicy.HolderCountSeeded(2, 2);
+    _installWithHolders(address(_forwarder), _holders);
+    assertEq(_token.policy(), address(_forwarder));
+
+    // A new holder is counted through the forwarded afterTransfer.
+    vm.prank(_actors[0]);
+    _token.transfer(_actors[2], 5);
+    assertEq(_policy.holderCount(), 3);
+  }
+
+  function test_WhenAStrangerCallsTheModuleOrTheForwarder_ItReverts() public {
+    ForwardingPolicy _forwarder = _installForwarder();
+    IERC8473Policy.TransferContext memory _context = _transferContext();
+    address _stranger = makeAddr('stranger');
+    bytes memory _emptyList = abi.encode(new address[](0));
+
+    vm.prank(_stranger);
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, _stranger));
+    _policy.afterTransfer(_context);
+
+    vm.prank(_stranger);
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, _stranger));
+    _policy.onInstall(address(_token), address(0), _emptyList);
+
+    vm.prank(_stranger);
+    vm.expectRevert(abi.encodeWithSelector(ForwardingPolicy.ForwardingPolicy_OnlyToken.selector, _stranger));
+    _forwarder.afterTransfer(_context);
+
+    vm.prank(_stranger);
+    vm.expectRevert(abi.encodeWithSelector(ForwardingPolicy.ForwardingPolicy_OnlyToken.selector, _stranger));
+    _forwarder.onInstall(address(_token), address(0), _emptyList);
+  }
+
+  /// @notice The module reads the token's policy on every call, so a forwarder the token has replaced is refused
+  function test_WhenTheTokenReplacesTheForwarder_TheModuleRefusesTheOldForwarder() public {
+    ForwardingPolicy _forwarder = _installForwarder();
+    address[] memory _holders = new address[](2);
+    (_holders[0], _holders[1]) = (_actors[0], _actors[1]);
+    _installWithHolders(address(_policy), _holders);
+    IERC8473Policy.TransferContext memory _context = _transferContext();
+
+    // The forwarder accepts the token as its caller, and the module then refuses the forwarder.
+    vm.prank(address(_token));
+    vm.expectRevert(
+      abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, address(_forwarder))
+    );
+    _forwarder.afterTransfer(_context);
+
+    vm.prank(address(_token));
+    vm.expectRevert(
+      abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, address(_forwarder))
+    );
+    _forwarder.onInstall(address(_token), address(0), abi.encode(_holders));
   }
 
   /*///////////////////////////////////////////////////////////////

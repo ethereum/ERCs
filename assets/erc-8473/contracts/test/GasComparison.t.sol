@@ -139,7 +139,7 @@ contract GasComparisonTest is Helpers {
   function test_WhenThePolicyDoesNotWantTheCallback_ItIsNotCalled() public {
     address _policy = address(_first.quietPolicy);
 
-    vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, ()), 1);
+    vm.expectCall(_policy, abi.encodeCall(IERC8473Policy.wantsAfterTransfer, (address(_first.policyToken))), 1);
     vm.expectCall(_policy, abi.encodeWithSelector(IERC8473Policy.afterTransfer.selector), 0);
     vm.prank(_holder);
     _first.policyToken.transfer(_receiver, _AMOUNT);
