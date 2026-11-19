@@ -21,7 +21,8 @@
     "solidity-coverage": "^0.8.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.0"
+    "@openzeppelin/contracts": "^5.0.0",
+    "solady": "0.1.26"
   },
   "repository": {
     "type": "git",

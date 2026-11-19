@@ -10,8 +10,15 @@ with machine-readable bindings to its state and view functions.
   - `IJSONRepresentableState` - Contract is JSON-complete providing JSON template.
   - `IRepresentableStateVersioned` - Contract provides indication on state-change via a version. 
   - `IRepresentableStateHashed` - Contract provides indication on state-change via a hash.
+- `contracts/ITextResource.sol` - Interface for immutable, integrity-verifiable on-chain text resources.
 
-## Implementations (Examples)
+## Supporting Reference Implementation
+
+- `contracts/TextResource.sol` - Informative, SSTORE2-backed implementation of `ITextResource` supporting one-shot and staged publishing for the optional external-template profile.
+
+The implementation-specific limits are 200,000 total bytes, 20,000 bytes per chunk, and 32 chunks. They are not ERC-8100 conformance requirements. Direct `solc` compilation requires the remapping `solady/=node_modules/solady/src/` and should target the Paris EVM.
+
+## Examples
 
 - `contracts/examples/TestContract.sol` - Illustrating different bindings.
 - `contracts/examples/MinimalInstrument.sol` - Minimal contract example.
