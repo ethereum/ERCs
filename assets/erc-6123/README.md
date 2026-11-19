@@ -13,6 +13,11 @@ The SDC and FX Swap examples require direct calls from the participant responsib
 action. This authorization policy is specific to the examples, not part of ERC-6123.
 The build uses Solidity 0.8.24.
 
+These implementations illustrate the protocol. `ERC20Settlement` allows unrestricted
+`mint` and `setSDCAddress` calls, and `SDCSingleTradePledgedBalance.performSettlement`
+does not authenticate the valuation provider. Applications must define and enforce
+those permissions before using these examples with real assets.
+
 ### Compile and run tests with Hardhat
 
 We provide the essential steps to compile the contracts and run the provided unit tests.
@@ -61,7 +66,7 @@ npx hardhat test
 
 ### Configuration files
 
-- `package.js` - Javascript package definition.
+- `package.json` - JavaScript package definition.
 - `hardhat.config.js` - Hardhat config.
 
 ### Used javascript-based testing libraries for solidity
@@ -70,3 +75,10 @@ npx hardhat test
 - `chai`: Chai is an assertion library and provides functions like expect.
 - `ethers`: This is a popular Ethereum client library. It allows you to interface with blockchains that implement the Ethereum API.
 - `solidity-coverage`: This library gives you coverage reports on unit tests with the help of Istanbul.
+
+### Packaging
+
+The npm package is built from `assets/erc-6123` in the ERCs repository.
+Run `npm pack --dry-run` from this directory to inspect its contents. Contracts,
+documentation, tests and configuration are included; generated build and coverage
+files are excluded.
