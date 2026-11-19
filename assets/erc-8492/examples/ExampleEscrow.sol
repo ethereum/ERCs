@@ -14,7 +14,8 @@ import {ISettlementDeductions, ISettlementCredit} from "../interfaces/ISettlemen
 ///            payment, pay in full and say so;
 ///         4. credit what it takes to the policy and let the policy withdraw it;
 ///         5. never ask on a refund;
-///         6. fix each payout's payee before the payout; a payout never takes it as input.
+///         6. fix each payout's payee before the payout; a payout never takes it as input;
+///         7. log every payout, credit and withdrawal, so a reader can account for every unit.
 contract ExampleEscrow is ISettlementCredit {
     uint256 public constant DEDUCTION_GAS = 300_000;
     /// Gas for pushing native currency to a payee. A payee that refuses, or needs more,
@@ -38,8 +39,6 @@ contract ExampleEscrow is ISettlementCredit {
                       address asset, uint256 amount);
     event Paid(uint256 indexed taskId, uint256 indexed settlementId, address indexed payee, uint256 amount);
     event Refunded(uint256 indexed taskId, uint256 amount);
-    /// The payout could not be delivered; the payee withdraws it with `withdrawCredit`.
-    event PayoutCredited(uint256 indexed taskId, uint256 indexed settlementId, address indexed payee, uint256 amount);
 
     constructor(ISettlementDeductions policy_) {
         // The policy's code must be in place, and must not be an EIP-7702 delegation: an
@@ -132,12 +131,11 @@ contract ExampleEscrow is ISettlementCredit {
         }
         if (d > amount) {
             emit DeductionsSkipped(taskId, settlementId);
-            return 0;
-        }
-        if (d > 0) {
+            d = 0;
+        } else if (d > 0) {
             _credit[taskId][address(policy)] += d;
-            emit SettlementDeducted(taskId, settlementId, address(policy), d);
         }
+        emit PayoutSettled(taskId, settlementId, payee, amount, d);
     }
 
     // --------------------------------------------------------- ISettlementCredit
@@ -162,6 +160,7 @@ contract ExampleEscrow is ISettlementCredit {
         uint256 a = _credit[taskId][account];
         require(a > 0, "Escrow: nothing credited");
         _credit[taskId][account] = 0;
+        emit PayoutWithdrawn(taskId, account, a);
         _send(_tasks[taskId].asset, account, a);
     }
 

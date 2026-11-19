@@ -31,12 +31,21 @@ interface ISettlementDeductions {
 
 /// @title  ISettlementCredit — the escrow side.
 /// @notice The escrow holds what the policy takes as credit, per task, until withdrawn.
+///         Only deductions add to the policy's credit, so the events account for every
+///         unit deducted, from the payout to its withdrawal.
 interface ISettlementCredit {
-    /// Emitted when a valid deduction `amount` is credited to `policy`.
-    event SettlementDeducted(uint256 indexed taskId, uint256 indexed settlementId,
-                             address indexed policy, uint256 amount);
-    /// Emitted when the policy failed or answered invalidly and the payout was made in full.
+    /// Emitted on every payout of an escrow with a policy: `deducted` of `amount` is
+    /// credited to the policy, and the payee is paid the rest. `deducted` is zero when nothing was taken or the answer was
+    /// invalid.
+    event PayoutSettled(uint256 indexed taskId, uint256 indexed settlementId,
+                        address indexed payee, uint256 amount, uint256 deducted);
+    /// Also emitted when the policy failed or answered invalidly and the payout was made in full.
     event DeductionsSkipped(uint256 indexed taskId, uint256 indexed settlementId);
+    /// Emitted when the payee could not receive its payout and `amount` was credited to it.
+    event PayoutCredited(uint256 indexed taskId, uint256 indexed settlementId,
+                         address indexed payee, uint256 amount);
+    /// Emitted when the credit of `account` on `taskId` is withdrawn.
+    event PayoutWithdrawn(uint256 indexed taskId, address indexed account, uint256 amount);
 
     /// @notice The amount held for `account` on `taskId`.
     function creditOf(uint256 taskId, address account) external view returns (uint256);

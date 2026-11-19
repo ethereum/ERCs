@@ -16,7 +16,7 @@ requires: 20, 165, 7702
 This ERC lets an escrow that pays for work withhold part of each payout for third parties (a tax, a referral fee, a loan repayment) without knowing any of their rules, and without letting any of them delay the payout. It specifies:
 
 1. a **deduction policy** interface: the escrow names one policy for its whole lifetime, tells it about every new task, and at every payout asks it for a single number, the amount it takes;
-2. an **escrow side**: two calls, two getters, one credit ledger and two events, with guarantees that make a policy safe to plug in: the payee of each payout is fixed before it, the policy always runs on a fixed gas budget that no caller can starve, a failing or invalid policy settles the payout in full, refunds never reach the policy, and no deduction recipient is called during settlement;
+2. an **escrow side**: two calls, two getters, one credit ledger and four events that account for every unit paid out, with guarantees that make a policy safe to plug in: the payee of each payout is fixed before it, the policy always runs on a fixed gas budget that no caller can starve, a failing or invalid policy settles the payout in full, refunds never reach the policy, and no deduction recipient is called during settlement;
 3. an OPTIONAL **reference policy profile**: a public tax schedule locked per task at creation, and referral fees and repayments that only the payee can assign on its own payouts and only their recipient can release, all under one cap.
 
 ## Motivation
@@ -82,9 +82,12 @@ interface ISettlementDeductions {
 
 ```solidity
 interface ISettlementCredit {
-    event SettlementDeducted(uint256 indexed taskId, uint256 indexed settlementId,
-                             address indexed policy, uint256 amount);
+    event PayoutSettled(uint256 indexed taskId, uint256 indexed settlementId,
+                        address indexed payee, uint256 amount, uint256 deducted);
     event DeductionsSkipped(uint256 indexed taskId, uint256 indexed settlementId);
+    event PayoutCredited(uint256 indexed taskId, uint256 indexed settlementId,
+                         address indexed payee, uint256 amount);
+    event PayoutWithdrawn(uint256 indexed taskId, address indexed account, uint256 amount);
 
     /// The amount held for `account` on `taskId`.
     function creditOf(uint256 taskId, address account) external view returns (uint256);
@@ -107,12 +110,13 @@ interface ISettlementCredit {
 3. **Every payout, no refund.** Before every payout, on every path that pays a payee (including default and timeout paths), the escrow MUST call `deductions(taskId, settlementId, payee, amount)` on the policy. The escrow MUST NOT call `deductions` for a refund. `settlementId` MUST be unique within the task. The escrow MAY skip the call when the policy's account has no code; the answer is then invalid (requirement 5).
 4. **Fixed gas budget.** The escrow MUST make the call with a gas limit `G` that is constant for the escrow. Before the call, the escrow MUST revert unless `gasleft()` exceeds `G * 64 / 63` plus the gas it needs to make the call, including any cold access to the policy's account, so that the policy always receives the full `G`.
 5. **Valid answer.** The answer is valid if and only if the call succeeded, returned exactly 32 bytes, and the returned value `d` satisfies `d <= amount`. If the answer is not valid, the escrow MUST pay the payee the full `amount` and MUST emit `DeductionsSkipped(taskId, settlementId)`. A failing or invalid policy MUST NOT prevent the payout. The escrow SHOULD copy no more than 32 bytes of return data, so that the cost of the call is bounded by `G`.
-6. **Crediting.** If the answer is valid and `d > 0`, the escrow MUST add `d` to the policy's credit on the task, MUST emit `SettlementDeducted(taskId, settlementId, policy, d)`, and MUST pay the payee `amount - d`. Credited funds MUST stay in the escrow and MUST NOT be used for any other purpose until withdrawn.
-7. **Withdrawal.** `withdrawCredit(taskId, account)` MUST be callable by anyone, MUST transfer the whole credit of `account` on `taskId`, in the task's asset, to `account` only, and MUST set that credit to zero. It MAY revert when that credit is zero.
+6. **Crediting and logging.** If the answer is valid, the escrow MUST add `d` to the policy's credit on the task and MUST pay the payee `amount - d`. On every payout, whether or not the answer is valid, the escrow MUST emit `PayoutSettled(taskId, settlementId, payee, amount, deducted)`, where `deducted` is `d` for a valid answer and zero for an invalid one. Credited funds MUST stay in the escrow and MUST NOT be used for any other purpose until withdrawn.
+7. **Withdrawal.** `withdrawCredit(taskId, account)` MUST be callable by anyone, MUST transfer the whole credit of `account` on `taskId`, in the task's asset, to `account` only, MUST set that credit to zero, and MUST emit `PayoutWithdrawn(taskId, account, credit)`. It MAY revert when that credit is zero.
 8. **No other calls.** During a payout the escrow MUST NOT call any address on the policy's behalf other than the policy itself.
 9. **Fixed payee.** The payee of each payout MUST be fixed by the escrow's state before the payout, for example as the address that submitted the work being paid, or as the payee named when the task was created. A function that makes a payout MUST NOT take the payee as an argument, and once fixed, the payee of that work MUST NOT be changeable by any party.
 10. **Publication.** `deductionPolicy()` MUST return the policy of requirement 1, or zero. `deductionGas()` MUST return `G`.
-11. **Undeliverable payouts.** If transferring `amount - d` to the payee fails, the escrow SHOULD credit it to the payee, to be withdrawn with `withdrawCredit`, rather than revert. Any address can refuse native currency, and a payout that always reverts leaves the payer only a refund, which carries no deductions.
+11. **Undeliverable payouts.** If transferring `amount - d` to the payee fails, the escrow SHOULD credit it to the payee, to be withdrawn with `withdrawCredit`, rather than revert. An escrow that credits it MUST emit `PayoutCredited(taskId, settlementId, payee, amount - d)`. Any address can refuse native currency, and a payout that always reverts leaves the payer only a refund, which carries no deductions.
+12. **The policy's credit holds deductions only.** Only requirement 6 adds to the policy's credit. The escrow MAY keep other balances of other accounts in the same ledger, but MUST NOT add anything else to the policy's credit.
 
 ### 6. Policy requirements
 
@@ -183,6 +187,8 @@ interface ISettlementDeductionPolicy is ISettlementDeductions {
 
 **Undeliverable payouts are credited.** Since [EIP-7702](./eip-7702.md), any address can run code and refuse native currency. If a refused transfer reverted the payout, a payee with an assignment could refuse every payout and leave the payer only the refund, which skips the assignment. Crediting the payee keeps the payout, and its deductions, going through.
 
+**Events that account for every unit.** A reader should be able to reconcile any conforming escrow from standard events alone, without knowing the escrow's own events. Every payout on an escrow with a policy logs its payee, its `amount` and its deduction in one event, `PayoutSettled`, a deduction of zero included; `DeductionsSkipped` only marks, in addition, a payout whose policy failed. The event is named for the payout rather than the deduction because it is emitted for every payout. Within the payout's transaction, `amount` equals the deduction plus what reached the payee: a transfer, or the amount in `PayoutCredited`. Over a task's life, what was deducted equals what `PayoutWithdrawn` reports for the policy plus the policy's remaining `creditOf`, since nothing else adds to the policy's credit (requirement 12). An escrow that keeps other balances in the same ledger, such as refunds a funder could not receive, logs them with its own events; they never mix with the deductions. Section 6, requirement 4, relies on the same rule: a policy that derives what it received from the escrow's ledger counts only deductions. Transfers of native currency leave no logs, so for such tasks these events are the only standard record. The events index the payee rather than the policy: requirement 1 fixes one policy per escrow and requirement 10 makes it readable, so a policy topic would carry nothing. `PayoutCredited` and `PayoutWithdrawn` have the same signatures as the events of the same name in the token-bound task tender draft, so an escrow that already emits them needs no new event. Logging a payout with nothing deducted costs one log: 2,498 gas on a payout of the example escrow.
+
 **Policy and budget on chain.** Payees and lenders are asked to read an escrow's policy and its gas budget before relying on it. Requirement 10 lets them, and lets anyone check that a policy's worst case fits the escrow's `G`.
 
 **Payee consent for assignments, recipient consent for release.** Referral fees and repayments are the payee's own decisions, so only the payee can create them. The payee cannot withdraw them, because a lender only advances money against an assignment that cannot be withdrawn after the advance. The recipient can release them, because the protection exists for the recipient: a lender repaid another way, or a referrer that waives its fee, must be able to let the payee go, and the slot it frees can be used for new financing.
@@ -197,7 +203,7 @@ This ERC adds to an escrow; an escrow without a policy behaves as before. It con
 
 **Interface identifiers** (as computed by Solidity's `type(I).interfaceId`, which excludes inherited functions): `ISettlementDeductions` = `0x77f547ff`; `ISettlementCredit` = `0x3a440a3e`; `ISettlementDeductionPolicy` = `0x80ba847a` (its own functions only); `ITaxSchedule` = `0xbbb356a6`.
 
-**Event topics.** `SettlementDeducted(uint256,uint256,address,uint256)` = `0xd6a50990fa5d56f79112ecd39bb97ad451c1b9cea471098009151950b037826d`; `DeductionsSkipped(uint256,uint256)` = `0x12518d49b1ef011e575513a1e510df3de4f1682fcef7750bea4d80717e6e54d1`.
+**Event topics.** `PayoutSettled(uint256,uint256,address,uint256,uint256)` = `0x5ea26080db4e57a546bd3bde39877f04221f27cd135c547140004d8ed8874eb9`; `DeductionsSkipped(uint256,uint256)` = `0x12518d49b1ef011e575513a1e510df3de4f1682fcef7750bea4d80717e6e54d1`; `PayoutCredited(uint256,uint256,address,uint256)` = `0x04ab8430152b57cce04ae8ca52ad44317ee26f1d8c7646697e3e65b7d9fc988b`; `PayoutWithdrawn(uint256,address,uint256)` = `0xd1a15b9173e0bd19f4a0af7e8662bbbacb41e5c41d6f477ede54b32345d0b97c`.
 
 **Worked example.** Reference policy with `maxDeductionBps = 5000`, tax 1% locked at creation; the payee assigned a 2% referral fee to a referrer and a fixed 30 to a lender, in that order. One payout of 100:
 
@@ -215,7 +221,9 @@ After `claim` for all three recipients, the policy and the escrow hold nothing f
 
 **Tax locking.** A task created at 1% pays 1% after the schedule moves to 9%; a task created after the change pays 9%. A schedule above the cap makes task creation revert. A second `onTaskCreated` for the same `taskId` reverts.
 
-**Escrow behaviour.** A policy that reverts, or answers more than `amount`, results in the full payout and `DeductionsSkipped`. So does a policy that reverts with 300 KB of return data, and the payout then costs no more than with a policy that does the same work and returns nothing. A refund calls no policy. For every gas limit, a payout either reverts or includes the deductions; none settles without them. An assignment made by any address other than the payee does not affect the payee's payouts. A payout goes to the payee fixed by the escrow's state before it; the escrow offers no way to name another. A payout on a task the policy was never told about, or with a policy address that has no code, settles in full with `DeductionsSkipped`. A payout whose transfer the payee refuses is credited to the payee, and its deductions are credited as usual.
+**Escrow behaviour.** A policy that reverts, or answers more than `amount`, results in the full payout, `DeductionsSkipped`, and `PayoutSettled` with a deduction of zero. So does a policy that reverts with 300 KB of return data, and the payout then costs no more than with a policy that does the same work and returns nothing. A refund calls no policy. For every gas limit, a payout either reverts or includes the deductions; none settles without them. An assignment made by any address other than the payee does not affect the payee's payouts. A payout goes to the payee fixed by the escrow's state before it; the escrow offers no way to name another. A payout on a task the policy was never told about, or with a policy address that has no code, settles in full with `DeductionsSkipped`. A payout whose transfer the payee refuses is credited to the payee, and its deductions are credited as usual.
+
+**Logs.** In a token with 6 decimals, three payouts of 100, 0.000099 and 199.999901, with a 1% tax and a fixed 30 assigned to a lender, emit three `PayoutSettled` with deductions of 31, 0 and 1.999999. From these logs and the `PayoutWithdrawn` of a third party's withdrawal alone, the amounts sum to the 300 escrowed, the payee received 300 minus 32.999999, and the deductions equal what was withdrawn plus the policy's remaining credit.
 
 **Storage.** No payout writes a storage slot of the reference policy that was zero before the payout: not the first payout, not later ones, not after every recipient has claimed, and not when an assignment runs out or is released.
 
