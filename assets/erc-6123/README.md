@@ -9,9 +9,13 @@ trade ID that is never reused; confirmation and cancellation repeat it with the
 original parties, signed amounts and text fields. Termination methods also identify
 the requester and retain that requester's payment perspective.
 
-The SDC and FX Swap examples require direct calls from the participant responsible for each
+The SDC and FX spot trade examples require direct calls from the participant responsible for each
 action. This authorization policy is specific to the examples, not part of ERC-6123.
 The build uses Solidity 0.8.24.
+
+`FxSpotTrade` represents an FX spot trade with atomic payment-versus-payment (PvP)
+settlement. Confirmation exchanges the two currency-token amounts once through a
+shared `ERC20PvPSettlementRouter`. Parties approve the router before confirmation.
 
 These implementations illustrate the protocol. `ERC20Settlement` allows unrestricted
 `mint` and `setSDCAddress` calls, and `SDCSingleTradePledgedBalance.performSettlement`
@@ -40,12 +44,15 @@ We provide the essential steps to compile the contracts and run the provided uni
 - `contracts/SDCSingleTrade.sol` - SDC abstract contract for an OTC Derivative (single trade case only)
 - `contracts/SDCSingleTradePledgedBalance.sol` - SDC full implementation for an OTC Derivative (single trade case only)
 - `contracts/ERC20Settlement.sol` - Mintable settlement token contract implementing `IERC20Settlement` for unit tests
+- `contracts/examples/FxSpotTrade/FxSpotTrade.sol` - FX spot trade with atomic PvP settlement
+- `contracts/examples/FxSpotTrade/FxSpotTradeFactory.sol` - Creates trades and registers them with the shared router
+- `contracts/examples/FxSpotTrade/ERC20PvPSettlementRouter.sol` - Settles both token legs atomically using shared token allowances
 
 #### Tests
 
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
 - `test/TradeContextTest.js` - Explicit participants, exact matching and trade ID replay checks
-- `test/FxAtomicSwapTest.js` - FX settlement, exact matching and single-use lifecycle checks
+- `test/FxSpotTradeTest.js` - FX settlement, exact matching and single-use lifecycle checks
 
 ### Compile and run tests with Hardhat
 

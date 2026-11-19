@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../../ISDCTrade.sol";
-import "./ERC20AtomicSwapSettlementRouter.sol";
+import "./ERC20PvPSettlementRouter.sol";
 
 /**
  * @notice Interface for exposing an ERC-8100-style XML state template.
@@ -12,14 +12,14 @@ interface IXMLRepresentableState {
 }
 
 /**
- * @title FX Atomic Swap
- * @notice Single-use payment-versus-payment exchange of two ERC-20 tokens.
- * @dev Parties approve the shared settlement router, not this individual swap.
- *      The factory creates and registers the swap atomically.
+ * @title FX Spot Trade
+ * @notice Single-use FX spot trade with atomic payment-versus-payment (PvP) settlement.
+ * @dev Parties approve the shared settlement router, not this individual trade.
+ *      The factory creates and registers the trade atomically.
  *      This example requires direct calls from the relevant participant;
  *      ERC-6123 does not prescribe this authorization policy.
  */
-contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
+contract FxSpotTrade is ISDCTrade, IXMLRepresentableState {
     enum Phase {
         Created,
         Incepted,
@@ -39,7 +39,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
     IERC20RouterToken public immutable quoteToken;
     address public immutable partyA;
     address public immutable partyB;
-    IAtomicSwapSettlement public immutable settlementRouter;
+    IPvPSettlement public immutable settlementRouter;
 
     // `phase` and `inceptor` are packed into one storage slot.
     Phase public phase;
@@ -52,7 +52,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
     string public initialSettlementData;
 
     /**
-     * @notice Creates one swap for fixed tokens, counterparties, and router.
+     * @notice Creates one trade for fixed tokens, counterparties, and router.
      * @param baseToken_ ERC-20 token represented by `position`.
      * @param quoteToken_ ERC-20 token represented by `paymentAmount`.
      * @param partyA_ First eligible counterparty.
@@ -64,7 +64,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
         IERC20RouterToken quoteToken_,
         address partyA_,
         address partyB_,
-        IAtomicSwapSettlement settlementRouter_
+        IPvPSettlement settlementRouter_
     ) {
         if (
             address(baseToken_) == address(0)
@@ -102,7 +102,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
     }
 
     /**
-     * @notice Incepts the swap and stores its economic and textual terms.
+     * @notice Incepts the trade and stores its economic and textual terms.
      * @dev Sign convention from the inceptor's perspective:
      *
      *      - `position > 0`, `paymentAmount < 0`: receive base and pay quote;
@@ -189,7 +189,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
         // Checks-effects-interactions. A revert restores this assignment.
         phase = Phase.Settled;
 
-        settlementRouter.settleAtomicSwap(
+        settlementRouter.settlePvP(
             baseToken,
             quoteToken,
             inceptor,
@@ -204,7 +204,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
     }
 
     /**
-     * @notice Cancels an incepted swap before confirmation.
+     * @notice Cancels an incepted trade before confirmation.
      * @dev Only the inceptor may cancel and all supplied terms must match.
      * @param tradeId_ Identifier returned by inception.
      * @param inceptor_ Original inceptor, which must be the caller.
@@ -243,8 +243,8 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
     }
 
     /**
-     * @notice Rejects early termination because an unconfirmed swap is canceled
-     *         through `cancelTrade` and a confirmed swap is already final.
+     * @notice Rejects early termination because an unconfirmed trade is canceled
+     *         through `cancelTrade` and a confirmed trade is already final.
      */
     function requestTradeTermination(
         string memory,
@@ -285,7 +285,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
      */
     function stateXmlTemplate() external pure override returns (string memory) {
         return string.concat(
-            "<FxAtomicSwap xmlns='urn:example:fx-atomic-swap' ",
+            "<FxSpotTrade xmlns='urn:example:fx-spot-trade' ",
             "xmlns:evmstate='urn:evm:state:1.0' ",
             "evmstate:chain-id='' evmstate:contract-address='' evmstate:block-number=''>",
             "<Lifecycle>",
@@ -311,7 +311,7 @@ contract FxAtomicSwap is ISDCTrade, IXMLRepresentableState {
             "<InitialSettlementData evmstate:call='initialSettlementData()(string)' ",
             "evmstate:format='string'/>",
             "</Terms>",
-            "</FxAtomicSwap>"
+            "</FxSpotTrade>"
         );
     }
 
