@@ -4,6 +4,16 @@
 
 The reference SDC implementation can be unit tested with Hardhat to understand the trade process logic.
 
+The trade interface takes explicit participants. Inception returns a generated
+trade ID that is never reused; confirmation and cancellation repeat it with the
+original parties, signed amounts and text fields. Termination methods also identify
+the requester and retain that requester's payment perspective.
+
+This SDC example requires direct calls from the participant responsible for each
+action. This authorization policy is specific to the example, not part of ERC-6123.
+The build uses Solidity 0.8.24. The FX Swap example is excluded from this
+package's Hardhat compilation.
+
 ### Compile and run tests with Hardhat
 
 We provide the essential steps to compile the contracts and run the provided unit tests.
@@ -21,6 +31,8 @@ We provide the essential steps to compile the contracts and run the provided uni
 
 #### Implementations
 
+- `contracts/TradeIdGenerator.sol` - Generates decimal trade identifiers that are never reused
+
 - `contracts/SDCSingleTrade.sol` - SDC abstract contract for an OTC Derivative (single trade case only)
 - `contracts/SDCSingleTradePledgedBalance.sol` - SDC full implementation for an OTC Derivative (single trade case only)
 - `contracts/ERC20Settlement.sol` - Mintable settlement token contract implementing `IERC20Settlement` for unit tests
@@ -28,6 +40,7 @@ We provide the essential steps to compile the contracts and run the provided uni
 #### Tests
 
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
+- `test/TradeContextTest.js` - Explicit participants, exact matching and trade ID replay checks
 
 ### Compile and run tests with Hardhat
 
@@ -57,10 +70,3 @@ npx hardhat test
 - `chai`: Chai is an assertion library and provides functions like expect.
 - `ethers`: This is a popular Ethereum client library. It allows you to interface with blockchains that implement the Ethereum API.
 - `solidity-coverage`: This library gives you coverage reports on unit tests with the help of Istanbul.
-
-## Version history / release notes
-
-### 0.8.0
-
-- Re-introduced the method `afterSettlement` that can be used to check pre-conditions of the next settlement cycle, e.g., triggered by a time-oracle.
-- Added the event `SettlementAwaitingInitiation` which should be issued when the trade goes active and when `afterSettlement` veryfied that the trade is ready for the next settlement.
