@@ -9,10 +9,9 @@ trade ID that is never reused; confirmation and cancellation repeat it with the
 original parties, signed amounts and text fields. Termination methods also identify
 the requester and retain that requester's payment perspective.
 
-This SDC example requires direct calls from the participant responsible for each
-action. This authorization policy is specific to the example, not part of ERC-6123.
-The build uses Solidity 0.8.24. The FX Swap example is excluded from this
-package's Hardhat compilation.
+The SDC and FX Swap examples require direct calls from the participant responsible for each
+action. This authorization policy is specific to the examples, not part of ERC-6123.
+The build uses Solidity 0.8.24.
 
 ### Compile and run tests with Hardhat
 
@@ -41,6 +40,7 @@ We provide the essential steps to compile the contracts and run the provided uni
 
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
 - `test/TradeContextTest.js` - Explicit participants, exact matching and trade ID replay checks
+- `test/FxAtomicSwapTest.js` - FX settlement, exact matching and single-use lifecycle checks
 
 ### Compile and run tests with Hardhat
 
