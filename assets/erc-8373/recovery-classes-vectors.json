@@ -1,0 +1,594 @@
+{
+  "description": "pq-recovery-classes.v0 \u2014 rotation/kill/seed-rotation as recomputable falsifiable claims (mode=classify), plus the standing binding-path constraint (mode=bind_gate): an unlifted agent_terminal forbids future bindings. terminal_owner=absolute; terminal_incident liftable ONLY by a valid fleet seed_epoch_rotation (never a per-agent path). derive() is the pinned key-derivation shape, not the live master seed.",
+  "cases": [
+    {
+      "case_id": "rotation_valid_continuity",
+      "mode": "classify",
+      "expected_verdict": "continuity",
+      "statement": {
+        "class": "rotation",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1700,
+        "revokes_content_address": "cc_e0",
+        "superseded_by_content_address": "cc_e1"
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e0",
+          "binding_anchor_time": 1600,
+          "revoked_at": 1700
+        },
+        {
+          "content_address": "cc_e1",
+          "binding_anchor_time": 1700,
+          "revoked_at": null
+        }
+      ]
+    },
+    {
+      "case_id": "rotation_falsify_successor_absent (NOT a kill)",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "rotation",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1700,
+        "revokes_content_address": "cc_e0",
+        "superseded_by_content_address": "cc_MISSING"
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e0",
+          "binding_anchor_time": 1600,
+          "revoked_at": 1700
+        }
+      ]
+    },
+    {
+      "case_id": "rotation_falsify_successor_revoked",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "rotation",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1700,
+        "revokes_content_address": "cc_e0",
+        "superseded_by_content_address": "cc_e1"
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e1",
+          "binding_anchor_time": 1700,
+          "revoked_at": 1710
+        }
+      ]
+    },
+    {
+      "case_id": "rotation_falsify_not_owner_authorized",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "rotation",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "deployer_tx",
+          "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+          "anchor_tx_from": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14"
+        },
+        "anchor_time": 1700,
+        "revokes_content_address": "cc_e0",
+        "superseded_by_content_address": "cc_e1"
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e1",
+          "binding_anchor_time": 1700,
+          "revoked_at": null
+        }
+      ]
+    },
+    {
+      "case_id": "kill_valid_terminated (owner)",
+      "mode": "classify",
+      "expected_verdict": "terminated",
+      "statement": {
+        "class": "agent_terminal",
+        "subtype": "terminal_owner",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1800,
+        "revokes_all": [
+          "cc_e0",
+          "cc_e1"
+        ],
+        "successor": null
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e0",
+          "binding_anchor_time": 1600,
+          "revoked_at": 1800
+        },
+        {
+          "content_address": "cc_e1",
+          "binding_anchor_time": 1700,
+          "revoked_at": 1800
+        }
+      ]
+    },
+    {
+      "case_id": "kill_valid_terminated (incident)",
+      "mode": "classify",
+      "expected_verdict": "terminated",
+      "statement": {
+        "class": "agent_terminal",
+        "subtype": "terminal_incident",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1800,
+        "revokes_all": [
+          "cc_e0"
+        ],
+        "successor": null
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e0",
+          "binding_anchor_time": 1600,
+          "revoked_at": 1800
+        }
+      ]
+    },
+    {
+      "case_id": "kill_falsify_surviving_epoch (NOT a rotation)",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "agent_terminal",
+        "subtype": "terminal_owner",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1800,
+        "revokes_all": [
+          "cc_e0"
+        ],
+        "successor": null
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e0",
+          "binding_anchor_time": 1600,
+          "revoked_at": 1800
+        },
+        {
+          "content_address": "cc_e1",
+          "binding_anchor_time": 1700,
+          "revoked_at": null
+        }
+      ]
+    },
+    {
+      "case_id": "kill_falsify_unknown_subtype",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "agent_terminal",
+        "subtype": "whatever",
+        "owner": "0xabc0000000000000000000000000000000000abc",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1800,
+        "revokes_all": [
+          "cc_e0"
+        ],
+        "successor": null
+      },
+      "history_after": [
+        {
+          "content_address": "cc_e0",
+          "binding_anchor_time": 1600,
+          "revoked_at": 1800
+        }
+      ]
+    },
+    {
+      "case_id": "seed_valid_systemic_recovery",
+      "mode": "classify",
+      "expected_verdict": "systemic_recovery",
+      "statement": {
+        "class": "seed_epoch_rotation",
+        "seed_epoch": 1,
+        "scope": "fleet",
+        "auth": {
+          "path": "deployer_tx",
+          "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+          "anchor_tx_from": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14"
+        },
+        "anchor_time": 1900,
+        "new_keys": [
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "8",
+            "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+          },
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "7",
+            "pq_pubkey": "kd:9b7be74868d78cd0b5adf21afe7950799b727a2a699aa2f41d4a63669f260d3e"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "seed_falsify_wrong_derived_key",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "seed_epoch_rotation",
+        "seed_epoch": 1,
+        "scope": "fleet",
+        "auth": {
+          "path": "deployer_tx",
+          "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+          "anchor_tx_from": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14"
+        },
+        "anchor_time": 1900,
+        "new_keys": [
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "8",
+            "pq_pubkey": "kd:deadbeef"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "seed_falsify_siwe_domain_violation (per-agent->fleet BLOCKED)",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "seed_epoch_rotation",
+        "seed_epoch": 1,
+        "scope": "fleet",
+        "auth": {
+          "path": "siwe_owner",
+          "identity": "0xabc0000000000000000000000000000000000abc"
+        },
+        "anchor_time": 1900,
+        "new_keys": [
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "8",
+            "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+          },
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "7",
+            "pq_pubkey": "kd:9b7be74868d78cd0b5adf21afe7950799b727a2a699aa2f41d4a63669f260d3e"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "seed_falsify_deployer_not_tx_proven",
+      "mode": "classify",
+      "expected_verdict": "rejected",
+      "statement": {
+        "class": "seed_epoch_rotation",
+        "seed_epoch": 1,
+        "scope": "fleet",
+        "auth": {
+          "path": "deployer_tx",
+          "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+          "anchor_tx_from": "0x0000000000000000000000000000000000000000"
+        },
+        "anchor_time": 1900,
+        "new_keys": [
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "8",
+            "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+          },
+          {
+            "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+            "agent_id": "7",
+            "pq_pubkey": "kd:9b7be74868d78cd0b5adf21afe7950799b727a2a699aa2f41d4a63669f260d3e"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bind_no_prior_terminal__admit",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_admit",
+      "prior_statements": [],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_after_terminal_owner__ABSOLUTE_reject",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_reject",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_owner",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_after_terminal_incident_unlifted__reject",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_reject",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_incident",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_after_terminal_incident_LIFTED_by_seed_rotation__admit",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_admit",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_incident",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        },
+        {
+          "class": "seed_epoch_rotation",
+          "seed_epoch": 1,
+          "scope": "fleet",
+          "auth": {
+            "path": "deployer_tx",
+            "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+            "anchor_tx_from": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14"
+          },
+          "anchor_time": 1850,
+          "new_keys": [
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "8",
+              "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+            },
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "7",
+              "pq_pubkey": "kd:9b7be74868d78cd0b5adf21afe7950799b727a2a699aa2f41d4a63669f260d3e"
+            }
+          ]
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_after_terminal_incident_perAgent_rotation_does_NOT_lift__reject",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_reject",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_incident",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        },
+        {
+          "class": "rotation",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "owner": "0xabc0000000000000000000000000000000000abc",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1850,
+          "superseded_by_content_address": "cc_x"
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_after_terminal_incident_INVALID_seed_rotation_does_NOT_lift__reject",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_reject",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_incident",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        },
+        {
+          "class": "seed_epoch_rotation",
+          "seed_epoch": 1,
+          "scope": "fleet",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1850,
+          "new_keys": [
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "8",
+              "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+            },
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "7",
+              "pq_pubkey": "kd:9b7be74868d78cd0b5adf21afe7950799b727a2a699aa2f41d4a63669f260d3e"
+            }
+          ]
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_after_terminal_owner_VALID_seed_rotation_does_NOT_lift__reject",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_reject",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_owner",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        },
+        {
+          "class": "seed_epoch_rotation",
+          "seed_epoch": 1,
+          "scope": "fleet",
+          "auth": {
+            "path": "deployer_tx",
+            "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+            "anchor_tx_from": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14"
+          },
+          "anchor_time": 1850,
+          "new_keys": [
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "8",
+              "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+            }
+          ]
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1900
+      }
+    },
+    {
+      "case_id": "bind_BETWEEN_kill_and_lift__reject (lift is forward-acting, not retroactive)",
+      "mode": "bind_gate",
+      "expected_verdict": "bind_reject",
+      "prior_statements": [
+        {
+          "class": "agent_terminal",
+          "subtype": "terminal_incident",
+          "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+          "agent_id": "8",
+          "auth": {
+            "path": "siwe_owner",
+            "identity": "0xabc0000000000000000000000000000000000abc"
+          },
+          "anchor_time": 1800
+        },
+        {
+          "class": "seed_epoch_rotation",
+          "seed_epoch": 1,
+          "scope": "fleet",
+          "auth": {
+            "path": "deployer_tx",
+            "identity": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14",
+            "anchor_tx_from": "0xff9a176577fb42b6bc9c19fd05a241e8fcd0ca14"
+          },
+          "anchor_time": 1850,
+          "new_keys": [
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "8",
+              "pq_pubkey": "kd:36910cf255faaaa2d62326c365a82f805ebc021149a5821cd81a509f82094c97"
+            },
+            {
+              "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+              "agent_id": "7",
+              "pq_pubkey": "kd:9b7be74868d78cd0b5adf21afe7950799b727a2a699aa2f41d4a63669f260d3e"
+            }
+          ]
+        }
+      ],
+      "bind": {
+        "registry": "0x8b5af3a59f81c7e16617e8eb824bc6ffb792a2c3",
+        "agent_id": "8",
+        "anchor_time": 1820
+      }
+    }
+  ]
+}
