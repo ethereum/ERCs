@@ -1,0 +1,53 @@
+{
+    "$schema": "./erc7730-v3.0.0-next.schema.json",
+
+    "$comment": "The domain name differs between Mainnet and Sepolia, so the expected domain name is a map keyed on the chain id of the message. The names are illustrative.",
+
+    "context": {
+        "$id": "Example Maps for an EIP-712 Domain",
+        "eip712": {
+            "domain": {
+                "name": {
+                    "map": "$.metadata.maps.domainName",
+                    "keyPath": "@.chainId"
+                },
+                "version": "2"
+            },
+            "deployments": [
+                { "chainId": 1, "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+                { "chainId": 11155111, "address": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Circle",
+        "info": {
+            "url": "https://www.circle.com/"
+        },
+        "maps": {
+            "domainName": {
+                "$keyType": "Chain ID",
+                "values": {
+                    "1": "USD Coin",
+                    "11155111": "USDC (Sepolia)"
+                }
+            }
+        }
+    },
+
+    "display": {
+        "formats": {
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)": {
+                "intent": "Authorize spending of USDC",
+                "fields": [
+                    { "path": "spender", "label": "Spender", "format": "addressName" },
+                    { "path": "value", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "@.to" } },
+                    { "path": "deadline", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+                    { "path": "owner", "visible": "never" },
+                    { "path": "nonce", "visible": "never" }
+                ]
+            }
+        }
+    }
+}
