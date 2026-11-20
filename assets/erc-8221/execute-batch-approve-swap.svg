@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980" role="img" aria-labelledby="title desc">
+  <title id="title">executeBatch Approve Plus Swap</title>
+  <desc id="desc">Sequence-style diagram showing a current owner sending one ordinary transaction to executeBatch on the NFT-controlled account, which first approves a router and then performs a swap atomically. If any call fails, the whole batch reverts.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .owner { fill: #eef3ff; }
+    .account { fill: #eaf7ef; }
+    .token { fill: #fff3db; }
+    .router { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f3fbf4; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .life { stroke: #98a6b3; stroke-width: 2.4; stroke-dasharray: 8 7; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .edge2 { stroke: #b45d42; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="980"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">executeBatch: Approve + Swap</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">One ordinary transaction can perform ordered multi-step execution from the current owner.</text>
+  
+  <rect class="box owner" x="80" y="150" width="250" height="90"/>
+  <text class="title2" x="205" y="188" text-anchor="middle">Owner (O)</text>
+  <text class="body" x="205" y="216" text-anchor="middle">sends one ordinary transaction</text>
+
+  <rect class="box account" x="430" y="150" width="300" height="90"/>
+  <text class="title2" x="580" y="188" text-anchor="middle">Account (A)</text>
+  <text class="mono" x="580" y="216" text-anchor="middle">executeBatch([call1, call2])</text>
+
+  <rect class="box token" x="835" y="150" width="250" height="90"/>
+  <text class="title2" x="960" y="188" text-anchor="middle">ERC-20 Token</text>
+  <text class="body" x="960" y="216" text-anchor="middle">approval target</text>
+
+  <rect class="box router" x="1130" y="150" width="250" height="90"/>
+  <text class="title2" x="1255" y="188" text-anchor="middle">DEX Router</text>
+  <text class="body" x="1255" y="216" text-anchor="middle">swap target</text>
+
+  <line class="life" x1="205" y1="240" x2="205" y2="690"/>
+  <line class="life" x1="580" y1="240" x2="580" y2="690"/>
+  <line class="life" x1="960" y1="240" x2="960" y2="690"/>
+  <line class="life" x1="1255" y1="240" x2="1255" y2="690"/>
+
+  <path class="edge" d="M 205 290 L 580 290"/>
+  <text class="label" x="392" y="268" text-anchor="middle">1. ordinary tx to executeBatch</text>
+
+  <path class="edge" d="M 580 370 L 960 370"/>
+  <text class="label" x="770" y="348" text-anchor="middle">2. call[0]: approve(router, amount)</text>
+
+  <path class="edge" d="M 580 460 L 1255 460"/>
+  <text class="label" x="918" y="438" text-anchor="middle">3. call[1]: swapExact...</text>
+
+  <path class="edge2" d="M 1255 525 L 580 525"/>
+  <text class="body" x="918" y="548" text-anchor="middle">router executes using the approval created earlier in the same batch</text>
+
+  <rect class="good" x="100" y="740" width="340" height="120"/>
+  <text class="label" x="270" y="776" text-anchor="middle">Ordered Atomicity</text>
+  <text class="body" x="270" y="808" text-anchor="middle">call[0] happens before call[1].</text>
+  <text class="body" x="270" y="832" text-anchor="middle">The swap sees the approval from the same batch.</text>
+
+  <rect class="warn" x="590" y="740" width="340" height="120"/>
+  <text class="label" x="760" y="776" text-anchor="middle">Single Revert Domain</text>
+  <text class="body" x="760" y="808" text-anchor="middle">If approve or swap fails, the whole batch reverts.</text>
+  <text class="body" x="760" y="832" text-anchor="middle">No partial success is left behind.</text>
+
+  <rect class="note" x="1070" y="740" width="340" height="120"/>
+  <text class="label" x="1240" y="776" text-anchor="middle">What This Is Not</text>
+  <text class="body" x="1240" y="808" text-anchor="middle">Not a new sender type or mempool object.</text>
+  <text class="body" x="1240" y="832" text-anchor="middle">It is still one ordinary owner transaction.</text>
+</svg>
