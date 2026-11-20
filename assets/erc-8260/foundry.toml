@@ -1,0 +1,10 @@
+[profile.default]
+src = "."
+test = "test"
+out = "out"
+libs = ["lib"]
+solc = "0.8.39"
+evm_version = "shanghai"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [{ access = "read", path = "./test/fixtures"}]
