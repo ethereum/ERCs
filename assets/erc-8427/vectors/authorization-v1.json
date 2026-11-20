@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "encodeType": "SpendAuthorization(bytes32 grantId,address asset,uint256 amount,address recipient,uint256 nonce,uint256 deadline)",
+  "domain": {
+    "name": "SpendAuthorization",
+    "version": "1"
+  },
+  "vectors": [
+    {
+      "name": "eoa-signed",
+      "chainId": "31337",
+      "executor": "0x5555555555555555555555555555555555555555",
+      "authorization": {
+        "grantId": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "asset": "0x00000000000000000000000000000000000000a0",
+        "amount": "123",
+        "recipient": "0x3333333333333333333333333333333333333333",
+        "nonce": "7",
+        "deadline": "1800000000"
+      },
+      "domainSeparator": "0xd7b8a05a0382a9f8cbfa8894f971e75d21d40ef83be94bea1847179acffef701",
+      "structHash": "0x2dc85360d730a237301b68a2cd672d4f599bf5a927792058a72029c70e3d29a3",
+      "digest": "0xeb253f5ace2110b314f67f617b91e0e58485cc86acba49196162c34688c18251",
+      "signature": "0x2975b39090c2135aadf898e9a67f0a511f14dd991570745cc7227e9f6d22efdf6d049e1a3ba3ff13679c6c494f02cdfb0fe2a67f65f3857776cdeae7fb9ddc401c",
+      "signer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+    }
+  ]
+}
