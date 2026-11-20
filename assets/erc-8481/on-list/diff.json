@@ -1,0 +1,334 @@
+{
+  "description": "list version diffs: added / removed / changed by normalized account, and the hash change. The draft does not define a diff; this format is informative (9abaacf).",
+  "v1": {
+    "version": "erc-presign-list/1",
+    "source": "https://example.org/upstream/synthetic-list",
+    "criteria": "Synthetic addresses for test vectors; not a real list.",
+    "attestation": "Synthetic attestation covering every entry.",
+    "entries": [
+      {
+        "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+      },
+      {
+        "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+      },
+      {
+        "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+      },
+      {
+        "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+      }
+    ]
+  },
+  "vectors": [
+    {
+      "id": "added",
+      "basis": "reference",
+      "note": "two entries added",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          },
+          {
+            "account": "eip155:*:0x3875FF44E38DECA66692D2094a731Cb0fa055cAB"
+          },
+          {
+            "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:EBCkHPtv6oRicrqttmVdxhrWdaywu6qYemrSwrMRjo3p"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0xffe656d1c3af91db48942889ca9fb95e8788bb278eba33d77378bb8a6d45f42d",
+        "sameHash": false,
+        "added": [
+          "eip155:*:0x3875ff44e38deca66692d2094a731cb0fa055cab",
+          "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:EBCkHPtv6oRicrqttmVdxhrWdaywu6qYemrSwrMRjo3p"
+        ],
+        "removed": [],
+        "changed": [],
+        "metadataChanged": []
+      }
+    },
+    {
+      "id": "removed",
+      "basis": "reference",
+      "note": "two entries removed",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0x75db74fddf40a6d8f5415aa4d091a59a5182007ef6933131f5c432a783fc00d8",
+        "sameHash": false,
+        "added": [],
+        "removed": [
+          "eip155:*:0x93d27fc5e58806c54818ade2c6d16d8fa7b9e616",
+          "eip155:*:0xd8aa20a53732765c3e88025b2f42a8413c047bba"
+        ],
+        "changed": [],
+        "metadataChanged": []
+      }
+    },
+    {
+      "id": "added-and-removed",
+      "basis": "reference",
+      "note": "one swapped for another, same count",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "eip155:*:0x581791dDD03Fb655b61B813a970316EfE557F460"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0xc6d78152c601f7fa15d6adec53b2e45c9e051bb1434958dbed71d21cd6f74b6d",
+        "sameHash": false,
+        "added": [
+          "eip155:*:0x581791ddd03fb655b61b813a970316efe557f460"
+        ],
+        "removed": [
+          "eip155:*:0x93d27fc5e58806c54818ade2c6d16d8fa7b9e616"
+        ],
+        "changed": [],
+        "metadataChanged": []
+      }
+    },
+    {
+      "id": "recase-and-reorder-only",
+      "basis": "reference",
+      "note": "same list re-cased and reordered: same hash, empty diff",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:BC1QZUU4DS2GCYYVK4XRWGTUT2PMSWXZ0WYNQTVX8G"
+          },
+          {
+            "account": "eip155:*:0x93d27fc5e58806c54818ade2c6d16d8fa7b9e616"
+          },
+          {
+            "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "sameHash": true,
+        "added": [],
+        "removed": [],
+        "changed": [],
+        "metadataChanged": []
+      }
+    },
+    {
+      "id": "duplicate-added",
+      "basis": "reference",
+      "note": "a duplicate is not an addition",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "sameHash": true,
+        "added": [],
+        "removed": [],
+        "changed": [],
+        "metadataChanged": []
+      }
+    },
+    {
+      "id": "scope-narrowed",
+      "basis": "reference",
+      "note": "eip155:* to eip155:1 is a removal plus an addition",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0xc05959043d191b207c21a7bd63e23b26242c2aa1f1cdce639a2e70419ede7c37",
+        "sameHash": false,
+        "added": [
+          "eip155:1:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+        ],
+        "removed": [
+          "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+        ],
+        "changed": [],
+        "metadataChanged": []
+      }
+    },
+    {
+      "id": "criteria-changed",
+      "basis": "reference",
+      "note": "same entries, new criteria: hash changes, entry diff empty",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors, second wording.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0x0d2ec787b7d5981ca407d24d26895113214b81d4c4ba18c590a17bb3c3454ea8",
+        "sameHash": false,
+        "added": [],
+        "removed": [],
+        "changed": [],
+        "metadataChanged": [
+          "criteria"
+        ]
+      }
+    },
+    {
+      "id": "evidence-added",
+      "basis": "reference",
+      "note": "one entry gains evidence: changed, not added",
+      "from": "v1",
+      "to": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+            "evidence": [
+              {
+                "type": "tx",
+                "chainId": "eip155:1",
+                "hash": "0xab9b294e129c131030dcd5f3ea40ad3e49a75fabe6fc435fa0f927d9b360c54f"
+              }
+            ]
+          },
+          {
+            "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g"
+          }
+        ]
+      },
+      "expected": {
+        "fromHash": "0xd2ba0e8bc9352148266358807b2d2a2e881e918cdd6e890c19f0ff00482a210f",
+        "toHash": "0x002c801e992d294aaac11b75231333e2df21d9bff29d7cad452d9529e7b6b7ff",
+        "sameHash": false,
+        "added": [],
+        "removed": [],
+        "changed": [
+          "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+        ],
+        "metadataChanged": []
+      }
+    }
+  ],
+  "open": []
+}

@@ -1,0 +1,14 @@
+{
+  "fixtureVersion": 1,
+  "normalization": ["NFKC-3.2.0", "remove-U+200B", "ascii-lower"],
+  "matching": "literal-substring",
+  "patterns": [
+    {"id": "hide", "class": "concealment", "literal": "do not mention"},
+    {"id": "seed", "class": "secret-request", "literal": "reveal your seed phrase"},
+    {"id": "safe", "class": "safety-claim", "literal": "this is safe"},
+    {"id": "tool", "class": "tool-call", "literal": "call a tool"},
+    {"id": "approve", "class": "value-transfer", "literal": "approve 0x"},
+    {"id": "ignore", "class": "override", "literal": "ignore previous instructions"},
+    {"id": "forget", "class": "override", "literal": "forget earlier instructions"}
+  ]
+}
