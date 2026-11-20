@@ -380,7 +380,12 @@ A reader:
   consistent, or whose `createdAt` precedes the terminal step or follows the entry;
 - MUST check the money: in the `funded` transaction, a transfer of the funded `amount` of the asset from `client` to the
   source; in the `paid` transaction, a transfer of what the worker receives from the source to `to`; in the `refunded`
-  transaction, a transfer of `amount` from the source to `to`;
+  transaction, a transfer of `amount` from the source to `to`. Each `Transfer` log backs at most one step: the reader
+  matches the transfers of every declared step in the transaction, of any task, to distinct logs, and fails the entry
+  when any of them is left without one;
+- MUST NOT count an entry whose `funded` step's `client` is the agent's owner or `agentWallet` at the entry's block, and
+  SHOULD apply its own rule to clients that the worker, the agent's owner or its `agentWallet` funded before the task.
+  The `client` is the account the bounty came from;
 - MUST report each record's binding, and MUST NOT present an entry that is not bound as checked;
 - MUST treat two entries from one writer for one task as a failure of that writer, even when they are about different
   agents;
@@ -520,8 +525,9 @@ Reference code runs on Node.js 18 or later, with no dependencies, and reads publ
 
 - **Self-dealing.** A client and a worker under one control can fund tasks, accept them and pay themselves. Every check
   passes, because it all happened. A record shows the client, the amounts, the fee and, where the source maps it, the
-  evaluator. Readers SHOULD weigh records by the fees paid to parties outside the worker's control, by the number of
-  distinct clients, and by whether the evaluator is independent of both client and worker. ERC-8183 allows the client to be the
+  evaluator. Readers do not count a task the agent's owner or `agentWallet` funded, and SHOULD weigh records by the fees
+  paid to parties outside the worker's control, by the number of distinct clients, by whether the worker or the agent's
+  owner funded a client before its task, and by whether the evaluator is independent of both client and worker. ERC-8183 allows the client to be the
   evaluator, and a reader sees this only when the descriptor maps `evaluator`.
 - **Wrong verdicts.** A record shows what was decided, not that the decision was right. Challenge steps show whether a
   verdict could be contested and whether it was.
@@ -533,8 +539,8 @@ Reference code runs on Node.js 18 or later, with no dependencies, and reads publ
   writer that stops writing about a worker after a rejection leaves a gap that a rebuilding reader finds. A writer can
   still choose never to write about a worker, and can write about a source it controls; which writers and sources count
   is the reader's decision.
-- **A lying source.** Logs show what a contract emitted. The transfer checks tie each step that moves money to a
-  transfer of the asset. Before pinning a descriptor, a reader SHOULD match the source's bytecode to published source.
+- **A lying source.** Logs show what a contract emitted. The transfer checks tie each step that moves money to its own
+  transfer of the asset, so one transfer cannot stand for two tasks settled in one transaction. Before pinning a descriptor, a reader SHOULD match the source's bytecode to published source.
 - **Binding.** `declared` is the agent's own statement, `wallet` checks an address the agent controls, and `writer` is
   the writer's word. An agent can declare a worker it does not control; the writer still chooses whom it writes about.
 - **Finality and late logs.** Writers post only over final steps, since an entry cannot be withdrawn. Readers judge an

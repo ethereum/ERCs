@@ -6,9 +6,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
   buildRecord, checkRecord, checksum, compileSource, createdAtProblem, dataUriBytes, decodeFeedback, decodeReadFeedback,
-  decodeWorkers, DUE_SECONDS, encodeCall, expectedTransfers, findDuplicates, giveFeedbackCalldata, hasTransfer, hexToBytes,
+  decodeWorkers, DUE_SECONDS, encodeCall, expectedTransfers, findDuplicates, giveFeedbackCalldata, hexToBytes,
   indexGaps, isDue, judge, keccak256, MAX_FILE, METADATA_SET, metadataValue, NEW_FEEDBACK, otherAgents, parseAddress,
-  readFile, stepsOf, TAG1, taskKey, ENTRY, validCreatedAt,
+  readFile, stepsOf, TAG1, taskKey, ENTRY, unbackedTransfers, validCreatedAt,
 } from "./work-records.mjs";
 
 const HERE = new URL(".", import.meta.url);
@@ -245,9 +245,14 @@ async function sendersOf(url, compiled, logs) {
 
 async function fundsErrors(url, source, found) {
   const errors = [];
-  for (const t of expectedTransfers(source, found)) {
-    const receipt = await rpc(url, "eth_getTransactionReceipt", [t.tx]);
-    if (!receipt || !hasTransfer(receipt, t)) errors.push(`no transfer of ${t.amount} from ${t.from} to ${t.to} in ${t.tx}`);
+  const compiled = compileSource(source);
+  for (const tx of new Set(expectedTransfers(source, found).map((t) => t.tx))) {
+    const receipt = await rpc(url, "eth_getTransactionReceipt", [tx]);
+    if (!receipt) {
+      errors.push(`no receipt for ${tx}`);
+      continue;
+    }
+    for (const m of unbackedTransfers(compiled, receipt)) errors.push(`no transfer of ${m.amount} from ${m.from} to ${m.to} in ${tx} for task ${m.task}`);
   }
   return errors;
 }
@@ -406,6 +411,21 @@ async function declaredValue(url, identity, agentId, at, span) {
   return before.length ? metadataValue(before.at(-1)) : "0x";
 }
 
+/** Why an entry cannot count because the agent paid for its own task: its client is the agent's owner or agentWallet. */
+async function selfPaid(rec, url, at) {
+  const identity = rec.agentRegistry.split(":")[2];
+  const client = rec.work.steps.find((s) => s.step === "funded").client;
+  for (const [sig, who] of [["ownerOf(uint256)", "owner"], ["getAgentWallet(uint256)", "agentWallet"]]) {
+    try {
+      if (BigInt(await call(url, identity, encodeCall(sig, [rec.agentId]), at.block)) === BigInt(client)) return `the task's client is the agent's ${who}: the agent paid for its own task`;
+    } catch (e) {
+      if (noHistory(e)) return `checking the client against the agent's ${who} needs state at block ${at.block}, which ${new URL(url).host} no longer serves; use an archive endpoint`;
+      if (!isRevert(e)) throw e;
+    }
+  }
+  return undefined;
+}
+
 async function bindingOf(rec, url, at, span) {
   const identity = rec.agentRegistry.split(":")[2];
   const { chainId, contract } = rec.work.source;
@@ -504,6 +524,10 @@ async function entries(o) {
     const { errors } = await verifyRecord(rec, { pins, rpcs, latest: await blockTime(url, f.blockNumber), span });
     const others = otherAgents(new Set([keyOf(rec)]), agent, elsewhere).get(keyOf(rec));
     if (others) errors.push(`the writer also posted task ${rec.work.task} for agent ${others.join(", ")}`);
+    if (!errors.length) {
+      const own = await selfPaid(rec, url, { block: f.blockNumber });
+      if (own) errors.push(own);
+    }
     if (errors.length) {
       failures++;
       line("FAIL", label, errors);

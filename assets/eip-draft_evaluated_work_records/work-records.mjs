@@ -503,24 +503,51 @@ export function checkRecord(rec, { pinned, logs, senders, isLate = () => false }
   return { outcome, worker, errors, found };
 }
 
+/** The transfer one step moves, or undefined for a step that moves no money. */
+function transferOf(source, step, feeIncluded) {
+  const asset = lower(source.asset.split(":").at(-1));
+  if (step.step === "funded") return { asset, from: step.client, to: source.contract, amount: BigInt(step.amount) };
+  if (step.step === "paid") return { asset, from: source.contract, to: step.to, amount: BigInt(step.amount) - (feeIncluded ? BigInt(step.fee ?? 0) : 0n) };
+  if (step.step === "refunded") return { asset, from: source.contract, to: step.to, amount: BigInt(step.amount) };
+  return undefined;
+}
+
 /** The transfers a task's transactions must contain, from its steps and the descriptor entries they came from. */
 export function expectedTransfers(source, { steps, entries }) {
-  const asset = lower(source.asset.split(":").at(-1));
   const funded = steps.find((s) => s.step === "funded");
-  const out = [{ tx: funded.tx, asset, from: funded.client, to: source.contract, amount: BigInt(funded.amount) }];
+  const out = [{ tx: funded.tx, ...transferOf(source, funded, false) }];
   for (const [i, s] of steps.entries()) {
-    const fee = entries[i].feeIncluded ? BigInt(s.fee ?? 0) : 0n;
-    if (s.step === "paid") out.push({ tx: s.tx, asset, from: source.contract, to: s.to, amount: BigInt(s.amount) - fee });
-    if (s.step === "refunded") out.push({ tx: s.tx, asset, from: source.contract, to: s.to, amount: BigInt(s.amount) });
+    if (s.step === "paid" || s.step === "refunded") out.push({ tx: s.tx, ...transferOf(source, s, entries[i].feeIncluded) });
   }
   return out;
 }
 
 export const TRANSFER_TOPIC = keccak256("Transfer(address,address,uint256)");
 
-export function hasTransfer(receipt, t) {
-  return receipt.logs.some((l) => lower(l.address) === t.asset && lower(l.topics[0]) === TRANSFER_TOPIC && l.topics.length === 3
-    && BigInt(l.topics[1]) === BigInt(t.from) && BigInt(l.topics[2]) === BigInt(t.to) && BigInt(l.data) === t.amount);
+const moves = (l, t) => lower(l.address) === t.asset && lower(l.topics[0]) === TRANSFER_TOPIC && l.topics.length === 3
+  && BigInt(l.topics[1]) === BigInt(t.from) && BigInt(l.topics[2]) === BigInt(t.to) && BigInt(l.data) === t.amount;
+
+/**
+ * The transfers of the declared steps in one transaction, of every task, that its receipt does not hold. Each Transfer
+ * log backs at most one step, so one log cannot stand for the same amount moved for two tasks.
+ */
+export function unbackedTransfers(compiled, receipt) {
+  const used = new Set();
+  const missing = [];
+  for (const log of receipt.logs) {
+    let d;
+    try {
+      d = decodeLog(compiled, log);
+    } catch {
+      continue; // the task's own checks fail a log that does not decode
+    }
+    const t = d && transferOf(compiled.source, { step: d.entry.step, ...d.fields }, d.entry.feeIncluded);
+    if (!t) continue;
+    const i = receipt.logs.findIndex((l, k) => !used.has(k) && moves(l, t));
+    if (i < 0) missing.push({ task: d.task, ...t });
+    else used.add(i);
+  }
+  return missing;
 }
 
 /** The key a task is counted once by: its source's chain and contract, and its id. */

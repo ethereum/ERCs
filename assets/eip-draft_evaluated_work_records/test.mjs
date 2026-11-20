@@ -8,7 +8,7 @@ import test from "node:test";
 import {
   buildRecord, canonical, checkRecord, checksum, compileSource, createdAtProblem, dataUriBytes, decodeWorkers,
   diffSteps, dropLate, encodeCall, findDuplicates, giveFeedbackCalldata, hexToBytes, indexGaps, isDue, judge, keccak256,
-  otherAgents, parseAddress, parseEvent, readFile, stepsOf, taskKey, validCreatedAt,
+  otherAgents, parseAddress, parseEvent, readFile, stepsOf, taskKey, TRANSFER_TOPIC, unbackedTransfers, validCreatedAt,
 } from "./work-records.mjs";
 
 const vectors = JSON.parse(readFileSync(new URL("vectors.json", import.meta.url), "utf8"));
@@ -160,6 +160,18 @@ test("no forced zeros: undelivered needs an act the worker sent", () => {
   assert.equal(buildRecord({ source: toy, logs, task: 7, senders: sendersAll(logs, C), head: {} }).entry, null);
   assert.equal(outcomeOf([funded(), taken(), verdict(false), refunded()], C).outcome, "unstarted");
   assert.throws(() => stepsOf(compileSource(toy), logs, 7, {}), /sender/);
+});
+
+test("each Transfer log backs one step, across every task in the transaction", () => {
+  const compiled = compileSource(toy);
+  const asset = toy.asset.split(":").at(-1);
+  const fund = (task, i) => ({ ...funded(), logIndex: i, topics: [topicOf("funded"), t32(task), t32(C)] });
+  const transfer = (i, amount = 1000, token = asset) => ({ address: token, logIndex: i, topics: [TRANSFER_TOPIC, t32(C), t32(toy.contract)], data: "0x" + w32(amount) });
+  const missing = (logs) => unbackedTransfers(compiled, { logs }).map((m) => [String(m.task), m.amount]);
+  assert.deepEqual(missing([transfer(0), fund(7, 1), fund(8, 2)]), [["8", 1000n]]);
+  assert.deepEqual(missing([transfer(0), transfer(1), fund(7, 2), fund(8, 3)]), []);
+  assert.deepEqual(missing([transfer(0, 999), fund(7, 1)]), [["7", 1000n]]);
+  assert.deepEqual(missing([transfer(0, 1000, "0x000000000000000000000000000000000000dead"), fund(7, 1)]), [["7", 1000n]]);
 });
 
 test("resubmission: the last verdict after the last delivery decides", () => {
