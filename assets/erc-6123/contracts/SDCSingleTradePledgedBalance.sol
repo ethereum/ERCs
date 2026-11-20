@@ -96,6 +96,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
     function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external override  {
+        require(msg.sender == address(settlementToken), "Only settlement token may call afterTransfer");
         if (inStateConfirmed()) {
             if (success) {
                 setTradeState(TradeState.Settled);
