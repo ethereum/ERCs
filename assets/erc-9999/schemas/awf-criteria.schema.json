@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "awf-criteria.schema.json",
+  "title": "Agent Whitelist Framework: criteria document",
+  "description": "One version of the rules a list applies. Its keccak256 over the RFC 8785 form is Criteria.documentHash",
+  "type": "object",
+  "required": ["awf", "kind", "name", "version", "statement", "subjects", "dimensions", "combination"],
+  "additionalProperties": false,
+  "properties": {
+    "awf": { "const": "1" },
+    "kind": { "const": "criteria" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "statement": { "description": "The rule in words", "type": "string" },
+    "subjects": { "$ref": "awf-defs.schema.json#/$defs/subjects" },
+    "dimensions": {
+      "description": "The dimensions the rule looks at. Empty for a list that rests on designation alone",
+      "type": "array",
+      "items": { "$ref": "awf-defs.schema.json#/$defs/evidenceRule" }
+    },
+    "combination": { "description": "How the dimensions combine", "enum": ["all", "any", "see statement", "not used"] },
+    "evaluation": {
+      "description": "PREDICATE: how the rule is computed",
+      "type": "object",
+      "required": ["evidenceFormat", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceFormat": { "description": "What the requester presents, as an ABI type or a description", "type": "string" },
+        "parameters": { "description": "The values the evaluator is configured with; they are covered by its configHash", "type": "object" }
+      }
+    },
+    "extension": {
+      "description": "DERIVED with a relation: which objects related to a listed one the list reaches",
+      "type": "object",
+      "required": ["relation", "direction", "evidence", "time", "fanout", "hops"],
+      "additionalProperties": false,
+      "properties": {
+        "relation": { "$ref": "awf-defs.schema.json#/$defs/name" },
+        "direction": { "description": "From the listed object to the object reached", "type": "string" },
+        "evidence": { "description": "What establishes the relation, and by whose acts", "type": "string" },
+        "time": { "description": "When the relation has to hold", "enum": ["current"] },
+        "fanout": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "hops": { "const": 1 }
+      }
+    }
+  }
+}

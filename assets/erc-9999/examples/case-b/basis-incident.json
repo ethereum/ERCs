@@ -1,0 +1,20 @@
+{
+  "awf": "1",
+  "kind": "basis",
+  "basis": "EVIDENCED",
+  "statement": "The agent accepted a task of the group and delivered a result copied from another member.",
+  "status": "interim measure",
+  "evidence": [
+    {
+      "dimension": "awf.performance",
+      "proposition": "The delivery of the agent equals an earlier delivery of another member",
+      "source": "The group's task record",
+      "method": "presented-and-checked",
+      "observation": {
+        "kind": "snapshot",
+        "at": "2026-11-18T00:00:00Z"
+      },
+      "reference": "Decision 12 of the group, with both result digests"
+    }
+  ]
+}

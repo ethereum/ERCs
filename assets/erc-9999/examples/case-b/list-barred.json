@@ -1,0 +1,40 @@
+{
+  "awf": "1",
+  "kind": "list",
+  "name": "Barred from swarm alpha",
+  "polarity": "DENY",
+  "mode": "ENUMERATED",
+  "management": {
+    "manager": "eip155:1:0x2EE0F7b1f62470bb81d163A0EF94A788811154D5",
+    "authority": "A single account acting on the decisions of the group",
+    "decisionRecord": "Each entry names the decision it carries out in its basis document."
+  },
+  "purpose": {
+    "statement": "Agent identities the group refuses to admit",
+    "scopeDocument": "0x09406e422bc97c696fc0e341addb3f2a6d908fee4c7db69980599b9b803bad96"
+  },
+  "subjects": {
+    "kinds": [
+      "awf.subject.entry",
+      "awf.subject.account"
+    ],
+    "bindsTo": "identity",
+    "onChange": "retain",
+    "note": "An entry names one object. Whether it reaches related objects is decided by whoever adopts the extension list."
+  },
+  "basis": {
+    "statement": "Every entry states a breach of the group charter and commits to its evidence.",
+    "designation": false
+  },
+  "time": {
+    "noticePeriod": 172800,
+    "validity": "Until revoked",
+    "review": "On objection"
+  },
+  "dueProcess": {
+    "notice": "An entry is on record for the notice period before it has effect.",
+    "objection": "Anyone may record an objection to an entry; the listed side is expected to do so within the notice period.",
+    "appeal": "The manager reviews objections. A dispute venue may be named in the basis document.",
+    "effectDuringObjection": "An objection does not delay or lift an entry. The manager may suspend the entry while it reviews."
+  }
+}

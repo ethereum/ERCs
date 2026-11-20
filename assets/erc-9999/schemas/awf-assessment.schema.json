@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "awf-assessment.schema.json",
+  "title": "Agent Whitelist Framework: assessment record",
+  "description": "JSON form of an assessment, for logs and receipts kept off chain",
+  "type": "object",
+  "required": ["awf", "kind", "chainId", "guard", "bindingId", "bindingVersion", "subject", "presenter", "action", "context", "allowSide", "denySide", "outcome", "reason", "disposition", "assessedAt", "validUntil", "stateDigest", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "awf": { "const": "1" },
+    "kind": { "const": "assessment" },
+    "chainId": { "type": "integer", "minimum": 1 },
+    "guard": { "$ref": "awf-defs.schema.json#/$defs/address" },
+    "bindingId": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+    "bindingVersion": { "type": "integer", "minimum": 1 },
+    "subject": { "$ref": "awf-defs.schema.json#/$defs/subjectRef" },
+    "presenter": { "$ref": "awf-defs.schema.json#/$defs/address" },
+    "controller": { "$ref": "awf-defs.schema.json#/$defs/address" },
+    "action": { "$ref": "awf-defs.schema.json#/$defs/name" },
+    "context": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+    "standing": { "$ref": "awf-defs.schema.json#/$defs/match" },
+    "allowSide": { "$ref": "awf-defs.schema.json#/$defs/match" },
+    "denySide": { "$ref": "awf-defs.schema.json#/$defs/match" },
+    "outcome": { "$ref": "awf-defs.schema.json#/$defs/outcome" },
+    "reason": { "type": "string" },
+    "disposition": { "$ref": "awf-defs.schema.json#/$defs/disposition" },
+    "assessedAt": { "type": "integer" },
+    "validUntil": { "type": "integer" },
+    "stateDigest": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["listId", "polarity", "result", "reason", "revision", "stateHash"],
+        "additionalProperties": false,
+        "properties": {
+          "listId": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+          "polarity": { "$ref": "awf-defs.schema.json#/$defs/polarity" },
+          "result": { "$ref": "awf-defs.schema.json#/$defs/match" },
+          "reason": { "type": "string" },
+          "revision": { "type": "integer" },
+          "stateHash": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+          "criteriaId": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+          "validUntil": { "type": "integer" },
+          "basis": { "$ref": "awf-defs.schema.json#/$defs/bytes32" },
+          "derivedFrom": { "$ref": "awf-defs.schema.json#/$defs/bytes32" }
+        }
+      }
+    }
+  }
+}

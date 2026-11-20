@@ -1,0 +1,48 @@
+{
+  "awf": "1",
+  "kind": "criteria",
+  "name": "Anchors bound to barred identities",
+  "version": "1",
+  "statement": "An account is a member while it is bound as the anchor of an agent identity that the source list names, and that identity names the account as its owner or wallet.",
+  "subjects": {
+    "kinds": [
+      "awf.subject.account"
+    ],
+    "bindsTo": "identity",
+    "onChange": "reverify",
+    "note": "Read at every request."
+  },
+  "dimensions": [
+    {
+      "dimension": "awf.relation",
+      "proposition": "The account is the bound anchor of a listed identity",
+      "source": "The anchor registry and the identity registry the relation source is configured with",
+      "method": "onchain-read",
+      "observation": {
+        "kind": "current"
+      },
+      "onMissing": "NO_MATCH",
+      "onUnavailable": "UNDETERMINED"
+    },
+    {
+      "dimension": "awf.list",
+      "proposition": "The identity is a member of the source list",
+      "source": "The source list, at its latest state",
+      "method": "list-reference",
+      "observation": {
+        "kind": "current"
+      },
+      "onMissing": "NO_MATCH",
+      "onUnavailable": "UNDETERMINED"
+    }
+  ],
+  "combination": "all",
+  "extension": {
+    "relation": "awf.relation.bound-anchor",
+    "direction": "From the listed agent identity to the account bound to it",
+    "evidence": "Two acts, one by each side: the account bound itself to the identity, and the identity names the account as owner or wallet. A statement by one side alone, such as naming a successor, establishes nothing.",
+    "time": "current",
+    "fanout": 1,
+    "hops": 1
+  }
+}

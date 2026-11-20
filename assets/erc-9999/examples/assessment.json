@@ -1,0 +1,54 @@
+{
+  "awf": "1",
+  "kind": "assessment",
+  "chainId": 1,
+  "guard": "0x4c61B6b8F104eB02c84ae7e5567566C63a8a4EaA",
+  "bindingId": "0x06013c1ecbed77466de1020d6360a7814929db1aa214437ffdfa3f1fe3055e48",
+  "bindingVersion": 1,
+  "subject": {
+    "kind": "awf.subject.account",
+    "chainId": 1,
+    "namespace": "0x0000000000000000000000000000000000000000",
+    "id": "0x000000000000000000000000e0a978e99b4ef4ac8fc599f800494d2e856a90e7",
+    "label": "alice"
+  },
+  "presenter": "0xE0a978e99B4ef4AC8Fc599F800494d2E856a90e7",
+  "controller": "0xE0a978e99B4ef4AC8Fc599F800494d2E856a90e7",
+  "action": "awf.action.invoke",
+  "context": "0x214638c9828ddc3dd6ee4e99b01cc551bea8893f1c44691273a5ec47d3d85662",
+  "standing": "MATCH",
+  "allowSide": "MATCH",
+  "denySide": "NO_MATCH",
+  "outcome": "ALLOW",
+  "reason": "ALLOW_MATCH",
+  "disposition": "PROCEED",
+  "assessedAt": 1800000000,
+  "validUntil": 1800086399,
+  "stateDigest": "0xaeba6428470f12de28b35dc3bc466473051759edf37ee4132b9b21ce41b0dcdd",
+  "findings": [
+    {
+      "listId": "0xe4ce275b618540e854bd1f6ebe57c31d56b3d23a87d2590906f4ceb73bf0eeb6",
+      "polarity": "ALLOW",
+      "result": "MATCH",
+      "reason": "LISTED",
+      "revision": 1,
+      "stateHash": "0x2cb59f11a882b9016416f2d212b63aca21a4bc7ea10563b9fe69bd7a0e819de7"
+    },
+    {
+      "listId": "0x893f2540dfebc759f4af8f8754874f37f44942ab65ad3bfb0b24433570abebed",
+      "polarity": "DENY",
+      "result": "NO_MATCH",
+      "reason": "NOT_LISTED",
+      "revision": 1,
+      "stateHash": "0xb567482d177c0d9958f0dae824438ca479994b792bb74412d3f745bd80c4d695"
+    },
+    {
+      "listId": "0xed75a21500355c82ffc202728ef7efe4ecf69aaca20c4f4ab4202a959780fecf",
+      "polarity": "DENY",
+      "result": "NO_MATCH",
+      "reason": "SET_NON_MEMBER",
+      "revision": 1,
+      "stateHash": "0xd76aa92b6c855913035e674e690d073cfc3369718bebbb77f9700652b9252193"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "awf": "1",
+  "kind": "scope",
+  "name": "Swarm alpha",
+  "activity": "Membership of one agent group. The context of the scope is the group identifier.",
+  "actions": [
+    {
+      "action": "awf.action.join",
+      "meaning": "Becoming a member of the group"
+    }
+  ],
+  "boundary": "What members do inside the group, and what they were paid or are owed, is outside this scope."
+}

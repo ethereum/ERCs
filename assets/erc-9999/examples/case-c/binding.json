@@ -1,0 +1,48 @@
+{
+  "awf": "1",
+  "kind": "binding",
+  "name": "The gateway serves partners that are neither barred nor sanctioned",
+  "adoption": {
+    "consumer": "The service contract",
+    "authority": "The account the service named as its adopter"
+  },
+  "scopeDocument": "0x1ba77399bd5c26c0ba098389983c9e906d318b1e0a1dd0ae46b9d14ba442dcc4",
+  "role": "ACTOR",
+  "actions": [
+    {
+      "action": "awf.action.invoke",
+      "once": false,
+      "effect": "Proceeding serves the call. Refusing and deferring do not."
+    }
+  ],
+  "lists": {
+    "allow": [
+      {
+        "list": "Partners (ALLOW, ENUMERATED)",
+        "follows": "latest"
+      }
+    ],
+    "allowThreshold": 1,
+    "deny": [
+      {
+        "list": "Barred (DENY, ENUMERATED)",
+        "follows": "latest"
+      },
+      {
+        "list": "Sanctioned accounts (DENY, COMMITTED)",
+        "follows": "latest",
+        "why": "The caller presents a proof of absence."
+      }
+    ],
+    "denyThreshold": 1
+  },
+  "rules": {
+    "onConflict": "DENY",
+    "onNoMatch": "DENY",
+    "onIndeterminate": "DEFER",
+    "onNotApplicable": "PROCEED"
+  },
+  "standing": "The caller is the account.",
+  "updates": "Follows all three lists. Amended by the adopter.",
+  "workInProgress": "Every call is decided on its own. A call already served is not undone."
+}
