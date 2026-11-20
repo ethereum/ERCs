@@ -130,7 +130,7 @@ contract TextResource is ITextResource {
     /**
      * @notice Content chunk appended.
      **/
-    event ChunkAppended(address indexed sender, address indexed pointer, uint256 chunkIndex, uint256 chunkLength);
+    event ChunkAppended(address indexed sender, address indexed pointer, uint256 indexed chunkIndex, uint256 chunkLength);
 
     /*
      * Constructor / modifiers

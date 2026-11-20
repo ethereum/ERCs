@@ -16,6 +16,9 @@ with machine-readable bindings to its state and view functions.
 
 - `contracts/TextResource.sol` - Informative, SSTORE2-backed implementation of `ITextResource` supporting one-shot and staged publishing for the optional external-template profile.
 
+`ChunkAppended` indexes the sender, storage pointer and chunk index for log filtering;
+the chunk length remains in the event data. Event decoders must use the ABI of the deployed resource.
+
 The implementation-specific limits are 200,000 total bytes, 20,000 bytes per chunk, and 32 chunks. They are not ERC-8100 conformance requirements. Compile the reference implementation and examples with Solidity 0.8.30, the
 optimizer and via-IR enabled, and the Paris EVM target. Direct `solc` compilation
 requires the remapping `solady/=node_modules/solady/src/`.
