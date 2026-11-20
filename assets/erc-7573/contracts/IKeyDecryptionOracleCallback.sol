@@ -37,14 +37,14 @@ interface IKeyDecryptionOracleCallback {
      * @param requestId The oracle-assigned request identifier.
      * @param key The decrypted key.
      */
-    event KeyReleased(address sender, uint256 requestId, bytes key);
+    event KeyReleased(address indexed sender, uint256 indexed requestId, bytes key);
 
     /**
      * @dev Emitted when the decryption of a key has been denied.
      * @param sender The sender (oracle/proxy).
      * @param requestId The oracle-assigned request identifier.
      */
-    event DecryptionDenied(address sender, uint256 requestId);
+    event DecryptionDenied(address indexed sender, uint256 indexed requestId);
 
     /**
      * @dev Emitted when verification of an atomic encrypted-key batch has completed.
@@ -57,11 +57,11 @@ interface IKeyDecryptionOracleCallback {
      * @param transaction The common transaction, or empty bytes on rejection.
      */
     event EncryptedKeysVerificationCompleted(
-        address sender,
-        uint256 requestId,
+        address indexed sender,
+        uint256 indexed requestId,
         bool verified,
         EncryptedHashedKey[] keys,
-        address receiverContract,
+        address indexed receiverContract,
         bytes transaction
     );
 
@@ -74,10 +74,10 @@ interface IKeyDecryptionOracleCallback {
      * @param transaction The transaction id.
      */
     event EncryptedHashedKeysGenerated(
-        address sender,
-        uint256 requestId,
+        address indexed sender,
+        uint256 indexed requestId,
         EncryptedHashedKey[] keys,
-        address receiverContract,
+        address indexed receiverContract,
         bytes transaction
     );
 
