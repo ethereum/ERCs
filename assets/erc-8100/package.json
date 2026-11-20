@@ -1,6 +1,6 @@
 {
   "name": "@finmath.net/representable-contract-state",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Interface declaring a contract (XML-)representation-complete with machine-readable bindings to its state and view functions.",
   "author": "Christian Fries, Peter Kohl-Landgraf, Raphael Prandtl",
   "license": "(CC0-1.0 AND MIT)",
