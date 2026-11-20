@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
@@ -25,7 +25,7 @@ interface IComplianceProvider is IERC165 {
     /// @notice Grants eligibility to a principal.
     /// @param principal The on-chain address of the principal.
     /// @param identityRef An off-chain identity reference (e.g., keccak256 of a Decentralized Identifier (DID) or attestation ID).
-    /// @param expiresAt Unix timestamp after which eligibility MUST be re-checked. 0 means no expiry.
+    /// @param expiresAt Unix timestamp at which the eligibility ends. 0 means no expiry.
     function grantPrincipal(address principal, bytes32 identityRef, uint48 expiresAt) external;
 
     /// @notice Revokes a principal's eligibility.
@@ -38,7 +38,8 @@ interface IComplianceProvider is IERC165 {
     /// @param identityRef An off-chain identity reference (e.g., keccak256 of a Decentralized Identifier (DID) or attestation ID).
     /// @return eligible True if the principal is compliant.
     /// @return reason Reason code. MUST be COMPLIANT when eligible is true.
-    /// @return expiresAt Unix timestamp after which this result MUST be re-checked. 0 means no expiry.
+    /// @return expiresAt Unix timestamp at which the eligibility ends. 0 means no expiry when eligible is true; when
+    ///         eligible is false the value carries no meaning, so consumers MUST read eligible and reason first.
     function checkPrincipal(address principal, bytes32 identityRef)
         external
         view
