@@ -1,0 +1,45 @@
+{
+  "aito": "1",
+  "kind": "receipt",
+  "name": "Receipt of request r1 of Case B",
+  "request": {
+    "requestId": "0x93763a9159a5d73e7991517c1825a35586271956d2cc75b8d7c65f3ef7b0d3b2",
+    "requestKey": "0x01472020e14eb71c3e5622005ea114857f94d8912fb85fccbb0297ec1d4aafbe",
+    "ledger": "eip155:11155111:0xA170000000000000000000000000000000000001",
+    "seriesId": "77203935198984316889578389974062710827730631418551991500317084303770483370638",
+    "holder": "eip155:11155111:0x7a055Cd74024BB5326Bef7Febf2Eaf0b4856aEa7",
+    "consumer": "eip155:11155111:0xf01697af0fF1754D59eEb2d7B984247b6965FCa8",
+    "fulfiller": "eip155:11155111:0x0bf0222F7ea374852Bf8012f900E72bcc2C93ABf",
+    "authorizationId": "0xba86285e7809f0fcec7f19aaccf2970c2d3899c085795d33bb1189526fb93292",
+    "unit": "0x79fbb79521870a1df8ea1d15a36523fb9546b98740b9a21ef0bb41e80c69aa24"
+  },
+  "claim": {
+    "by": "eip155:11155111:0x0bf0222F7ea374852Bf8012f900E72bcc2C93ABf",
+    "usage": [
+      "2000",
+      "1400"
+    ],
+    "outcome": "completed",
+    "executionObject": "fixed-model",
+    "claimHash": "0xa2476a41b10ec24ca0b4d797f0eaf37b770cf9a4fe97f4a74c8827d7a946552a"
+  },
+  "evidence": [
+    {
+      "proposition": "metering",
+      "mechanism": "statement signed by the fulfiller",
+      "reliesOn": "the fulfiller's own count",
+      "doesNotShow": "that the declared model produced the output, or that no undisclosed computation took place",
+      "ref": "0x88612ac89d930fa0de3cd412866b301a72e0fbc23451f7587784861d00851890"
+    }
+  ],
+  "acceptance": {
+    "rule": "optimistic, accepted early by consumer signature",
+    "by": "eip155:11155111:0xf01697af0fF1754D59eEb2d7B984247b6965FCa8",
+    "amount": "1800"
+  },
+  "effect": {
+    "deducted": "1800",
+    "released": "1200",
+    "receiptHash": "0xe1617046f3dd72754c41c08468fb8f57b128a62f0b1bffa7b9d44575f4d83529"
+  }
+}
