@@ -1,0 +1,17 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 12,
+    "version": 1,
+    "boundaryHash": "0xf1cd5ea322a40284f56d251cdf6819a522abf1263a155c0746cae519f72af3d3"
+  },
+  "structure": {
+    "profile": "auf:structure:composite@1"
+  },
+  "knowledge": {
+    "status": "insufficient-evidence",
+    "notes": "Neither position declares what the other is to it; no underlying matches; the absence of a detected overlap establishes nothing."
+  }
+}

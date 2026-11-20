@@ -1,0 +1,75 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Performance guarantee for task 17",
+    "summary": "A Unit with no cash flow at all and one contingent payment obligation. Its value is negative or scenario-shaped, and it must be describable although nothing has happened yet.",
+    "tags": [
+      "guarantee",
+      "contingent"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "financial-position",
+      "ref": "urn:x:guarantee:task-17:performance",
+      "label": "Performance guarantee for task 17 (pays the buyer 100 if the worker fails)"
+    },
+    {
+      "kind": "task",
+      "ref": "eip155:11155111/erc721:0x00000000000000000000000000000000000000bb/17",
+      "label": "Guaranteed task"
+    },
+    {
+      "kind": "agent",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000b1",
+      "label": "Beneficiary of the guarantee"
+    }
+  ],
+  "relations": [
+    {
+      "type": "owes",
+      "from": "unit",
+      "to": "0x30d31b8609616f3149398ad2c407ba3eb6b938d0839bc73bdd9d37587df24884",
+      "quantity": {
+        "amount": "100",
+        "unit": "USD"
+      },
+      "scope": "contingent: payable only if the task is not accepted by the deadline",
+      "counterparty": "eip155:11155111:0x00000000000000000000000000000000000000b1",
+      "validUntil": "2026-12-01T00:00:00Z"
+    },
+    {
+      "type": "depends-on",
+      "from": "unit",
+      "to": "0x7f20c153c6f7cfbaaaea42173b10f6ab6d53f30bc343f0485b4404100be1ddb1",
+      "scope": "trigger condition"
+    },
+    {
+      "type": "exchanges",
+      "from": "unit",
+      "to": "0xc7bb547165f109b0684969a62fdf1f8df8252cdb44134499298bfd4394ba6e0a",
+      "scope": "guarantee payment on trigger"
+    }
+  ],
+  "ports": [
+    {
+      "id": "guarantee-out",
+      "direction": "out",
+      "class": "funds",
+      "template": "auf:port:funds-out@1",
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "conditions": "task 17 not accepted by 2026-12-01",
+      "stateEffects": "guarantee discharged"
+    }
+  ],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000f6"
+  },
+  "validity": {
+    "until": "2026-12-01T00:00:00Z"
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 6,
+    "version": 1,
+    "boundaryHash": "0x895f76fb4c77edfc78172d683fdb44eb7ad2249b0486eb258b1a20cc848a2fcd"
+  },
+  "roles": [
+    {
+      "role": "pledge",
+      "scope": {
+        "type": "element",
+        "id": "0x30d31b8609616f3149398ad2c407ba3eb6b938d0839bc73bdd9d37587df24884"
+      },
+      "mechanism": "performance-guarantee",
+      "conditions": "stands until acceptance or trigger"
+    },
+    {
+      "role": "valve",
+      "scope": {
+        "type": "port",
+        "id": "guarantee-out"
+      },
+      "mechanism": "trigger",
+      "conditions": "non-acceptance by the deadline"
+    }
+  ],
+  "attributes": {
+    "linearity": "piecewise-linear",
+    "determinism": "stochastic",
+    "timeVariance": "time-varying",
+    "memory": "memoryless"
+  },
+  "structure": {
+    "profile": "auf:structure:simple@1"
+  },
+  "knowledge": {
+    "status": "classified"
+  }
+}

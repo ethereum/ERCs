@@ -1,0 +1,77 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 14,
+    "version": 1,
+    "boundaryHash": "0x22ef743e7dacd65090b4feb7c301716f09d82b6efead74fc78fba1a10f1505bf"
+  },
+  "assessmentBoundary": {
+    "hash": "0x22ef743e7dacd65090b4feb7c301716f09d82b6efead74fc78fba1a10f1505bf"
+  },
+  "interest": {
+    "id": "auf:interest:net-equity@1",
+    "perspective": "holder"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0x588a66fbceeb80c6f9a4d2df0eaa7ae126280402c215bde841aa3ab22f8c52b8"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [],
+      "liabilities": [
+        {
+          "element": "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+          "quantity": "100",
+          "price": "1",
+          "priceSource": "face value, due within the window",
+          "priceAt": "2026-11-01T00:00:00Z"
+        },
+        {
+          "element": "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040",
+          "quantity": "100",
+          "price": "1",
+          "priceSource": "face value, due within the window",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+        "source": "invoice"
+      },
+      {
+        "element": "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040",
+        "source": "payables ledger"
+      }
+    ],
+    "overlaps": [
+      {
+        "elements": [
+          "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+          "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040"
+        ],
+        "treatment": "unresolved",
+        "notes": "same obligor and amount, no declaration; read as one obligation the pair contributes -100, read as two it contributes -200"
+      }
+    ],
+    "coverage": "the two payables only; no assets"
+  },
+  "result": {
+    "kind": "interval",
+    "low": "-200.00",
+    "high": "-100.00",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Exception vector \"Interval over liabilities\": the bounds are the extremes over the two admissible resolutions; for liabilities the once reading (-100) is the upper bound and the separate reading (-200) the lower bound."
+}
