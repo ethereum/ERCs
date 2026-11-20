@@ -451,7 +451,7 @@
                 },
                 "iteration": {
                     "title": "Group arrays iteration mode",
-                    "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
+                    "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length. This key is required if two or more fields of the group contain `.[]` in their path. If absent, the mode is bundled.",
                     "type": "string",
                     "enum": [ "sequential", "bundled" ]
                 },
@@ -461,6 +461,28 @@
             },
             "required": [
                 "fields"
+            ],
+            "allOf": [
+                {
+                    "$comment": "The iteration mode is required if two or more fields of the group contain an array iteration `.[]` in their path.",
+                    "if": {
+                        "properties": {
+                            "fields": {
+                                "contains": {
+                                    "required": [ "path" ],
+                                    "not": { "required": [ "fields" ] },
+                                    "properties": {
+                                        "path": { "pattern": "\\.\\[\\]" }
+                                    }
+                                },
+                                "minContains": 2
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [ "iteration" ]
+                    }
+                }
             ],
             "additionalProperties": false
         },
