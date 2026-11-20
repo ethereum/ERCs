@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-11-16
-requires: 20, 55, 8004
+requires: 20, 55, 8004, 8217
 ---
 
 ## Abstract
@@ -345,10 +345,37 @@ check below and its record is bound.
 
 - A writer MUST bind each task to one agent and MUST NOT post the task for any other agent. ERC-8004 already refuses
   entries from the agent's owner and its approved operators.
-- Transferring an agent does not change the binding of entries posted before the transfer. The new owner MAY replace
-  `work.workers`.
+- Transferring an agent does not change the binding of entries posted before the transfer. Those entries stay in the
+  epoch they were posted in (see Epochs). The new owner MAY replace `work.workers`.
 - A writer that changes its key SHOULD list its keys, oldest first, as `abi.encode(address[])` under the metadata key
   `work.writers` of an ERC-8004 agent it controls. A reader MAY then treat the listed keys as one writer.
+
+### Epochs
+
+An agent's **epoch** is its controller together with its declared build:
+
+- the **controller** is `ownerOf(agentId)`, or, when the owner is a binding adapter the reader trusts (such as an
+  [ERC-8217](./eip-8217.md) adapter), the holder of the token the agent is bound to;
+- the **build** is the agent's ERC-8004 on-chain metadata under the key `work.build`, a UTF-8 label its owner sets for
+  the code and model the agent runs. An agent that sets none has the empty build.
+
+```solidity
+// build is the metadata value as a string
+bytes32 epoch = keccak256(abi.encode(block.chainid, identityRegistry, agentId, controller, build));
+```
+
+An entry belongs to the epoch in force at its block. The registry's `Transfer` and `MetadataSet` logs, and the
+adapter's binding logs, carry every change, so a reader needs no archive state to place an entry.
+
+A reader:
+
+- SHOULD report the epoch of each entry, and the agent's current epoch;
+- SHOULD present and weigh only the entries of the current epoch as the agent's record, and MAY show earlier epochs
+  apart from it;
+- SHOULD NOT carry entries from an earlier epoch into a later one: a sale or a new build starts the record again;
+- SHOULD treat an epoch that recurs, an agent returning to the same controller with the same build, as the same epoch.
+
+A writer needs to do nothing for epochs: they are read, not written.
 
 ### Writers
 
@@ -450,6 +477,10 @@ the writers it names.
   settlement the source made on a verdict.
 - **One worker and one terminal step per task.** Several workers, milestones and partial payments go to a later version
   of the record.
+- **Epochs.** Without them a record is an asset that can be sold: a buyer acquires an agent with a long history and
+  works under it. A new model behind the same agent is another worker for the same reason. Keying the record on the
+  controller and the declared build ends both, and needs no new contract. A build is only what the owner declares; a
+  reader that needs more MAY require the build to name an attested measurement, which this profile does not define.
 
 ### Open questions
 
@@ -457,6 +488,8 @@ the writers it names.
    task's outcome without reading a record. Should this profile define it for new sources?
 2. **Payers behind the client.** Some escrows are funded by an operator on behalf of an agent that paid it off chain.
    Should a record name that payer when a signed receipt ties the payment to the task?
+3. **A build that survives a sale.** An agent whose build is an attested measurement (a TEE's) runs the same code under
+   any owner. Should its record carry across a sale when the measurement is unchanged?
 
 ## Backwards Compatibility
 
