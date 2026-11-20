@@ -42,10 +42,10 @@ interface IDecryptionContract {
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
     event TransferIncepted(
-        uint256 id,
+        uint256 indexed id,
         int amount,
-        address from,
-        address to,
+        address indexed from,
+        address indexed to,
         bytes transaction,
         bytes keyEncryptedSuccess,
         bytes keyEncryptedFailure
@@ -64,10 +64,10 @@ interface IDecryptionContract {
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
     event TransferConfirmed(
-        uint256 id,
+        uint256 indexed id,
         int amount,
-        address from,
-        address to,
+        address indexed from,
+        address indexed to,
         bytes transaction,
         IDecryptionContractInceptionCallback callback,
         bytes keyEncryptedSuccess,
@@ -80,7 +80,7 @@ interface IDecryptionContract {
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param encryptedKey The encrypted key associated with the transaction status.
      */
-    event TransferKeyRequested(address sender, uint256 id, bytes encryptedKey);
+    event TransferKeyRequested(address indexed sender, uint256 indexed id, bytes encryptedKey);
 
     /**
      * @dev Emitted when the decrypted key has been obtained.
@@ -89,7 +89,7 @@ interface IDecryptionContract {
      * @param success a boolean indicating the status. True: success. False: failure.
      * @param key the decrypted key.
      */
-    event TransferKeyReleased(address sender, uint256 id, bool success, bytes key);
+    event TransferKeyReleased(address indexed sender, uint256 indexed id, bool success, bytes key);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 

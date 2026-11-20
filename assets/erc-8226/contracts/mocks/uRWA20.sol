@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
 import {IERC7943Fungible} from "./IERC7943.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
