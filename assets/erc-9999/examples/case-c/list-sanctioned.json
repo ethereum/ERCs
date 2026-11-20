@@ -1,0 +1,41 @@
+{
+  "awf": "1",
+  "kind": "list",
+  "name": "Sanctioned accounts",
+  "polarity": "DENY",
+  "mode": "COMMITTED",
+  "management": {
+    "manager": "eip155:1:0x2EE0F7b1f62470bb81d163A0EF94A788811154D5",
+    "authority": "A single account that commits the set a third party compiles"
+  },
+  "purpose": {
+    "statement": "Accounts a service has to refuse, published as a commitment",
+    "scopeDocument": "0x1ba77399bd5c26c0ba098389983c9e906d318b1e0a1dd0ae46b9d14ba442dcc4"
+  },
+  "subjects": {
+    "kinds": [
+      "awf.subject.account"
+    ],
+    "bindsTo": "identity",
+    "onChange": "retain"
+  },
+  "basis": {
+    "statement": "The compiler of the set states its grounds outside this list.",
+    "designation": false
+  },
+  "time": {
+    "noticePeriod": 0,
+    "validity": "Until the next commitment",
+    "review": "At every commitment"
+  },
+  "dueProcess": {
+    "notice": "not used",
+    "objection": "not used",
+    "appeal": "not used",
+    "effectDuringObjection": "not used"
+  },
+  "set": {
+    "kind": "SORTED",
+    "disclosure": "The manager gives any account the proof for its own key. A proof of absence shows the two neighbouring keys and nothing else."
+  }
+}
