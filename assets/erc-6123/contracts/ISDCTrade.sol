@@ -30,21 +30,21 @@ interface ISDCTrade {
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-    event TradeIncepted(address initiator, address withParty, string tradeId, string tradeData, int256 position, int256 paymentAmount, string initialSettlementData);
+    event TradeIncepted(address indexed initiator, address indexed withParty, string tradeId, string tradeData, int256 position, int256 paymentAmount, string initialSettlementData);
 
     /**
      * @dev Emitted when an incepted trade is confirmed by the opposite counterparty
      * @param confirmer the confirming party
      * @param tradeId the trade identifier
      */
-    event TradeConfirmed(address confirmer, string tradeId);
+    event TradeConfirmed(address indexed confirmer, string tradeId);
 
     /**
      * @dev Emitted when an incepted trade is canceled by the incepting counterparty
      * @param initiator is the economic inceptor whose trade was canceled
      * @param tradeId the trade identifier
      */
-    event TradeCanceled(address initiator, string tradeId);
+    event TradeCanceled(address indexed initiator, string tradeId);
 
     /* Events related to activation and termination */
 
@@ -70,7 +70,7 @@ interface ISDCTrade {
      * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationTerms termination terms
      */
-    event TradeTerminationRequest(address initiator, string tradeId, int256 terminationPayment, string terminationTerms);
+    event TradeTerminationRequest(address indexed initiator, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when early termination request is confirmed by the opposite party
@@ -79,7 +79,7 @@ interface ISDCTrade {
      * @param terminationPayment an agreed termination amount (viewed from the original requester, with unchanged sign)
      * @param terminationTerms termination terms
      */
-    event TradeTerminationConfirmed(address confirmer, string tradeId, int256 terminationPayment, string terminationTerms);
+    event TradeTerminationConfirmed(address indexed confirmer, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when a counterparty cancels its requests an early termination of the underlying trade
@@ -87,7 +87,7 @@ interface ISDCTrade {
      * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationTerms termination terms
      */
-    event TradeTerminationCanceled(address initiator, string tradeId, string terminationTerms);
+    event TradeTerminationCanceled(address indexed initiator, string tradeId, string terminationTerms);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
