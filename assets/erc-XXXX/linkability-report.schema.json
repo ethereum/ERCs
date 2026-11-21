@@ -1,0 +1,1174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "linkability-report.schema.json",
+  "title": "Agent Linkability Report",
+  "type": "object",
+  "required": [
+    "version",
+    "read_at",
+    "block",
+    "agent",
+    "findings",
+    "helps",
+    "partial",
+    "partial_reasons"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "1"
+    },
+    "read_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "block": {
+      "$ref": "#/$defs/uintString"
+    },
+    "block_hash": {
+      "$ref": "#/$defs/hash"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "agentId": {
+          "$ref": "#/$defs/uintString"
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": [
+        "chainId",
+        "identityRegistry",
+        "agentId",
+        "owner",
+        "agentWallet",
+        "payTo"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "chainId": {
+          "$ref": "#/$defs/uintString"
+        },
+        "identityRegistry": {
+          "$ref": "#/$defs/address"
+        },
+        "agentId": {
+          "$ref": "#/$defs/uintString"
+        },
+        "owner": {
+          "$ref": "#/$defs/addressField"
+        },
+        "agentWallet": {
+          "$ref": "#/$defs/optionalAddressField"
+        },
+        "payTo": {
+          "$ref": "#/$defs/addressListField"
+        }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "required": [
+        "payment_lands_on_owner",
+        "owner_funded_payment_address",
+        "owner_payment_direct_link",
+        "owner_agent_count",
+        "shared_payment_address",
+        "payers_visible"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "payment_lands_on_owner": {
+          "$ref": "#/$defs/perAddressBool"
+        },
+        "owner_funded_payment_address": {
+          "$ref": "#/$defs/perAddressFunding"
+        },
+        "owner_payment_direct_link": {
+          "$ref": "#/$defs/perAddressLink"
+        },
+        "owner_agent_count": {
+          "$ref": "#/$defs/countField"
+        },
+        "shared_payment_address": {
+          "$ref": "#/$defs/perAddressAgents"
+        },
+        "payers_visible": {
+          "$ref": "#/$defs/payersField"
+        }
+      }
+    },
+    "helps": {
+      "type": "object",
+      "required": [
+        "stealth_meta_address",
+        "shielded_pool_receipts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stealth_meta_address": {
+          "$ref": "#/$defs/perAddressStealth"
+        },
+        "shielded_pool_receipts": {
+          "$ref": "#/$defs/shieldedField"
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "payment_wallet_leaks": {
+          "$ref": "#/$defs/paymentWalletLeaks"
+        }
+      }
+    },
+    "partial": {
+      "type": "boolean"
+    },
+    "partial_reasons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "reason": {
+            "$ref": "#/$defs/reason"
+          }
+        }
+      }
+    },
+    "score": {
+      "type": "object",
+      "required": [
+        "value",
+        "method"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "label": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "uintString": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "hexData": {
+      "type": "string",
+      "pattern": "^0x([0-9a-fA-F]{2})*$"
+    },
+    "reason": {
+      "enum": [
+        "unsupported",
+        "unavailable",
+        "incomplete",
+        "timeout",
+        "rate-limited",
+        "invalid"
+      ]
+    },
+    "role": {
+      "enum": [
+        "agentWallet",
+        "payTo",
+        "owner"
+      ]
+    },
+    "evidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "to",
+            "data",
+            "block"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "call"
+            },
+            "to": {
+              "$ref": "#/$defs/address"
+            },
+            "data": {
+              "$ref": "#/$defs/hexData"
+            },
+            "block": {
+              "$ref": "#/$defs/uintString"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "hash"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "tx"
+            },
+            "hash": {
+              "$ref": "#/$defs/hash"
+            },
+            "block": {
+              "$ref": "#/$defs/uintString"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "tx",
+            "logIndex"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "log"
+            },
+            "tx": {
+              "$ref": "#/$defs/hash"
+            },
+            "logIndex": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "address"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "address"
+            },
+            "address": {
+              "$ref": "#/$defs/address"
+            },
+            "from_block": {
+              "$ref": "#/$defs/uintString"
+            },
+            "to_block": {
+              "$ref": "#/$defs/uintString"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "block"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "block"
+            },
+            "block": {
+              "$ref": "#/$defs/uintString"
+            }
+          }
+        }
+      ]
+    },
+    "evidenceList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "notRead": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "not_read"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
+    "addressField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "value",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "read"
+            },
+            "value": {
+              "$ref": "#/$defs/address"
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceList"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/notRead"
+        }
+      ]
+    },
+    "optionalAddressField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "value",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "read"
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/address"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceList"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/notRead"
+        }
+      ]
+    },
+    "addressListField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "value",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "read"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/address"
+              }
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceList"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/notRead"
+        }
+      ]
+    },
+    "countField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "value",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "read"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceList"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/notRead"
+        }
+      ]
+    },
+    "entryNotRead": {
+      "type": "object",
+      "required": [
+        "role",
+        "address",
+        "status",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "address": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "const": "not_read"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "detail": {
+          "type": "string"
+        }
+      }
+    },
+    "perAddressBool": {
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "role",
+                  "address",
+                  "status",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "role": {
+                    "$ref": "#/$defs/role"
+                  },
+                  "address": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/address"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "const": "read"
+                  },
+                  "value": {
+                    "enum": [
+                      true,
+                      false,
+                      "unset"
+                    ]
+                  },
+                  "evidence": {
+                    "$ref": "#/$defs/evidenceList"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/entryNotRead"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "perAddressFunding": {
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "role",
+                  "address",
+                  "status",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "role": {
+                    "$ref": "#/$defs/role"
+                  },
+                  "address": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "status": {
+                    "const": "read"
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "const": "same-address"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "first_funder",
+                          "is_owner"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "first_funder": {
+                            "$ref": "#/$defs/address"
+                          },
+                          "is_owner": {
+                            "type": "boolean"
+                          },
+                          "funding_tx": {
+                            "$ref": "#/$defs/hash"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "evidence": {
+                    "$ref": "#/$defs/evidenceList"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/entryNotRead"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "perAddressLink": {
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "role",
+                  "address",
+                  "status",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "role": {
+                    "$ref": "#/$defs/role"
+                  },
+                  "address": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "status": {
+                    "const": "read"
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "const": "same-address"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "linked"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "linked": {
+                            "type": "boolean"
+                          },
+                          "owner_to_address": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "address_to_owner": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "evidence": {
+                    "$ref": "#/$defs/evidenceList"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/entryNotRead"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "perAddressAgents": {
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "role",
+                  "address",
+                  "status",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "role": {
+                    "$ref": "#/$defs/role"
+                  },
+                  "address": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "status": {
+                    "const": "read"
+                  },
+                  "value": {
+                    "type": "object",
+                    "required": [
+                      "agent_ids",
+                      "compared"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "agent_ids": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/uintString"
+                        }
+                      },
+                      "compared": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "enum": [
+                            "agentWallet",
+                            "payTo"
+                          ]
+                        }
+                      },
+                      "lower_bound": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "evidence": {
+                    "$ref": "#/$defs/evidenceList"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/entryNotRead"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "perAddressStealth": {
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "role",
+                  "address",
+                  "status",
+                  "value",
+                  "evidence"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "role": {
+                    "$ref": "#/$defs/role"
+                  },
+                  "address": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "status": {
+                    "const": "read"
+                  },
+                  "value": {
+                    "type": "object",
+                    "required": [
+                      "registry",
+                      "checked",
+                      "scheme_ids"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "registry": {
+                        "$ref": "#/$defs/address"
+                      },
+                      "checked": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "$ref": "#/$defs/uintString"
+                        }
+                      },
+                      "scheme_ids": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/uintString"
+                        }
+                      }
+                    }
+                  },
+                  "evidence": {
+                    "$ref": "#/$defs/evidenceList"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/entryNotRead"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "payersField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "value",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "read"
+            },
+            "value": {
+              "type": "object",
+              "required": [
+                "addresses",
+                "window_seconds",
+                "payers"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "addresses": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/address"
+                  }
+                },
+                "assets": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "window_seconds": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "payers": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "payments": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceList"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/notRead"
+        }
+      ]
+    },
+    "shieldedField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "value",
+            "evidence"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "read"
+            },
+            "value": {
+              "type": "object",
+              "required": [
+                "pool_list",
+                "pools",
+                "received_from"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "pool_list": {
+                  "type": "string"
+                },
+                "pools": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/address"
+                  }
+                },
+                "received_from": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/address"
+                  }
+                }
+              }
+            },
+            "evidence": {
+              "$ref": "#/$defs/evidenceList"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/notRead"
+        }
+      ]
+    },
+    "paymentWalletLeaks": {
+      "type": "object",
+      "required": [
+        "address"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "$ref": "#/$defs/address"
+        },
+        "funding_sibling": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "status",
+                "value",
+                "evidence"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "read"
+                },
+                "value": {
+                  "type": "object",
+                  "required": [
+                    "first_funder",
+                    "other_funded"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "first_funder": {
+                      "$ref": "#/$defs/address"
+                    },
+                    "other_funded": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "evidence": {
+                  "$ref": "#/$defs/evidenceList"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/notRead"
+            }
+          ]
+        },
+        "linked_counterparties": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "status",
+                "value",
+                "evidence"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "read"
+                },
+                "value": {
+                  "type": "object",
+                  "required": [
+                    "sent_to",
+                    "received_from",
+                    "lower_bound"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "sent_to": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "received_from": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "lower_bound": {
+                      "type": "boolean"
+                    },
+                    "assets": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sample": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/address"
+                      }
+                    }
+                  }
+                },
+                "evidence": {
+                  "$ref": "#/$defs/evidenceList"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/notRead"
+            }
+          ]
+        },
+        "activity_hour_concentration": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "status",
+                "value",
+                "evidence"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "read"
+                },
+                "value": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "from_hour_utc",
+                        "to_hour_utc",
+                        "share_bps",
+                        "tx_count"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "from_hour_utc": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 23
+                        },
+                        "to_hour_utc": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 24
+                        },
+                        "share_bps": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000
+                        },
+                        "tx_count": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
+                },
+                "evidence": {
+                  "$ref": "#/$defs/evidenceList"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/notRead"
+            }
+          ]
+        },
+        "holdings_visibility": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "status",
+                "value",
+                "evidence"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "read"
+                },
+                "value": {
+                  "type": "object",
+                  "required": [
+                    "tokens",
+                    "unpriced"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "tokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "unpriced": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "usd_value": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                    }
+                  }
+                },
+                "evidence": {
+                  "$ref": "#/$defs/evidenceList"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/notRead"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
