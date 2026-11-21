@@ -1,0 +1,350 @@
+---
+title: Agent Linkability Report
+description: A machine-readable report of what anyone can link about an ERC-8004 agent from public chain data
+author: Toll (@soli0x)
+discussions-to: https://ethereum-magicians.org/t/pre-erc-agent-linkability-report/30462
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-21
+requires: 5564, 6538, 8004
+---
+
+## Abstract
+
+This proposal defines the report a reader returns about what anyone can link to an [ERC-8004](./eip-8004.md) agent
+from public chain data: whether payments to the agent land on its owner, whether the owner funded or paid the
+agent's payment address, how many agents the owner holds, whether other agents share the payment address, and how
+many payers are visible. A report is a JSON object pinned to one block. Every field carries a value and a pointer to
+its evidence (a transaction, a log, a call at a block, or an address whose history was read), or it is **not read**,
+with a reason, which is never the same as zero, `false` or an empty list. A report also records what helps: a
+registered [ERC-6538](./eip-6538.md) stealth meta-address and receipts from shielded pools named by the reader. The
+report standardizes the facts, not their weight: a score is optional and implementation-defined, and "linked" always
+means an on-chain transfer, never proof of common control.
+
+## Motivation
+
+An ERC-8004 agent publishes its owner, its `agentWallet` and, through its registration file, the x402 `payTo`
+addresses it takes payment on. Each of these is an address with a public history. A payer who pays an agent, and
+anyone who watches the chain, can often link the payment address to the owner, the owner to its other agents, and
+every payer to the agent. Agents that sell services to other agents make this worse: an agent's payers are often
+agents, and each payment links two operators in public.
+
+The links are simple to read and seldom checked. In a census of the ERC-8004 identity registry on Robinhood Chain
+read on 2026-11-21, 25,620 of 26,235 registered agents had no `agentWallet` distinct from their owner, so every
+payment to them lands on the owner's own address. Several readers already compute some of these links, under
+different names, thresholds and scores, and none says what it could not read.
+
+Three problems follow:
+
+1. **No shared fields.** An agent operator, a wallet or a paying agent that asks two readers gets two scores that
+   cannot be compared, and cannot tell which link moved a score.
+2. **No evidence and no block.** A claim that "the owner funded the payment wallet" without the funding transaction
+   cannot be checked, and one without a block cannot be reproduced after the owner or `agentWallet` changes.
+3. **Absence reads as private.** A reader that did not get through the payment address's history and says nothing
+   looks the same as one that read it and found no link.
+
+This proposal standardizes the report: which links a reader read, about which agent, at which block, with what
+evidence, and what it could not read. It does not standardize how to weigh them.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Terms
+
+- A **reader** is a service or program that reads public chain data about an agent and returns a report.
+- A **consumer** is the party that reads a report and acts on it: the agent's operator, a wallet, a paying agent or a
+  directory.
+- The **agent** is one ERC-8004 identity, named by its chain, its identity registry and its `agentId`.
+- The **owner** is the address that holds the agent's identity token at the report's block (`ownerOf(agentId)`).
+- A **payment address** is a non-zero `agentWallet` of the agent at the report's block, or a `payTo` address in
+  payment terms the agent's endpoints served.
+- Two addresses are **linked** when a transfer of value between them is recorded on chain. A link is a fact about a
+  transfer. It is never proof that one party controls both addresses.
+- A field is **not read** when the reader did not establish its value. Not read is a status of its own; it is never
+  written as zero, `false`, `null` or an empty list.
+- A field is **none** when the reader read it completely and found nothing: a count of `0`, the value `false` or an
+  empty list, with evidence of what was read.
+- Integers that can exceed 2^53 (block numbers, agent identifiers, chain identifiers, scheme identifiers) are JSON
+  strings holding decimal digits. Addresses are `0x`-prefixed hexadecimal strings; consumers compare them without
+  regard to case.
+
+### Report
+
+A report is a JSON object with these members:
+
+| Member | Required | Description |
+|---|---|---|
+| `version` | yes | `"1"` |
+| `read_at` | yes | The UTC time the reader finished reading, as an RFC 3339 date-time ending in `Z` |
+| `block` | yes | The block every field holds at, as the chain's nodes return it for `eth_blockNumber` |
+| `block_hash` | no | The hash of `block`, so a consumer can detect a reorganization |
+| `source` | no | `{ name, url, agentId }`: who produced the report; `agentId` is the reader's own ERC-8004 identity on the same chain, if it has one |
+| `agent` | yes | The agent and its addresses (below) |
+| `findings` | yes | The core findings (below) |
+| `helps` | yes | What reduces linkability (below) |
+| `extensions` | no | Optional blocks; this proposal defines `payment_wallet_leaks` |
+| `partial` | yes | `true` when any field is not read for a reason other than `unsupported` |
+| `partial_reasons` | yes | One `{ field, reason }` for each such field; `field` is a JSON Pointer (RFC 6901) into the report |
+| `score` | no | `{ value, max, label, method }`: an implementation-defined summary (below) |
+
+A JSON Schema for the report is in [the assets folder](../assets/erc-XXXX/linkability-report.schema.json).
+
+### Fields
+
+Every field is one of two shapes:
+
+```json
+{ "status": "read", "value": <value>, "evidence": [<evidence>, ...] }
+{ "status": "not_read", "reason": "<reason>", "detail": "<optional text>" }
+```
+
+A read field MUST carry at least one evidence item. A not read field MUST NOT carry `value` or `evidence`.
+
+The reason of a not read field is one of:
+
+| Reason | Meaning |
+|---|---|
+| `unsupported` | The reader does not read this field |
+| `unavailable` | A data source the reader needs did not answer, or answered with an error |
+| `incomplete` | The reader read only part of the history it needs, for example a page limit |
+| `timeout` | The reader stopped within its own time budget |
+| `rate-limited` | A data source refused the reader for its request rate |
+| `invalid` | The data exists but cannot be interpreted, for example a registration file or payment terms that do not parse |
+
+An evidence item is one of:
+
+| `type` | Members | Points to |
+|---|---|---|
+| `call` | `to`, `data`, `block` | An `eth_call` anyone can repeat at `block` |
+| `tx` | `hash`, optional `block` | A transaction |
+| `log` | `tx`, `logIndex` | One log of a transaction |
+| `address` | `address`, optional `from_block`, `to_block` | The history of an address the reader read, between the blocks given |
+| `block` | `block` | A block |
+
+No evidence block is after the report's `block`. A reader SHOULD prefer `tx`, `log` and `call` evidence where one
+exists; `address` evidence states where to look, not which record proves the value.
+
+Fields about one address of the agent hold a list of **entries**. Each entry is a field with two more members:
+`role` (`agentWallet`, `payTo` or `owner`) and `address`. An entry whose address could not be learned, such as a
+`payTo` from payment terms that were not read, has `address` `null` and is not read.
+
+### Agent
+
+`agent` names the agent and its addresses at the report's block:
+
+| Member | Shape | Description |
+|---|---|---|
+| `chainId` | decimal string | The chain of the identity registry |
+| `identityRegistry` | address | The ERC-8004 identity registry |
+| `agentId` | decimal string | The agent |
+| `owner` | field, value an address | `ownerOf(agentId)` at `block` |
+| `agentWallet` | field, value an address or `null` | `getAgentWallet(agentId)` at `block`; `null` when it is unset (zero) |
+| `payTo` | field, value a list of addresses | The distinct `payTo` addresses in x402 payment terms served by the agent's registered endpoints |
+
+ERC-8004 clears `agentWallet` when the identity token is transferred. A reader MUST read `owner` and `agentWallet` at
+the report's block, and MUST NOT carry an `agentWallet` over from an earlier read, a cache or the registration file.
+A reader SHOULD give a `call` evidence item for each. `payTo` is read from the agent's endpoints, which are off
+chain; its evidence SHOULD include the block at which the reader read them, and a reader that did not fetch payment
+terms reports `payTo` not read.
+
+### Core findings
+
+`findings` holds these six fields. All are REQUIRED; a reader that does not read one reports it not read.
+
+**`payment_lands_on_owner`**: entries, one for `agentWallet` and one for each `payTo`. The value is `true` when the
+address equals the owner, `false` when it does not, and `"unset"` for an `agentWallet` entry whose `agentWallet` is
+`null` (address `null`). A consumer that pays an agent with no payment address set usually pays the owner; the
+`"unset"` value says so without calling it a link.
+
+**`owner_funded_payment_address`**: entries, one for each payment address. The value is
+`{ first_funder, is_owner }`, with an optional `funding_tx`: the address that sent the first transfer of value into the
+payment address, whether it is the owner, and that transaction. A reader that has the transaction SHOULD give it. For a payment address equal to the owner the value is
+`"same-address"`. A reader that did not reach the first transfer of the address's history reports the entry not read
+with reason `incomplete`.
+
+**`owner_payment_direct_link`**: entries, one for each payment address. The value is `{ linked }`, with optional
+`owner_to_address` and `address_to_owner`: `linked` is `true` when at least one transfer of value between the owner
+and the payment address, in either direction, is recorded up to the report's block, and the counts are the number of
+such transfers each way. `{ "linked": false }` is none, and a reader MUST NOT report it unless it read every
+counterparty of the payment address up to the report's block. Evidence SHOULD list the transfers, or the first of
+them when there are many. For a payment address equal to the owner the value is `"same-address"`.
+
+**`owner_agent_count`**: the number of agents in the identity registry the owner holds at the report's block,
+including this one, as an integer of at least 1. For an ERC-721 registry this is `balanceOf(owner)`.
+
+**`shared_payment_address`**: entries, one for each payment address. The value is `{ agent_ids, compared }`:
+`compared` lists what the reader compared across the registry (`"agentWallet"`, `"payTo"` or both), and `agent_ids`
+lists the other `agentId`s whose compared address is the same address at the report's block. An optional
+`lower_bound` is `true` when the reader listed only the first agents it found. `agent_ids` `[]` is
+none only for what `compared` names: a reader that compared `agentWallet` alone says nothing about agents that take
+payment on the same `payTo`.
+
+**`payers_visible`**: `{ addresses, window_seconds, payers }`, with optional `payments` and `assets`: the number of
+distinct senders of a payment into `addresses` in the `window_seconds` seconds before the report's block, the number
+of payments, and the assets the reader counted as payments. `addresses` is the set the reader counted: the payment
+addresses, or the owner when the agent has none and the reader counts the owner as where payments land. The window
+is part of the value; a count without its window MUST NOT be reported.
+
+### Helps
+
+`helps` holds what can make an agent harder to link. Both fields are REQUIRED and may be not read.
+
+**`stealth_meta_address`**: entries, one for the owner and one for each payment address. The value is
+`{ registry, checked, scheme_ids }`: the ERC-6538 registry read, the scheme identifiers the reader checked, and those
+of them for which the address has a non-empty stealth meta-address registered at the report's block. `[]` is none
+for the schemes in `checked` only. A registered stealth meta-address lets
+payers send to [ERC-5564](./eip-5564.md) stealth addresses instead of the payment address.
+
+**`shielded_pool_receipts`**: `{ pool_list, pools, received_from }`: `pools` is a list of contract addresses the
+reader was given (`pool_list` names that list, for example a URL or a configuration name), and `received_from` is
+the subset from which a payment address received a transfer of value before the report's block. The list is
+supplied by the reader or the consumer. A pool's presence in `pools` means only that the reader looked for transfers
+from it. A reader MUST NOT include a pool list it does not name, and a consumer MUST NOT read a pool in `pools` or in
+`received_from` as vouched for, safe or compliant by the reader or by this proposal. A reader with no pool list
+reports the field not read with reason `unsupported`.
+
+### Extension: `payment_wallet_leaks`
+
+`extensions.payment_wallet_leaks` is OPTIONAL. It describes one address, `address`, usually the payment address a
+consumer cares about (the owner when no payment address is set). Each member below is a field. A member that is
+omitted is not read; it is never none.
+
+| Member | Value |
+|---|---|
+| `funding_sibling` | `{ first_funder, other_funded }`: the first funder of `address` and how many other addresses it was also the first funder of |
+| `linked_counterparties` | `{ sent_to, received_from, lower_bound, assets, sample }`: how many distinct addresses `address` sent value to and received value from; `lower_bound` is `true` when the reader stopped counting early; `sample` lists some of them |
+| `activity_hour_concentration` | `{ from_hour_utc, to_hour_utc, share_bps, tx_count }`: the UTC hours that hold `share_bps` basis points of the address's `tx_count` transactions, or `null` when no window passes the reader's threshold |
+| `holdings_visibility` | `{ tokens, unpriced, usd_value }`: how many tokens the address holds, how many the reader could not price, and the value of the rest in USD as a decimal string |
+
+### Partial reads
+
+`partial` MUST be `true` when, and only when, the report holds a field or an entry that is not read with a reason
+other than `unsupported`, and `partial_reasons` MUST list each such field once. A reader that does not support a
+field says so with `unsupported`, which does not make a report partial; a reader that tried and failed makes it
+partial. Omitted extension members do not make a report partial.
+
+### Score
+
+`score` is OPTIONAL. Its computation is implementation-defined, and `method` MUST point to where the reader
+describes it. A score MUST NOT be the only content a reader returns: a reader that returns a score returns the
+report it was computed from. Consumers SHOULD act on fields, not on scores, and MUST NOT compare scores from
+different readers.
+
+### Consuming a report
+
+This section is informative, except where it uses the key words.
+
+1. Check the report's `agent` against the agent the consumer asked about, and `block` against the current block.
+   Owner and `agentWallet` can change at any block.
+2. Read `partial`. A consumer MAY reject partial reports by its own policy.
+3. For each field its policy needs, decide on not read by its own policy. A consumer MUST NOT treat a not read field,
+   a missing entry or a missing report as none.
+4. Apply its own thresholds to the values.
+
+A consumer MUST NOT present a link as common control, and MUST NOT present an agent as private because a report
+holds no links.
+
+## Rationale
+
+- **Facts, not a score.** Readers already disagree on weights, and a consumer paying an agent cares about different
+  links from an operator protecting its own payers. Fields with evidence let each apply its own policy; the score is
+  kept as an optional summary so existing readers can conform without dropping theirs.
+- **Not read is its own status.** Payment addresses of busy agents have long histories, and readers page through
+  them under rate limits. A field that silently becomes `0` when a page limit is hit is worse than no field. The
+  `unsupported` reason keeps readers that read less from being forced to call every report partial.
+- **One block.** Owner and `agentWallet` move together under ERC-8004 (the wallet is cleared on transfer), and every
+  link is evaluated against them. Pinning every field to one block makes a report reproducible and makes a stale
+  `agentWallet` visible as a contradiction rather than a link.
+- **"Linked" means a transfer.** Exchanges, bridges, routers and payment processors move value between unrelated
+  parties. Calling a transfer a link, and nothing more, keeps reports true; inferring control is left to consumers
+  that accept the risk of being wrong.
+- **Per-address entries.** An agent can take payment on several addresses with different histories, and the owner
+  can fund one and not another. Entries keep each address's answer and evidence separate.
+- **Reader-supplied pool lists.** There is no neutral list of shielded pools, and naming one in a standard would read
+  as an endorsement. The report records which list was applied and leaves the choice to the parties.
+
+## Backwards Compatibility
+
+This proposal adds a report format and changes no contract. Readers that already publish a score can add the report
+next to it.
+
+## Test Cases
+
+[Test vectors](../assets/erc-XXXX/README.md) accompany this proposal. `vectors/valid` holds four reports mapped from
+live reference answers about agents 20030, 7622, 3000 and 9000 on Robinhood Chain (chain 4663), read between
+2026-11-21T07:54:05Z and 2026-11-21T07:59:18Z, each at the block its answer names. `owner`, `agentWallet`,
+`owner_agent_count` and the stealth meta-addresses were confirmed by `eth_call` at that block. `vectors/invalid` holds
+reports that MUST be rejected. `validate.mjs` is a dependency-free validator that checks both against the schema and
+the rules above.
+
+A conforming reader and consumer pass these cases:
+
+- An agent whose `agentWallet` and `payTo` both equal its owner yields `payment_lands_on_owner` entries `true`, and
+  `owner_funded_payment_address` and `owner_payment_direct_link` entries `"same-address"` (agents 20030, 7622).
+- An agent whose `agentWallet` is unset yields `agentWallet` `null` and a `payment_lands_on_owner` entry `"unset"`
+  with address `null`, and no other `agentWallet` entries (agents 3000, 9000); its `payTo`, when it has one, is
+  judged on its own (agent 3000: `payTo` equals the owner).
+- An agent whose owner holds three agents yields `owner_agent_count` `3`, with a `balanceOf` call as evidence (agent
+  9000).
+- A reader that could not read who paid the agent yields `payers_visible` not read with reason `unavailable`,
+  `partial` `true` and a `partial_reasons` entry `/findings/payers_visible` (agent 9000).
+- A reader that read the payments and found none yields `payers_visible` with `payers` `0` and evidence (agent 3000);
+  one that found some gives the count and its window (agent 20030: 9 payers in 2592000 seconds).
+- A reader that read only part of a payment address's history yields `shielded_pool_receipts` not read with reason
+  `incomplete` and `partial` `true` (agent 7622).
+- A reader that returns no `payTo` for an agent yields `payTo` not read with reason `unsupported` and a `payTo` entry
+  with address `null` in each per-address field; the report is not partial for that alone (agent 9000).
+- A reader that checked stealth scheme 1 only yields `checked` `["1"]`, and `scheme_ids` `[]` says nothing about
+  other schemes.
+- A not read field that carries a `value`, a read field without `evidence`, a report whose `partial` is `false` while
+  a field is not read with reason `rate-limited`, an entry naming an `agentWallet` that differs from
+  `agent.agentWallet`, and an evidence block after the report's block are each rejected.
+
+## Reference Implementation
+
+Toll (ERC-8004 agent 20030 on Robinhood Chain) runs a live reference reader on Robinhood Chain: the page
+`https://t0ll.xyz/agents/privacy`, the HTTP endpoint `GET https://t0ll.xyz/api/agent-privacy/{agentId}`, and the Model
+Context Protocol tool `agent_privacy` at `https://t0ll.xyz/mcp`. A cold read answers `{"pending": true}` with a retry
+hint and the report follows within seconds. Its answers are the source of the test vectors; the raw answers are kept
+next to the vectors in `reference-responses`. Its answer carries an implementation-defined grade and, in its `read`
+member, the values the grade was built from: the block, the owner, the `agentWallet`, the `payTo`, the owner's agent
+count, the agents sharing a payment address, the first funder of each payment address, the payers of the last 30
+days, the ERC-6538 registration of the owner and the `agentWallet` (scheme 1), and the receipts from the shielded
+pools it names, with `null` for each part it did not read. The vectors map that member to this format field by
+field. On Robinhood Chain the ERC-8004 identity registry is at `0x8004a169fb4a3325136eb29fa0ceb6d2e539a432`,
+the ERC-6538 registry at `0x6538E6bf4B0eBd30A8Ea093027Ac2422ce5d6538` and the ERC-5564 announcer at
+`0x55649E01B5Df198D18D95b5cc5051630cfD45564`.
+
+## Security Considerations
+
+- **The report aggregates public data.** Each fact is public, but a report puts the owner, its other agents, its
+  funder, its counterparties, its holdings and its active hours in one place. That is a doxxing aid. Readers SHOULD
+  NOT add off-chain identity (names, social accounts, IP data, KYC data) to a report or to its `detail` strings, and
+  SHOULD NOT publish reports about an agent in bulk beyond what their consumers ask for. The `payment_wallet_leaks`
+  extension is optional for this reason.
+- **Links are not control.** A transfer from an exchange hot wallet, a bridge or a router links unrelated parties. A
+  consumer that treats a link as common control will be wrong, and a party that wants two addresses to look related
+  can create a link at the cost of one transfer. Reports MUST NOT be used as the sole basis to sanction, block or
+  accuse an address.
+- **Absence.** A not read field, a missing entry or a missing report says nothing about the agent. A report with no
+  links is not evidence of privacy: links through addresses outside the report, timing and amounts are not covered.
+- **Partial reads.** Busy addresses exceed the history a reader can page through within its budget or rate limit.
+  Readers MUST report these fields not read with `incomplete`, `timeout` or `rate-limited`, never as none.
+- **Rate limits and cost.** A cold report reads several address histories. Readers SHOULD rate-limit per client and
+  MAY answer with a pending state; consumers SHOULD retry after the delay given and SHOULD NOT treat a pending or
+  rate-limited answer as a report.
+- **Time of check.** Owner, `agentWallet` and `payTo` can change at any block. A consumer SHOULD read again before
+  acting on a report older than its own bound.
+- **Shielded pools.** A pool in `pools` is there because someone chose to look for it. Readers and consumers MUST NOT
+  read it as vouched for. A pool can also be sanctioned in some jurisdictions; whether to use one is the agent
+  operator's decision.
+- **Stealth meta-addresses.** A registered meta-address helps only if payers use it. A stealth address funded from,
+  or swept to, the owner is linked again by that transfer.
+- **Injection through the report.** `detail` strings and pool list names are text a reader controls. Consumers that
+  pass reports to a language model MUST handle them as data.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).

@@ -1,0 +1,251 @@
+{
+  "version": "1",
+  "read_at": "2026-11-21T07:59:18Z",
+  "block": "119727331",
+  "block_hash": "0xa6eaa0844a88d3387ef54e4cfb346bbb9d7adaa2d35807f25f5fbcfed9e5b986",
+  "source": {
+    "name": "Toll",
+    "url": "https://t0ll.xyz/api/agent-privacy/9000",
+    "agentId": "20030"
+  },
+  "agent": {
+    "chainId": "4663",
+    "identityRegistry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+    "agentId": "9000",
+    "owner": {
+      "status": "read",
+      "value": "0x801d335f1285020f2b65b3d530306875f340b66d",
+      "evidence": [
+        {
+          "type": "call",
+          "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000002328",
+          "block": "119727331"
+        }
+      ]
+    },
+    "agentWallet": {
+      "status": "read",
+      "value": null,
+      "evidence": [
+        {
+          "type": "call",
+          "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "data": "0x003395090000000000000000000000000000000000000000000000000000000000002328",
+          "block": "119727331"
+        }
+      ]
+    },
+    "payTo": {
+      "status": "not_read",
+      "reason": "unsupported",
+      "detail": "the reference reader returned no payTo for this agent"
+    }
+  },
+  "findings": {
+    "payment_lands_on_owner": {
+      "entries": [
+        {
+          "role": "agentWallet",
+          "address": null,
+          "status": "read",
+          "value": "unset",
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x003395090000000000000000000000000000000000000000000000000000000000002328",
+              "block": "119727331"
+            }
+          ]
+        },
+        {
+          "role": "payTo",
+          "address": null,
+          "status": "not_read",
+          "reason": "unsupported",
+          "detail": "the reference reader returned no payTo for this agent"
+        }
+      ]
+    },
+    "owner_funded_payment_address": {
+      "entries": [
+        {
+          "role": "payTo",
+          "address": null,
+          "status": "not_read",
+          "reason": "unsupported",
+          "detail": "the reference reader returned no payTo for this agent"
+        }
+      ]
+    },
+    "owner_payment_direct_link": {
+      "entries": [
+        {
+          "role": "payTo",
+          "address": null,
+          "status": "not_read",
+          "reason": "unsupported",
+          "detail": "the reference reader returned no payTo for this agent"
+        }
+      ]
+    },
+    "owner_agent_count": {
+      "status": "read",
+      "value": 3,
+      "evidence": [
+        {
+          "type": "call",
+          "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "data": "0x70a08231000000000000000000000000801d335f1285020f2b65b3d530306875f340b66d",
+          "block": "119727331"
+        }
+      ]
+    },
+    "shared_payment_address": {
+      "entries": [
+        {
+          "role": "payTo",
+          "address": null,
+          "status": "not_read",
+          "reason": "unsupported",
+          "detail": "the reference reader returned no payTo for this agent"
+        }
+      ]
+    },
+    "payers_visible": {
+      "status": "not_read",
+      "reason": "unavailable",
+      "detail": "who paid the agent in the last 30 days was not read"
+    }
+  },
+  "helps": {
+    "stealth_meta_address": {
+      "entries": [
+        {
+          "role": "owner",
+          "address": "0x801d335f1285020f2b65b3d530306875f340b66d",
+          "status": "read",
+          "value": {
+            "registry": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+            "checked": [
+              "1"
+            ],
+            "scheme_ids": []
+          },
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+              "data": "0x7aa8b5ad000000000000000000000000801d335f1285020f2b65b3d530306875f340b66d0000000000000000000000000000000000000000000000000000000000000001",
+              "block": "119727331"
+            }
+          ]
+        }
+      ]
+    },
+    "shielded_pool_receipts": {
+      "status": "read",
+      "value": {
+        "pool_list": "Toll's named shielded pools (https://t0ll.xyz/agents/privacy)",
+        "pools": [
+          "0x39e28cde55cab798874746ac52cb4b5cc99a0194"
+        ],
+        "received_from": []
+      },
+      "evidence": [
+        {
+          "type": "address",
+          "address": "0x801d335f1285020f2b65b3d530306875f340b66d",
+          "to_block": "119727331"
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "payment_wallet_leaks": {
+      "address": "0x801d335f1285020f2b65b3d530306875f340b66d",
+      "funding_sibling": {
+        "status": "read",
+        "value": {
+          "first_funder": "0xe18d1ea65e89c9ecd31bc8691e33785c90dec0ff",
+          "other_funded": 1
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0xe18d1ea65e89c9ecd31bc8691e33785c90dec0ff",
+            "to_block": "119727331"
+          }
+        ]
+      },
+      "linked_counterparties": {
+        "status": "read",
+        "value": {
+          "sent_to": 1,
+          "received_from": 1,
+          "lower_bound": false,
+          "assets": [
+            "ETH",
+            "WETH",
+            "USDG"
+          ],
+          "sample": [
+            "0xe18d1ea65e89c9ecd31bc8691e33785c90dec0ff"
+          ]
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0x801d335f1285020f2b65b3d530306875f340b66d",
+            "to_block": "119727331"
+          }
+        ]
+      },
+      "activity_hour_concentration": {
+        "status": "read",
+        "value": {
+          "from_hour_utc": 8,
+          "to_hour_utc": 14,
+          "share_bps": 9000,
+          "tx_count": 42
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0x801d335f1285020f2b65b3d530306875f340b66d",
+            "to_block": "119727331"
+          }
+        ]
+      },
+      "holdings_visibility": {
+        "status": "read",
+        "value": {
+          "tokens": 20,
+          "unpriced": 18,
+          "usd_value": "54"
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0x801d335f1285020f2b65b3d530306875f340b66d",
+            "to_block": "119727331"
+          }
+        ]
+      }
+    }
+  },
+  "partial": true,
+  "partial_reasons": [
+    {
+      "field": "/findings/payers_visible",
+      "reason": "unavailable"
+    }
+  ],
+  "score": {
+    "value": 30,
+    "max": 100,
+    "label": "F",
+    "method": "https://t0ll.xyz/agents/privacy"
+  }
+}
