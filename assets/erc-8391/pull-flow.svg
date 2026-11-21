@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="470" viewBox="0 0 840 470" font-family="Helvetica, Arial, sans-serif" font-size="14">
+  <title>Pull style: ERC-1271 signature verification</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+  <rect width="840" height="470" fill="#ffffff"/>
+
+  <!-- lifelines -->
+  <g stroke="#999" stroke-width="1" stroke-dasharray="4 4">
+    <line x1="140" y1="64" x2="140" y2="406"/>
+    <line x1="420" y1="64" x2="420" y2="406"/>
+    <line x1="700" y1="64" x2="700" y2="406"/>
+  </g>
+
+  <!-- participants (top / bottom) -->
+  <g fill="#eaeaea" stroke="#666" stroke-width="1.2">
+    <rect x="30" y="20" width="220" height="44" rx="4"/>
+    <rect x="310" y="20" width="220" height="44" rx="4"/>
+    <rect x="590" y="20" width="220" height="44" rx="4"/>
+    <rect x="30" y="406" width="220" height="44" rx="4"/>
+    <rect x="310" y="406" width="220" height="44" rx="4"/>
+    <rect x="590" y="406" width="220" height="44" rx="4"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="140" y="47">Off-chain signer (delegate)</text>
+    <text x="420" y="47">DelegationContract</text>
+    <text x="700" y="47">Integrator contract</text>
+    <text x="140" y="433">Off-chain signer (delegate)</text>
+    <text x="420" y="433">DelegationContract</text>
+    <text x="700" y="433">Integrator contract</text>
+  </g>
+
+  <!-- note over delegate -->
+  <rect x="45" y="84" width="190" height="40" fill="#fff5ad" stroke="#aaaa33" stroke-width="1"/>
+  <text x="140" y="109" fill="#111" text-anchor="middle">sign message (hot key)</text>
+
+  <!-- messages -->
+  <g stroke="#333" stroke-width="1.5" fill="none">
+    <line x1="140" y1="170" x2="698" y2="170" marker-end="url(#arrow)"/>
+    <line x1="700" y1="300" x2="422" y2="300" marker-end="url(#arrow)"/>
+    <line x1="420" y1="370" x2="698" y2="370" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#111" text-anchor="middle">
+    <text x="420" y="160">signature + DelegationContract addr</text>
+    <text x="560" y="290">isValidSignature(hash, sig)</text>
+    <text x="560" y="342">0x1626ba7e</text>
+    <text x="560" y="360">(any other value or revert = invalid)</text>
+  </g>
+
+  <!-- note over integrator (before the isValidSignature call) -->
+  <rect x="580" y="192" width="240" height="60" fill="#fff5ad" stroke="#aaaa33" stroke-width="1"/>
+  <g fill="#111" text-anchor="middle">
+    <text x="700" y="218">integrator checks the addr</text>
+    <text x="700" y="238">is a registered principal</text>
+  </g>
+</svg>
