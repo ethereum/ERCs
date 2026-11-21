@@ -1,0 +1,473 @@
+{
+  "description": "Test vectors for the Inference Receipts draft. testKey is a throwaway key derived as keccak256 of a fixed text; never fund it.",
+  "testKey": "0x9b4c7a429a82817c1428acac1ad502d225546137844f7eb40587051de154ee50",
+  "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+  "receipts": [
+    {
+      "v": 1,
+      "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+      "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+      "model": "model-a",
+      "upstream": "provider/model-a-1",
+      "tokensIn": 101,
+      "tokensOut": 51,
+      "price": "10003",
+      "fee": "10000",
+      "absorbed": "0",
+      "judged": null,
+      "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "network": "eip155:4663",
+      "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+      "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+      "at": "2026-11-21T01:00:00.000Z",
+      "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+      "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c"
+    },
+    {
+      "v": 1,
+      "request": "0x7f5351f805cf65af8b00e894fad669b2f1ffcf3bdf92d28f147000bcb8334dad",
+      "response": "0x7be794bcd68b72711606840788159fe70bf9fd69b7d19ff68d295c2492e6e9ca",
+      "model": "model-b",
+      "upstream": "model-b",
+      "tokensIn": 102,
+      "tokensOut": 52,
+      "price": "10006",
+      "fee": "10000",
+      "absorbed": "0",
+      "judged": null,
+      "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "network": "eip155:4663",
+      "payer": "0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2",
+      "nonce": "50420822910941298460060057938824052864342383264398995871759432840879949412",
+      "at": "2026-11-21T02:00:00.000Z",
+      "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+      "signature": "0xb3aa26f2e1f0a578cb7d85ff930374d418d474c9690a49012a80e45c634414967ff44b245340f615babab55bb24e596afe1921a8df96890f112d708494e787aa1b"
+    },
+    {
+      "v": 1,
+      "request": "0xf4ffd4a34174bd4c50b60def28fb78746360ace14c84535357ab4f2ba774b7a9",
+      "response": "0xfe9bd3d0d011a5718eaf9d66566c0d7dd26b12ce816376b3ff55fb2d98eef5cb",
+      "model": "model-a",
+      "upstream": "provider/model-a-1",
+      "tokensIn": 103,
+      "tokensOut": 53,
+      "price": "10009",
+      "fee": "10000",
+      "absorbed": "0",
+      "judged": {
+        "accepted": true,
+        "passProbability": 0.82,
+        "bar": 0.7,
+        "decision": "4410"
+      },
+      "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "network": "eip155:4663",
+      "payer": "0x029361155605BCc8B6327615601ee9AC1f45c7aA",
+      "nonce": "179867653774160190526638484609099130185253826513286912423845611775412407914",
+      "at": "2026-11-21T03:00:00.000Z",
+      "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+      "signature": "0x80aeb967e9fc8823b4869232175f3e77339f5652d13584857be3914e2070db7c275a602ffc3d1e82a95c9810a99daab6d1f9e7340d012afbc65057dc889026f51b"
+    },
+    {
+      "v": 1,
+      "request": "0x49a486ba730274a65cf825825f94c5abd7b425b37571a5e1851d60b0523700fb",
+      "response": "0x12068be88ba1cf9bcf1ebb102a7d564f186d4c5ca54fe3adfdcfe82f1577f642",
+      "model": "model-a",
+      "upstream": "provider/model-a-1",
+      "tokensIn": 104,
+      "tokensOut": 54,
+      "price": "10000",
+      "fee": "10000",
+      "absorbed": "52",
+      "judged": {
+        "accepted": false,
+        "passProbability": 0.31,
+        "bar": 0.7,
+        "decision": "4411"
+      },
+      "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "network": "eip155:4663",
+      "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+      "nonce": "353989652685054869092126983887244448738637269821677666700587552883431466571",
+      "at": "2026-11-21T04:00:00.000Z",
+      "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+      "signature": "0x40a040a896e657952004dcfb7ef56fe0d9747b472f8a82dc28c5153a6b596b450dd293ca10b00db779455e157895f857b11487b77e06616531dee8db10484f311b"
+    },
+    {
+      "v": 1,
+      "request": "0x3700832baa7d7d353844770fac31fa815a79e60552bad3fee1991a1d7c2c1632",
+      "response": "0x2b8dd690ad443fcece076e7a887230facb9c19e339bd8cd65302e0bb0122ac6e",
+      "model": "model-a",
+      "upstream": "provider/model-a-1",
+      "tokensIn": 105,
+      "tokensOut": 55,
+      "price": "10015",
+      "fee": "10000",
+      "absorbed": "0",
+      "judged": null,
+      "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "network": "eip155:4663",
+      "payer": "0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2",
+      "nonce": "0xd52e307c3ad7e2b2aa3daae7596e90ce5a5d64ebce0d61fd7a4d1c6ecd340fe3",
+      "at": "2026-11-21T05:00:00.000Z",
+      "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+      "signature": "0x911f7feb588f6db203b210176c2e7770c4c4ec05cffce7e0118b8c64e639d5e513c27dfe711ef5870a400d306f8905b5db135b208add6e2b85d74de1007e1e001c"
+    }
+  ],
+  "hashes": [
+    "0x9d150fb99a1ddbf3da65ec05897a8d269f55a04c2964f9e709b2040b8dae3d98",
+    "0x736ed5ed75aebc974bd8123d3aeb396c3574664190f609800491fe86e2ee215d",
+    "0x2c0b9288f6639bbdcb720fe1b49f0ef0777813bc5465632ce2b3ba490860b544",
+    "0xa07daa4806756968c41b137870250c8aa91e1a2379c21129c171dcb943e0bee3",
+    "0xad66eadc8eba0b1e64961758f4382eac32bcca07ea4b976471b1f1d18e530efe"
+  ],
+  "canonical": [
+    "{\"v\":1,\"request\":\"0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4\",\"response\":\"0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd\",\"model\":\"model-a\",\"upstream\":\"provider/model-a-1\",\"tokensIn\":101,\"tokensOut\":51,\"price\":\"10003\",\"fee\":\"10000\",\"absorbed\":\"0\",\"judged\":null,\"asset\":\"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168\",\"network\":\"eip155:4663\",\"payer\":\"0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f\",\"nonce\":\"395673029145726960113854713732021355750454628199860965880162379796955085081\",\"at\":\"2026-11-21T01:00:00.000Z\",\"signer\":\"0x56CB26eE9246D5C181ADD7c6680717bF47273877\"}",
+    "{\"v\":1,\"request\":\"0x7f5351f805cf65af8b00e894fad669b2f1ffcf3bdf92d28f147000bcb8334dad\",\"response\":\"0x7be794bcd68b72711606840788159fe70bf9fd69b7d19ff68d295c2492e6e9ca\",\"model\":\"model-b\",\"upstream\":\"model-b\",\"tokensIn\":102,\"tokensOut\":52,\"price\":\"10006\",\"fee\":\"10000\",\"absorbed\":\"0\",\"judged\":null,\"asset\":\"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168\",\"network\":\"eip155:4663\",\"payer\":\"0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2\",\"nonce\":\"50420822910941298460060057938824052864342383264398995871759432840879949412\",\"at\":\"2026-11-21T02:00:00.000Z\",\"signer\":\"0x56CB26eE9246D5C181ADD7c6680717bF47273877\"}",
+    "{\"v\":1,\"request\":\"0xf4ffd4a34174bd4c50b60def28fb78746360ace14c84535357ab4f2ba774b7a9\",\"response\":\"0xfe9bd3d0d011a5718eaf9d66566c0d7dd26b12ce816376b3ff55fb2d98eef5cb\",\"model\":\"model-a\",\"upstream\":\"provider/model-a-1\",\"tokensIn\":103,\"tokensOut\":53,\"price\":\"10009\",\"fee\":\"10000\",\"absorbed\":\"0\",\"judged\":{\"accepted\":true,\"passProbability\":0.82,\"bar\":0.7,\"decision\":\"4410\"},\"asset\":\"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168\",\"network\":\"eip155:4663\",\"payer\":\"0x029361155605BCc8B6327615601ee9AC1f45c7aA\",\"nonce\":\"179867653774160190526638484609099130185253826513286912423845611775412407914\",\"at\":\"2026-11-21T03:00:00.000Z\",\"signer\":\"0x56CB26eE9246D5C181ADD7c6680717bF47273877\"}",
+    "{\"v\":1,\"request\":\"0x49a486ba730274a65cf825825f94c5abd7b425b37571a5e1851d60b0523700fb\",\"response\":\"0x12068be88ba1cf9bcf1ebb102a7d564f186d4c5ca54fe3adfdcfe82f1577f642\",\"model\":\"model-a\",\"upstream\":\"provider/model-a-1\",\"tokensIn\":104,\"tokensOut\":54,\"price\":\"10000\",\"fee\":\"10000\",\"absorbed\":\"52\",\"judged\":{\"accepted\":false,\"passProbability\":0.31,\"bar\":0.7,\"decision\":\"4411\"},\"asset\":\"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168\",\"network\":\"eip155:4663\",\"payer\":\"0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f\",\"nonce\":\"353989652685054869092126983887244448738637269821677666700587552883431466571\",\"at\":\"2026-11-21T04:00:00.000Z\",\"signer\":\"0x56CB26eE9246D5C181ADD7c6680717bF47273877\"}",
+    "{\"v\":1,\"request\":\"0x3700832baa7d7d353844770fac31fa815a79e60552bad3fee1991a1d7c2c1632\",\"response\":\"0x2b8dd690ad443fcece076e7a887230facb9c19e339bd8cd65302e0bb0122ac6e\",\"model\":\"model-a\",\"upstream\":\"provider/model-a-1\",\"tokensIn\":105,\"tokensOut\":55,\"price\":\"10015\",\"fee\":\"10000\",\"absorbed\":\"0\",\"judged\":null,\"asset\":\"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168\",\"network\":\"eip155:4663\",\"payer\":\"0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2\",\"nonce\":\"0xd52e307c3ad7e2b2aa3daae7596e90ce5a5d64ebce0d61fd7a4d1c6ecd340fe3\",\"at\":\"2026-11-21T05:00:00.000Z\",\"signer\":\"0x56CB26eE9246D5C181ADD7c6680717bF47273877\"}"
+  ],
+  "dayList": {
+    "day": "2026-11-21",
+    "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+    "count": 5,
+    "root": "0x2cc196f1080ceb2a2b4571181300f260f3ba8f6f87d3192cd4e26e913a3b0de8",
+    "unreadable": 0,
+    "receipts": [
+      {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c"
+      },
+      {
+        "v": 1,
+        "request": "0x7f5351f805cf65af8b00e894fad669b2f1ffcf3bdf92d28f147000bcb8334dad",
+        "response": "0x7be794bcd68b72711606840788159fe70bf9fd69b7d19ff68d295c2492e6e9ca",
+        "model": "model-b",
+        "upstream": "model-b",
+        "tokensIn": 102,
+        "tokensOut": 52,
+        "price": "10006",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2",
+        "nonce": "50420822910941298460060057938824052864342383264398995871759432840879949412",
+        "at": "2026-11-21T02:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xb3aa26f2e1f0a578cb7d85ff930374d418d474c9690a49012a80e45c634414967ff44b245340f615babab55bb24e596afe1921a8df96890f112d708494e787aa1b"
+      },
+      {
+        "v": 1,
+        "request": "0xf4ffd4a34174bd4c50b60def28fb78746360ace14c84535357ab4f2ba774b7a9",
+        "response": "0xfe9bd3d0d011a5718eaf9d66566c0d7dd26b12ce816376b3ff55fb2d98eef5cb",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 103,
+        "tokensOut": 53,
+        "price": "10009",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": {
+          "accepted": true,
+          "passProbability": 0.82,
+          "bar": 0.7,
+          "decision": "4410"
+        },
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0x029361155605BCc8B6327615601ee9AC1f45c7aA",
+        "nonce": "179867653774160190526638484609099130185253826513286912423845611775412407914",
+        "at": "2026-11-21T03:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x80aeb967e9fc8823b4869232175f3e77339f5652d13584857be3914e2070db7c275a602ffc3d1e82a95c9810a99daab6d1f9e7340d012afbc65057dc889026f51b"
+      },
+      {
+        "v": 1,
+        "request": "0x49a486ba730274a65cf825825f94c5abd7b425b37571a5e1851d60b0523700fb",
+        "response": "0x12068be88ba1cf9bcf1ebb102a7d564f186d4c5ca54fe3adfdcfe82f1577f642",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 104,
+        "tokensOut": 54,
+        "price": "10000",
+        "fee": "10000",
+        "absorbed": "52",
+        "judged": {
+          "accepted": false,
+          "passProbability": 0.31,
+          "bar": 0.7,
+          "decision": "4411"
+        },
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "353989652685054869092126983887244448738637269821677666700587552883431466571",
+        "at": "2026-11-21T04:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x40a040a896e657952004dcfb7ef56fe0d9747b472f8a82dc28c5153a6b596b450dd293ca10b00db779455e157895f857b11487b77e06616531dee8db10484f311b"
+      },
+      {
+        "v": 1,
+        "request": "0x3700832baa7d7d353844770fac31fa815a79e60552bad3fee1991a1d7c2c1632",
+        "response": "0x2b8dd690ad443fcece076e7a887230facb9c19e339bd8cd65302e0bb0122ac6e",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 105,
+        "tokensOut": 55,
+        "price": "10015",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2",
+        "nonce": "0xd52e307c3ad7e2b2aa3daae7596e90ce5a5d64ebce0d61fd7a4d1c6ecd340fe3",
+        "at": "2026-11-21T05:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x911f7feb588f6db203b210176c2e7770c4c4ec05cffce7e0118b8c64e639d5e513c27dfe711ef5870a400d306f8905b5db135b208add6e2b85d74de1007e1e001c"
+      }
+    ]
+  },
+  "proofs": [
+    [
+      "0x736ed5ed75aebc974bd8123d3aeb396c3574664190f609800491fe86e2ee215d",
+      "0xa66e6fb72ddaf497e1b2d86b996be4e9e0c130430da66a2a4d00c4a3e84f9138",
+      "0xad66eadc8eba0b1e64961758f4382eac32bcca07ea4b976471b1f1d18e530efe"
+    ],
+    [
+      "0x9d150fb99a1ddbf3da65ec05897a8d269f55a04c2964f9e709b2040b8dae3d98",
+      "0xa66e6fb72ddaf497e1b2d86b996be4e9e0c130430da66a2a4d00c4a3e84f9138",
+      "0xad66eadc8eba0b1e64961758f4382eac32bcca07ea4b976471b1f1d18e530efe"
+    ],
+    [
+      "0xa07daa4806756968c41b137870250c8aa91e1a2379c21129c171dcb943e0bee3",
+      "0xe8c3611243988aad0412dc87a51e99b3256d5fedca0e4f4434358bf5b57d8f78",
+      "0xad66eadc8eba0b1e64961758f4382eac32bcca07ea4b976471b1f1d18e530efe"
+    ],
+    [
+      "0x2c0b9288f6639bbdcb720fe1b49f0ef0777813bc5465632ce2b3ba490860b544",
+      "0xe8c3611243988aad0412dc87a51e99b3256d5fedca0e4f4434358bf5b57d8f78",
+      "0xad66eadc8eba0b1e64961758f4382eac32bcca07ea4b976471b1f1d18e530efe"
+    ],
+    [
+      "0xda87183092fea279e0557f32e93bcbb3c2e6a24b85adf9126a5fd1bb2e351029"
+    ]
+  ],
+  "record": {
+    "kind": "receipts",
+    "date": "2026-11-21",
+    "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+    "count": 5,
+    "root": "0x2cc196f1080ceb2a2b4571181300f260f3ba8f6f87d3192cd4e26e913a3b0de8"
+  },
+  "invalid": [
+    {
+      "name": "price changed after signing",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10004",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c"
+      },
+      "reason": "the signature is not the signer's"
+    },
+    {
+      "name": "signer in lowercase",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56cb26ee9246d5c181add7c6680717bf47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c"
+      },
+      "reason": "signer is not in ERC-55 form"
+    },
+    {
+      "name": "version 2",
+      "receipt": {
+        "v": 2,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c"
+      },
+      "reason": "v is not 1"
+    },
+    {
+      "name": "an extra member",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c",
+        "memo": "x"
+      },
+      "reason": "unknown members: memo"
+    },
+    {
+      "name": "signed by another key",
+      "receipt": {
+        "v": 1,
+        "request": "0x7f5351f805cf65af8b00e894fad669b2f1ffcf3bdf92d28f147000bcb8334dad",
+        "response": "0x7be794bcd68b72711606840788159fe70bf9fd69b7d19ff68d295c2492e6e9ca",
+        "model": "model-b",
+        "upstream": "model-b",
+        "tokensIn": 102,
+        "tokensOut": 52,
+        "price": "10006",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xdFF5511F4ceBAfC13f575D2762a34b00aC42aaA2",
+        "nonce": "50420822910941298460060057938824052864342383264398995871759432840879949412",
+        "at": "2026-11-21T02:00:00.000Z",
+        "signer": "0x0d1A7CE677b7816Ee9b3F4cCc41789e83eD0dAe9",
+        "signature": "0xb3aa26f2e1f0a578cb7d85ff930374d418d474c9690a49012a80e45c634414967ff44b245340f615babab55bb24e596afe1921a8df96890f112d708494e787aa1b"
+      },
+      "reason": "the signature is not the signer's"
+    },
+    {
+      "name": "time without milliseconds",
+      "receipt": {
+        "v": 1,
+        "request": "0xf4ffd4a34174bd4c50b60def28fb78746360ace14c84535357ab4f2ba774b7a9",
+        "response": "0xfe9bd3d0d011a5718eaf9d66566c0d7dd26b12ce816376b3ff55fb2d98eef5cb",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 103,
+        "tokensOut": 53,
+        "price": "10009",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": {
+          "accepted": true,
+          "passProbability": 0.82,
+          "bar": 0.7,
+          "decision": "4410"
+        },
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0x029361155605BCc8B6327615601ee9AC1f45c7aA",
+        "nonce": "179867653774160190526638484609099130185253826513286912423845611775412407914",
+        "at": "2026-11-21T03:00:00Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x80aeb967e9fc8823b4869232175f3e77339f5652d13584857be3914e2070db7c275a602ffc3d1e82a95c9810a99daab6d1f9e7340d012afbc65057dc889026f51b"
+      },
+      "reason": "at is not a UTC time with milliseconds"
+    }
+  ],
+  "public": {
+    "note": "The reference deployment's day list for 2026-11-19 as it serves it. Its record is in block 3719 of chain 274663, sent by 0x70C665780E43BA1496a4E691e408F24844dB58eC through an Inscribed event.",
+    "dayList": {
+      "day": "2026-11-19",
+      "signer": "0x70D882879E1954Ac9A06b693379334Fd131B786D",
+      "count": 1,
+      "root": "0xf8529c2cbf9e0160ff1892d1fe9da8e941024bb8d13875ca503ef1f1ceb8d064",
+      "unreadable": 0,
+      "receipts": [
+        {
+          "v": 1,
+          "request": "0x45dd521aeb9eb0caa682da2339065b6354710dadd5fb173d52e8c305e5122924",
+          "response": "0xe7ca7fc042e5f49b324cb30280de18cd18aee7cd1f9bb1465f181a1c020b2bf0",
+          "model": "deepseek",
+          "upstream": "deepseek/deepseek-v4.1-flash",
+          "tokensIn": 44,
+          "tokensOut": 27,
+          "price": "10046",
+          "fee": "10000",
+          "absorbed": "0",
+          "judged": null,
+          "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "network": "eip155:4663",
+          "payer": "0xd937E50Ee21E66f7640F1a7887399e63055290fe",
+          "nonce": "71806423026336358433435726173990025949337540275573773149542206319080210976561",
+          "at": "2026-11-19T12:02:49.376Z",
+          "signer": "0x70D882879E1954Ac9A06b693379334Fd131B786D",
+          "signature": "0x6f8363ebf4c7dce8737cc606c050c01980aa15cb2e0cc9238027f0575256483a6acfa0062c8ea23e688a593888a8f2bc7c3e89a52e9ca111b5ce4a31fd0091bb1b"
+        }
+      ]
+    },
+    "record": {
+      "kind": "receipts",
+      "date": "2026-11-19",
+      "signer": "0x70D882879E1954Ac9A06b693379334Fd131B786D",
+      "count": 1,
+      "root": "0xf8529c2cbf9e0160ff1892d1fe9da8e941024bb8d13875ca503ef1f1ceb8d064"
+    }
+  }
+}

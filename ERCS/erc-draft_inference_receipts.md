@@ -1,0 +1,270 @@
+---
+eip: TBD
+title: Inference Receipts
+description: Signed receipts for paid model calls, listed per UTC day under a Merkle root published on chain
+author: Kuro Sato (@kurokawasato)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-inference-receipts/0
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-21
+requires: 20, 55, 191
+---
+
+## Abstract
+
+This proposal defines a receipt that a paid model endpoint signs for each call it charges: hashes of the request and
+the response, the model, the tokens counted, the price in an [ERC-20](./eip-20.md) asset, the payer and the payment
+that settled it. The receipt is a JSON object with a fixed member order, signed by the endpoint's key as an
+[ERC-191](./eip-191.md) message.
+
+The endpoint keeps each UTC day's receipts in the order it signed them and serves them as a day list with a Merkle root
+over their hashes. Once the day is over, it publishes the root in a log on chain. A payer holding a receipt can then
+show that the endpoint counted the call that day, and a receipt the published root does not cover is evidence the
+endpoint left a call out.
+
+## Motivation
+
+Agents buy model calls from endpoints they do not run, and pay per call or per token, often over HTTP payment schemes
+such as x402. The payment settles on chain; what was bought does not. Each endpoint reports usage in its own format, if
+at all, and nothing ties a charge to the request it answered.
+
+A buyer needs three things after the fact: proof of what a given charge was for, a way to check that the endpoint's
+account of a day matches the calls the buyer made, and a commitment the endpoint cannot revise later. Auditors and
+lenders that size an agent's spending need the same records in one format across endpoints.
+
+A signed receipt per call gives the first. A day list under a Merkle root gives the second without publishing anyone's
+calls on chain. One record per day on chain gives the third at the cost of one transaction a day, whatever the volume.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT
+RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Terms
+
+- **Issuer**: a service that answers model calls for payment and signs receipts for them.
+- **Signer**: the address of the key an issuer signs receipts with. One issuer MAY use several signers; each has its own
+  day lists and records.
+- **Payer**: the address whose payment settled a call.
+- **Day**: a UTC calendar date, written `YYYY-MM-DD`. A receipt belongs to the day its `at` member names.
+- **Day list**: one signer's receipts for one day, in the order the issuer signed them.
+- **Day root**: the Merkle root over a day list.
+- **Day record**: the statement of a closed day's root that the issuer publishes on chain.
+- **Publisher**: an account that sends day records for a signer. It MAY differ from the signer.
+
+### Receipt
+
+A receipt is a JSON object with exactly the members below, plus `signature`. The table order is the canonical order.
+
+| Member | Type | Meaning |
+| --- | --- | --- |
+| `v` | number | The version: `1`. |
+| `request` | string | Keccak-256 of the request body bytes as the issuer received them. |
+| `response` | string | Keccak-256 of the response body bytes the issuer produced for the call, also when it withheld them. |
+| `model` | string | The issuer's identifier for the model the payer asked for. |
+| `upstream` | string | The identifier of the model as the party that ran it names it. Equal to `model` when the issuer runs the model itself. |
+| `tokensIn` | number | Input tokens counted for the call. |
+| `tokensOut` | number | Output tokens counted for the call. |
+| `price` | string | Everything charged for the call, in the asset's base units. |
+| `fee` | string | The part of `price` that is a fixed charge per call. `"0"` when there is none. |
+| `absorbed` | string | Cost of the call the issuer bore and did not charge, in the asset's base units. `"0"` when there is none. |
+| `judged` | object or null | `null`, or the verdict when the issuer had the answer evaluated before returning it (below). |
+| `asset` | string | The ERC-20 contract the payment was made in. |
+| `network` | string | The chain the payment settled on, as a CAIP-2 identifier such as `eip155:1`. |
+| `payer` | string | The payer. |
+| `nonce` | string | The payment's unique identifier for this payer under the payment scheme used: a decimal string for a numeric nonce, or 32 bytes as hex for a `bytes32` nonce. |
+| `at` | string | When the receipt was signed: UTC, ISO 8601 with milliseconds and a `Z`, such as `2026-11-19T12:02:49.376Z`. |
+| `signer` | string | The signer. |
+| `signature` | string | The signature (below). Not part of the canonical form. |
+
+`judged`, when not `null`, has exactly these members, in this order:
+
+| Member | Type | Meaning |
+| --- | --- | --- |
+| `accepted` | boolean | Whether the evaluation accepted the answer. |
+| `passProbability` | number | The evaluator's probability that the answer meets the bar, from 0 to 1. |
+| `bar` | number | The probability the answer had to reach, from 0 to 1. |
+| `decision` | string | An identifier of where the verdict is recorded, in a form the issuer documents. |
+
+Hashes, `nonce` in hex form and `signature` MUST be lowercase hex with a `0x` prefix. `asset`, `payer` and `signer`
+MUST be in [ERC-55](./eip-55.md) mixed-case form. `price`, `fee`, `absorbed` and a decimal `nonce` MUST be decimal
+strings without leading zeros. `tokensIn` and `tokensOut` MUST be whole numbers no greater than 2^53 - 1. `fee` MUST
+NOT exceed `price`. A receipt MUST NOT have members other than those listed, and a verifier MUST reject one that does.
+
+An issuer MUST sign a receipt for every call it charges, and only for calls it charged. A call that is charged and
+whose answer is withheld still gets a receipt.
+
+### Canonical form and signature
+
+The canonical form of a receipt is its members other than `signature`, in the table order, with `judged`'s members in
+their table order, serialized as RFC 8785 serializes values: no whitespace, strings escaped and numbers written as
+RFC 8785 requires. Member order is the table order, not RFC 8785's sorted order.
+
+The receipt hash is Keccak-256 of the UTF-8 bytes of the canonical form.
+
+`signature` is an ERC-191 signature, version `0x45`, by the signer over the 32 bytes of the receipt hash: the signer
+signs `keccak256("\x19Ethereum Signed Message:\n32" || receiptHash)`. It is 65 bytes, `r || s || v`, with `v` 27 or
+28.
+
+A receipt is valid when every rule in the previous section holds and the address recovered from `signature` over that
+digest equals `signer`.
+
+### Delivery
+
+An issuer MUST give the payer the receipt with the response to the call it covers. Over HTTP, an issuer SHOULD return
+it in the `Inference-Receipt` response header, as base64 of the receipt's JSON, on every response it charged for,
+including one that withholds the answer.
+
+### Day lists
+
+An issuer MUST keep each signer's receipts per day, in the order it signed them, and MUST serve each day's list at
+`<base>/v1/receipts/<YYYY-MM-DD>`, where `<base>` is the issuer's API base URL, as this JSON object:
+
+| Member | Type | Meaning |
+| --- | --- | --- |
+| `day` | string | The day. |
+| `signer` | string | The signer, ERC-55. |
+| `count` | number | How many receipts `receipts` holds. |
+| `root` | string or null | The day root over `receipts`, or `null` when there are none. |
+| `unreadable` | number | Entries the issuer stored for the day and could not read back. They are not in `receipts` and not under `root`. |
+| `receipts` | array | The receipts, in the order signed. |
+
+An issuer MAY serve the list of a day that is not over. Its `root` changes as receipts are added and MUST NOT be
+published. A non-zero `unreadable` tells readers the list is not the whole day.
+
+### Day root
+
+The leaves are the receipt hashes, in day-list order. Each layer above is built from the one below, left to right: two
+adjacent nodes `a` and `b` become `keccak256(min(a, b) || max(a, b))`, comparing them as 256-bit unsigned integers. A
+node left without a partner at the end of a layer moves up unchanged. The day root is the single node at the top. The
+root of a list with one receipt is that receipt's hash.
+
+### Inclusion proofs
+
+A proof for the receipt at index `i` is the list of sibling nodes from its leaf to the root, lowest first, skipping
+layers where the node had no partner. A verifier MUST compute the leaf from the receipt itself, then fold the proof
+with the pair rule above and compare the result with the day root. This is the form OpenZeppelin's `MerkleProof.verify`
+takes, so a contract can check a receipt against a published root.
+
+### Day records
+
+Once a day is over, an issuer SHOULD publish one day record for each signer that has receipts that day. The record is
+a JSON object with at least these members:
+
+| Member | Type | Meaning |
+| --- | --- | --- |
+| `kind` | string | `"receipts"`. |
+| `date` | string | The day. |
+| `signer` | string | The signer, ERC-55. |
+| `count` | number | The day list's `count`. |
+| `root` | string | The day list's `root`. |
+
+The publisher MUST send the record as the UTF-8 bytes of its JSON in the `data` of this event, from any contract that
+emits it with `by` set to the transaction's sender:
+
+```solidity
+event Inscribed(address indexed by, string kind, bytes data);
+```
+
+`kind` in the event MUST be `"receipts"`. An issuer MUST NOT publish a record for a day that is not over and SHOULD NOT
+publish a second record for the same signer and day. Readers MUST take the first record, by block and log index, from a
+publisher they accept for that signer and day. An issuer SHOULD state its publisher accounts wherever it states its
+signers.
+
+### Readers
+
+To check a receipt it holds, a payer:
+
+1. checks the receipt is valid;
+2. reads the day list for the receipt's day and signer, checks every receipt in it is valid, of that day and of that
+   signer, and that `count` and `root` match the receipts listed;
+3. finds the receipt in the list, or computes its proof and checks it against `root`;
+4. finds the day record from a publisher it accepts, and checks its `count` and `root` against the list.
+
+A valid receipt that no published root covers, or a list whose root differs from the published record, is the
+issuer's to explain.
+
+## Rationale
+
+- **JSON with a fixed order, signed as ERC-191 bytes.** The signed bytes are the stored and served bytes, so a receipt
+  needs no second encoding, and any language with a JSON library and Keccak can check one. ERC-191 version `0x45` over
+  a hash was chosen because issuers often sign with the key that settles payments: the prefix keeps a receipt signature
+  from ever being valid as a transaction signature. Typed structured data would show better in wallets, but no
+  person signs a receipt, and the nested, nullable verdict makes its types awkward.
+- **RFC 8785 values, table order.** RFC 8785 fixes how strings and numbers are written, which is where JSON
+  serializers disagree. Its sorted member order was not taken, so that the order stays readable and matches the
+  reference deployment's receipts as already signed.
+- **Sorted pairs, carried odd nodes.** Sorted pairs match OpenZeppelin's `MerkleProof`, so a contract can check a
+  receipt against a root with a library most contracts already use. Hashing an odd node with itself would give a list
+  and the same list with its last receipt repeated one root; carrying it up does not. Sorted pairs make a root blind to
+  the order of two siblings, so the root fixes which receipts a day has and roughly where, not their exact order; the
+  day list states the order.
+- **Leaves without a second hash.** OpenZeppelin recommends hashing leaves twice so a 64-byte inner node cannot pass as
+  a leaf. Here a leaf is the hash of a canonical receipt, which is always longer than 64 bytes and starts with `{`, and
+  verifiers compute leaves from receipts, never from hashes they are given.
+- **One list per UTC day.** Settlement, accounting and audits run by day, and a daily record bounds the on-chain cost
+  to one log per signer per day.
+- **One fixed member set.** `upstream`, `absorbed` and `judged` come from the reference deployment, where a gateway
+  resells models other parties run and can have answers evaluated before it returns them. They stay in version 1 with
+  neutral values (`model`, `"0"`, `null`) for issuers that do neither, so every receipt has one canonical form and a
+  hash that does not depend on which fields an issuer chose to use.
+- **What the reference deployment does that this proposal does not require.** It returns the receipt under its own
+  header name, its day records carry one more member, `brainchain`, that marks its own records, and its publisher is a different key from
+  its signer. The first is a transport detail, the second is allowed by "at least these members", and the third is
+  allowed by design.
+
+### Open questions
+
+- Whether `upstream` should name the provider that ran the model separately from the model's name.
+- Whether a version 2 should commit to the payment's settlement transaction, which the issuer learns only after
+  settling.
+
+## Backwards Compatibility
+
+This proposal introduces a new format and has no backwards compatibility issues.
+
+## Test Cases
+
+[`vectors.json`](../assets/eip-draft_inference_receipts/vectors.json) holds five receipts signed by a throwaway key
+(the key is in the file: never fund it), with their canonical forms, hashes, day list, root, a proof for each receipt
+and the day record; six receipts that are invalid, each with the rule it breaks; and the reference deployment's public
+day list for 2026-11-19, one receipt whose hash is the root published on chain that day.
+[`test.mjs`](../assets/eip-draft_inference_receipts/test.mjs) checks the reference implementation against them.
+
+## Reference Implementation
+
+[`receipts.mjs`](../assets/eip-draft_inference_receipts/receipts.mjs) implements the canonical form, the receipt hash,
+the signature check, day lists, day roots, inclusion proofs and day records, with no dependencies.
+[`cli.mjs`](../assets/eip-draft_inference_receipts/cli.mjs) runs them on files, and
+[`README.md`](../assets/eip-draft_inference_receipts/README.md) says how.
+
+BrainChain's inference gateway on Robinhood Chain issues these receipts for calls paid in an ERC-20 stablecoin over
+x402, serves its day lists in this form and publishes each closed day's record on BrainChain.
+
+## Security Considerations
+
+- **What a receipt proves.** A receipt proves what the issuer stated about a call: the hashes, the model, the counts and
+  the charge. It does not prove that the named model produced the answer or that the token counts are right; an
+  issuer that resells a model can only pass on what its upstream reported. The payment itself can be checked on chain
+  from `payer`, `asset` and `nonce`.
+- **Omission.** An issuer can leave a call out of a day list. The payer's signed receipt, dated and signed by the same
+  key, shows it. Payers SHOULD keep their receipts and SHOULD check them against published roots.
+- **Revision.** An issuer can serve a different list later, but not change a record already on chain. Readers take the
+  first record, so a second record does not replace it.
+- **Unreadable entries.** An issuer can claim entries are unreadable to drop them from a list. The count is public, and
+  a payer whose receipt is missing has the receipt.
+- **Number formatting.** `passProbability` and `bar` are binary floating-point numbers. Implementations outside
+  ECMAScript MUST write them as RFC 8785 requires, or the hash will differ. Issuers SHOULD keep them to a few decimal
+  places.
+- **Privacy.** Receipts carry hashes of request and response bodies, not the bodies. A short or guessable body can be
+  found from its hash; payers that need otherwise SHOULD include something random in each request. Day lists show
+  which payers paid, how much and when, which their payments on chain already show.
+- **Signature malleability.** A second valid `s` exists for each signature. The signature is not part of the leaf or
+  the record, so this does not change what a root covers.
+- **Key compromise.** Whoever holds a signer's key can sign receipts in its name. Issuers SHOULD rotate to a new signer
+  when a key may be exposed and say from which day the new signer applies.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
