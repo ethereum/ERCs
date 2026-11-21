@@ -1,18 +1,19 @@
-// node cli.mjs verify <receipt.json>            the receipt is well formed and signed by its signer
-// node cli.mjs root <day.jsonl>                 the day list of a day file: count, root, unreadable lines
-// node cli.mjs prove <day.jsonl> <index>        the proof for the receipt at that index of the day list
-// node cli.mjs check <day-list.json>            a served day list: shape, receipts, order, count and root
-// Exit codes: 0 the check passed, 1 it failed or the input could not be read, 2 a usage mistake.
+// Command line for receipts.mjs; README.md lists the commands and exit codes.
 import { readFileSync } from "node:fs";
 
-import { dayList, dayOf, listProblem, parseJson, problem, proof, readDay, receiptsProblem } from "./receipts.mjs";
+import { dayList, listProblem, parseJson, proof, readDay, receiptProblem, recordListProblem, verifyProof } from "./receipts.mjs";
 
-const USAGE = "usage: node cli.mjs verify <receipt.json> | root <day.jsonl> | prove <day.jsonl> <index> | check <day-list.json>";
+const USAGE = `usage:
+  node cli.mjs verify <receipt.json>
+  node cli.mjs root <day.jsonl> [<day> <signer>]
+  node cli.mjs prove <day.jsonl> <index>
+  node cli.mjs check <day-list.json>
+  node cli.mjs check-proof <receipt.json> <proof.json> <root>
+  node cli.mjs check-record <record.json> <day-list.json>`;
 
 class Usage extends Error {}
 
 function read(file) {
-  if (!file) throw new Usage(USAGE);
   try {
     return readFileSync(file, "utf8");
   } catch (error) {
@@ -29,46 +30,55 @@ function json(file) {
   }
 }
 
-/** The day list of a day file, refused unless every readable line is a valid receipt of one day and one signer. */
-function list(file) {
-  const { receipts, unreadable } = readDay(read(file));
-  if (!receipts.length) throw new Error(`${file} holds no readable receipts`);
-  const [first] = receipts;
-  const day = typeof first.at === "string" ? dayOf(first) : undefined;
-  const built = dayList(day, first.signer, receipts, unreadable);
-  const why = receiptsProblem(built.day, built.signer, built.receipts);
+const passes = (why) => {
   if (why) throw new Error(`invalid: ${why}`);
-  return built;
+  return "valid";
+};
+
+function day(file, date = null, signer = null) {
+  const found = readDay(read(file), date, signer);
+  return dayList(found.day, found.signer, found.receipts, found.unreadable);
 }
 
-function run([command, file, index]) {
-  switch (command) {
-    case "verify": {
-      const why = problem(json(file));
-      if (why) throw new Error(`invalid: ${why}`);
-      return "valid";
-    }
-    case "root": {
-      const { receipts, ...rest } = list(file);
-      return JSON.stringify(rest, null, 2);
-    }
-    case "prove": {
-      if (index === undefined || !/^\d+$/.test(index)) throw new Usage(`the index must be a whole number. ${USAGE}`);
-      const { receipts } = list(file);
-      return JSON.stringify({ index: Number(index), ...proof(receipts, Number(index)) }, null, 2);
-    }
-    case "check": {
-      const why = listProblem(json(file));
-      if (why) throw new Error(`invalid: ${why}`);
-      return "valid";
-    }
-    default:
-      throw new Usage(USAGE);
-  }
-}
+const COMMANDS = {
+  verify: { arity: [1], run: ([file]) => passes(receiptProblem(json(file))) },
+  root: {
+    arity: [1, 3],
+    run: ([file, date, signer]) => {
+      const { receipts, ...list } = day(file, date, signer);
+      return JSON.stringify(list, null, 2);
+    },
+  },
+  prove: {
+    arity: [2],
+    run: ([file, index]) => {
+      if (!/^(0|[1-9][0-9]*)$/.test(index)) throw new Usage(`the index must be a whole number without leading zeros\n${USAGE}`);
+      return JSON.stringify(proof(day(file).receipts, Number(index)), null, 2);
+    },
+  },
+  check: { arity: [1], run: ([file]) => passes(listProblem(json(file))) },
+  "check-proof": {
+    arity: [3],
+    run: ([receiptFile, proofFile, root]) => {
+      const value = json(proofFile);
+      const siblings = Array.isArray(value) ? value : value?.proof;
+      return passes(verifyProof(json(receiptFile), siblings, root) ? null : "the root does not cover this receipt with this proof");
+    },
+  },
+  "check-record": {
+    arity: [2],
+    run: ([recordFile, listFile]) => {
+      const list = json(listFile);
+      return passes(listProblem(list) ?? recordListProblem(json(recordFile), list));
+    },
+  },
+};
 
 try {
-  console.log(run(process.argv.slice(2)));
+  const [command, ...args] = process.argv.slice(2);
+  const entry = COMMANDS[command];
+  if (!entry || !entry.arity.includes(args.length)) throw new Usage(USAGE);
+  console.log(entry.run(args));
 } catch (error) {
   console.error(error.message);
   process.exit(error instanceof Usage ? 2 : 1);
