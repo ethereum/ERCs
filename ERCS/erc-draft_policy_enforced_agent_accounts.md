@@ -1,7 +1,7 @@
 ---
 eip: TBD
 title: Policy-Enforced Agent Accounts
-description: Discover an account's external policy signer, its committed policy, standard reason codes and signed decision receipts.
+description: Discover an account's external policy signer, its committed policy, shared reason codes and signed decision receipts.
 author: Palisec (@palisec-dev)
 discussions-to: https://ethereum-magicians.org/t/draft-erc-policy-enforced-agent-accounts/30467
 status: Draft
@@ -24,7 +24,7 @@ Agents increasingly hold accounts that move real funds. A common protection is a
 3. why an action was refused, in terms that do not depend on the enforcer's vendor;
 4. whether a "this transaction was approved under policy X" claim is genuine.
 
-Existing work covers neighbouring problems. [ERC-7579](./eip-7579.md) and [ERC-7780](./eip-7780.md) define modules and policy modules that enforce inside an account; [ERC-7710](./eip-7710.md) defines delegation with caveat enforcers; [ERC-8004](./eip-8004.md) covers agent identity and reputation; [ERC-8226](./eip-8226.md) defines a registry of mandates for regulated assets; [ERC-8196](./eip-8196.md) defines a wallet that executes only with proof of policy compliance. None of them exposes an external policy signer, a commitment to its off-chain policy, a pending loosening with its effective time, an enforcer-independent reason list, or verifiable decision receipts. This ERC is a read-and-evidence layer that works on top of any of those enforcement mechanisms.
+Existing work covers neighboring problems. [ERC-7579](./eip-7579.md) and [ERC-7780](./eip-7780.md) define modules and policy modules that enforce inside an account; [ERC-7710](./eip-7710.md) defines delegation with caveat enforcers; [ERC-8004](./eip-8004.md) covers agent identity and reputation; [ERC-8226](./eip-8226.md) defines a registry of mandates for regulated assets; [ERC-8196](./eip-8196.md) defines a wallet that executes only with proof of policy compliance. None of them exposes an external policy signer, a commitment to its off-chain policy, a pending loosening with its effective time, an enforcer-independent reason list, or verifiable decision receipts. This ERC is a read-and-evidence layer that works on top of any of those enforcement mechanisms.
 
 ## Specification
 
@@ -80,7 +80,7 @@ A registry:
 - MUST accept commitments, stop flags and mandate references for an account only from that account's current `publisher`, and only while its `policySigner` is not zero.
 - MUST NOT let any caller change another account's data.
 - MUST reject an activation whose version is lower than the current one, or equal with a different hash.
-- MUST only accept a pending change whose `effectiveAt` is in the future and whose version is higher than the current one; MUST emit `PolicyCancelled` when a pending change is replaced, superseded by a newer activation, or cancelled; and MUST NOT allow cancelling a pending change after its `effectiveAt`.
+- MUST only accept a pending change whose `effectiveAt` is in the future and whose version is higher than the current one; MUST emit `PolicyCancelled` when a pending change is replaced, superseded by a newer activation, or canceled; and MUST NOT allow canceling a pending change after its `effectiveAt`.
 - MUST return a pending change from `policyOf` once its `effectiveAt` has passed, even if the publisher has not yet confirmed it with an activation. `pendingPolicyOf` MUST then return `exists = false`.
 - SHOULD have no owner, no upgrade path and hold no funds.
 
@@ -88,7 +88,7 @@ Accounts that implement the interface themselves MUST follow the same rules for 
 
 ### Policy document and hash
 
-`policyHash` MUST be `keccak256` of the UTF-8 bytes of the policy document serialized with the JSON Canonicalization Scheme (RFC 8785). `schemaURI` identifies the document's format. A conforming document SHOULD express at least the following common core, under these names: `account` (`chain_id`, `address`), `version`, a per-transaction value cap, a rolling budget and its window, a contract allowlist with function selectors, a deny list, a human-approval threshold, the loosening delay, and `failure_mode` (`"closed"`). Enforcers MAY use richer formats; `schemaURI` tells readers which.
+`policyHash` MUST be `keccak256` of the UTF-8 bytes of the policy document serialized as RFC 8785 canonical JSON. `schemaURI` identifies the document's format. A conforming document SHOULD express at least the following common core, under these names: `account` (`chain_id`, `address`), `version`, a per-transaction value cap, a rolling budget and its window, a contract allowlist with function selectors, a deny list, a human-approval threshold, the loosening delay, and `failure_mode` (`"closed"`). Enforcers MAY use richer formats; `schemaURI` tells readers which.
 
 If `policyURI` is not empty, it MUST serve the exact document over HTTPS, and a reader MUST check that the fetched document hashes to `policyHash` before relying on it. An empty `policyURI` means the document is private: whoever holds it can still prove which policy applied.
 
@@ -105,10 +105,10 @@ A reason code is an ASCII identifier, right-padded with zero bytes to `bytes32`.
 | `OVER_BUDGET` | The transaction exceeds the rolling or cumulative budget. |
 | `OVER_LIMIT` | A value limit is exceeded; the enforcer does not distinguish which. |
 | `RATE_LIMITED` | Too many requests in the policy's window. |
-| `COOLDOWN_OR_LOOP` | The same intent or calldata was repeated within the cooldown. |
+| `COOLDOWN_OR_LOOP` | The same intent or calldata was repeated within the waiting period. |
 | `REPLAY` | The request or authorization was already used, or has expired. |
 | `PAUSED` | The agent or account is paused, or the emergency stop is engaged. |
-| `HUMAN_APPROVAL_REQUIRED` | A human approver must approve this exact operation first. |
+| `HUMAN_APPROVAL_REQUIRED` | A human must approve this exact operation first. |
 | `ASSET_UNSAFE` | Simulation shows an unsafe asset outcome. |
 | `APPROVAL_RISK` | An unlimited or oversized token approval to a spender that is not allowed. |
 | `SIMULATION_UNAVAILABLE` | A required simulation could not run. |
@@ -173,10 +173,10 @@ No backward compatibility issues found. The interface is new and read-only for c
 In `../assets/eip-draft_policy_enforced_agent_accounts/`:
 
 - `IPolicyEnforcedAccount.sol`: the interface;
-- `PolicyEnforcedRegistry.sol`: the registry, with no owner and no upgrade path, deployed on Robinhood Chain mainnet (chain 4663) at `0x20D6B38B47F7cb765A2318a1f318ed54a6f87e92` with verified source;
+- `PolicyEnforcedRegistry.sol`: the registry, with no owner and no upgrade path, deployed on mainnet chain 4663 at `0x20D6B38B47F7cb765A2318a1f318ed54a6f87e92` with verified source;
 - `PolicyDecisionReceipt.sol`: pure helpers to verify a receipt on chain;
 - `PolicyEnforcedRegistry.t.sol`, `PolicyVectors.t.sol`: tests;
-- `client/`: a dependency-light TypeScript reader and receipt verifier (also published as the npm package `policy-enforced-accounts`), and `independent-read.mjs`, a script that reads an account's signer, policy and pending state, fetches and checks the policy, and verifies a receipt using only the chain.
+- `client/`: a dependency-light TypeScript reader and receipt verifier (also published as the JavaScript package `policy-enforced-accounts`), and `independent-read.mjs`, a script that reads an account's signer, policy and pending state, fetches and checks the policy, and verifies a receipt using only the chain.
 
 ## Security Considerations
 
@@ -187,7 +187,7 @@ In `../assets/eip-draft_policy_enforced_agent_accounts/`:
 - **Replay.** Receipts are bound to the chain, the registry, the account, the intent and a `decisionId`, and expire.
 - **Cross-chain.** Each chain has its own commitments. A receipt for one chain is invalid on another because the domain includes `chainId`.
 - **Lagging commitments.** A publisher may confirm a change late. The registry applies pending changes by time, and readers SHOULD compare `effectiveAt` with the current block time.
-- **Untrusted URIs.** `policyURI` is chosen by the publisher. Fetchers SHOULD allow only HTTPS, refuse local and private hosts, bound size and time, and always check the hash.
+- **Untrusted locations.** `policyURI` is chosen by the publisher. Fetchers SHOULD allow only HTTPS, refuse local and private hosts, bound size and time, and always check the hash.
 
 ## Copyright
 
