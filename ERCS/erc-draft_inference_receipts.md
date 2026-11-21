@@ -3,7 +3,7 @@ eip: TBD
 title: Inference Receipts
 description: Signed receipts for paid model calls, listed per UTC day under a Merkle root published on chain
 author: Kuro Sato (@kurokawasato)
-discussions-to: https://ethereum-magicians.org/t/draft-erc-inference-receipts/0
+discussions-to: https://ethereum-magicians.org/t/draft-erc-inference-receipts/30464
 status: Draft
 type: Standards Track
 category: ERC
