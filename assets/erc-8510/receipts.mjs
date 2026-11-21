@@ -1,6 +1,6 @@
-// Reference implementation of the Inference Receipts draft: canonical form, receipt hash, signature check, day root,
-// inclusion proofs and reading a day file. No dependencies: Keccak-256 and secp256k1 recovery are written out below
-// with BigInt, for clarity over speed.
+// Reference implementation of ERC-8510, Inference Receipts: canonical form, receipt hash, signature check, day lists,
+// day roots, inclusion proofs and day records. No dependencies: Keccak-256 and secp256k1 recovery are written out below
+// with BigInt, for clarity over speed (about 11 ms to check one receipt).
 
 // Keccak-256 (the original Keccak padding, as Ethereum uses it).
 
@@ -50,7 +50,7 @@ export function keccak256(bytes) {
 // Hex and text helpers. Hashes and signatures are lowercase 0x hex; addresses are ERC-55.
 
 export const toHex = (bytes) => `0x${Buffer.from(bytes).toString("hex")}`;
-export function fromHex(hex) {
+function fromHex(hex) {
   if (typeof hex !== "string" || !/^0x([0-9a-fA-F]{2})*$/.test(hex)) throw new Error(`not hex: ${hex}`);
   return Uint8Array.from(Buffer.from(hex.slice(2), "hex"));
 }
@@ -58,11 +58,19 @@ const utf8 = (text) => new TextEncoder().encode(text);
 const concat = (...parts) => Uint8Array.from(parts.flatMap((p) => [...p]));
 
 export function checksum(address) {
-  const lower = address.toLowerCase().replace(/^0x/, "");
+  const lower = typeof address === "string" ? address.toLowerCase().replace(/^0x/, "") : "";
   if (!/^[0-9a-f]{40}$/.test(lower)) throw new Error(`not an address: ${address}`);
   const hash = Buffer.from(keccak256(utf8(lower))).toString("hex");
   return `0x${[...lower].map((ch, i) => (parseInt(hash[i], 16) >= 8 ? ch.toUpperCase() : ch)).join("")}`;
 }
+
+const isChecksummed = (address) => {
+  try {
+    return checksum(address) === address;
+  } catch {
+    return false;
+  }
+};
 
 // secp256k1 public key recovery, affine coordinates.
 
@@ -100,12 +108,17 @@ function multiply(point, k) {
 const bigint = (bytes) => BigInt(toHex(bytes));
 const bytes32 = (n) => fromHex(`0x${n.toString(16).padStart(64, "0")}`);
 
-/** The ERC-55 address that signed a 32-byte digest, or null for a signature that recovers to no key. */
+/** The ERC-55 address that signed a 32-byte digest, or null when the signature recovers to no key. `v` must be 27 or 28. */
 export function recover(digest, signature) {
-  const sig = fromHex(signature);
-  if (sig.length !== 65) return null;
-  const r = bigint(sig.slice(0, 32)), s = bigint(sig.slice(32, 64)), v = sig[64] >= 27 ? sig[64] - 27 : sig[64];
-  if (v > 1 || r === 0n || r >= N || s === 0n || s >= N) return null;
+  let sig;
+  try {
+    sig = fromHex(signature);
+  } catch {
+    return null;
+  }
+  if (sig.length !== 65 || (sig[64] !== 27 && sig[64] !== 28)) return null;
+  const r = bigint(sig.slice(0, 32)), s = bigint(sig.slice(32, 64)), v = sig[64] - 27;
+  if (r === 0n || r >= N || s === 0n || s >= N) return null;
   const y2 = mod(r ** 3n + 7n, P);
   let y = power(y2, (P + 1n) / 4n, P);
   if ((y * y) % P !== y2) return null;
@@ -116,10 +129,47 @@ export function recover(digest, signature) {
   return checksum(toHex(keccak256(concat(bytes32(q[0]), bytes32(q[1]))).slice(12)));
 }
 
+// Strict JSON: what JSON.parse accepts, minus repeated member names, which JSON.parse resolves silently to the last one.
+
+/** Parses JSON text and throws when any object in it repeats a member name. */
+export function parseJson(text) {
+  const value = JSON.parse(text);
+  const objects = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "{") objects.push(new Set());
+    else if (ch === "[") objects.push(null);
+    else if (ch === "}" || ch === "]") objects.pop();
+    else if (ch === '"') {
+      let end = i + 1;
+      while (text[end] !== '"') end += text[end] === "\\" ? 2 : 1;
+      let next = end + 1;
+      while (/\s/.test(text[next] ?? "")) next++;
+      const names = objects.at(-1);
+      if (text[next] === ":" && names) {
+        const name = JSON.parse(text.slice(i, end + 1));
+        if (names.has(name)) throw new Error(`repeated member name: ${name}`);
+        names.add(name);
+      }
+      i = end;
+    }
+  }
+  return value;
+}
+
 // Receipts.
 
-export const KEYS = ["v", "request", "response", "model", "upstream", "tokensIn", "tokensOut", "price", "fee", "absorbed", "judged", "asset", "network", "payer", "nonce", "at", "signer"];
-export const VERDICT = ["accepted", "passProbability", "bar", "decision"];
+const KEYS = ["v", "request", "response", "model", "upstream", "tokensIn", "tokensOut", "price", "fee", "absorbed", "judged", "asset", "network", "payer", "nonce", "at", "signer"];
+const VERDICT = ["accepted", "passProbability", "bar", "decision"];
+const HASH = /^0x[0-9a-f]{64}$/;
+const DECIMAL = /^(0|[1-9][0-9]*)$/;
+const TEXT = /^[\x20-\x7e]{1,256}$/;
+const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const SIGNATURE = /^0x[0-9a-f]{128}(1b|1c)$/;
+const UINT256 = 2n ** 256n;
+const isObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+const uint256 = (x) => typeof x === "string" && DECIMAL.test(x) && BigInt(x) < UINT256;
+const sixDecimals = (x) => typeof x === "number" && x >= 0 && x <= 1 && Number(x.toFixed(6)) === x;
 
 /** The signed form: these keys in this order, the verdict's too, nothing else, no whitespace. */
 export function canonical(receipt) {
@@ -134,43 +184,56 @@ export const receiptHash = (receipt) => toHex(keccak256(utf8(canonical(receipt))
 /** The ERC-191 digest of a receipt hash: version 0x45 over the 32 hash bytes. */
 export const digest = (hash) => keccak256(concat(utf8("\x19Ethereum Signed Message:\n32"), fromHex(hash)));
 
-/** Why a receipt fails, or null when it is well formed and signed by its signer. */
+/** Why a receipt fails, or null when it is well formed and signed by its signer. Never throws. */
 export function problem(receipt) {
-  if (!receipt || typeof receipt !== "object") return "not an object";
+  if (!isObject(receipt)) return "not an object";
   const extra = Object.keys(receipt).filter((key) => key !== "signature" && !KEYS.includes(key));
   if (extra.length) return `unknown members: ${extra.join(", ")}`;
-  const missing = KEYS.filter((key) => !(key in receipt));
+  const missing = [...KEYS, "signature"].filter((key) => !Object.hasOwn(receipt, key));
   if (missing.length) return `missing members: ${missing.join(", ")}`;
   if (receipt.v !== 1) return "v is not 1";
-  for (const key of ["request", "response"]) if (!/^0x[0-9a-f]{64}$/.test(receipt[key])) return `${key} is not a lowercase 32-byte hash`;
-  for (const key of ["asset", "payer", "signer"]) {
-    try {
-      if (checksum(receipt[key]) !== receipt[key]) return `${key} is not in ERC-55 form`;
-    } catch {
-      return `${key} is not an address`;
-    }
-  }
+  for (const key of ["request", "response"]) if (typeof receipt[key] !== "string" || !HASH.test(receipt[key])) return `${key} is not a lowercase 32-byte hash`;
+  for (const key of ["model", "upstream"]) if (typeof receipt[key] !== "string" || !TEXT.test(receipt[key])) return `${key} is not 1 to 256 printable ASCII characters`;
   for (const key of ["tokensIn", "tokensOut"]) if (!Number.isSafeInteger(receipt[key]) || receipt[key] < 0) return `${key} is not a whole number`;
-  for (const key of ["price", "fee", "absorbed"]) if (!/^(0|[1-9][0-9]*)$/.test(receipt[key])) return `${key} is not a decimal string`;
+  for (const key of ["price", "fee", "absorbed"]) if (!uint256(receipt[key])) return `${key} is not a decimal string below 2^256`;
   if (BigInt(receipt.fee) > BigInt(receipt.price)) return "fee is more than price";
-  if (typeof receipt.nonce !== "string" || !/^((0|[1-9][0-9]*)|0x[0-9a-f]{64})$/.test(receipt.nonce)) return "nonce is not a decimal string or a lowercase 32-byte hex";
-  if (!/^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$/.test(receipt.network)) return "network is not a CAIP-2 chain id";
-  if (typeof receipt.at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(receipt.at) || new Date(receipt.at).toISOString() !== receipt.at) return "at is not a UTC time with milliseconds";
-  for (const key of ["model", "upstream"]) if (typeof receipt[key] !== "string" || receipt[key] === "") return `${key} is empty`;
   const j = receipt.judged;
   if (j !== null) {
-    if (typeof j !== "object" || Object.keys(j).length !== VERDICT.length || !VERDICT.every((key) => key in j)) return "judged is neither null nor a verdict";
-    if (typeof j.accepted !== "boolean" || typeof j.decision !== "string") return "judged is neither null nor a verdict";
-    for (const key of ["passProbability", "bar"]) if (typeof j[key] !== "number" || !(j[key] >= 0 && j[key] <= 1)) return `judged.${key} is not between 0 and 1`;
+    if (!isObject(j) || Object.keys(j).length !== VERDICT.length || !VERDICT.every((key) => Object.hasOwn(j, key))) return "judged is neither null nor a verdict";
+    if (typeof j.accepted !== "boolean") return "judged.accepted is not a boolean";
+    for (const key of ["passProbability", "bar"]) if (!sixDecimals(j[key])) return `judged.${key} is not a number from 0 to 1 with at most 6 decimals`;
+    if (typeof j.decision !== "string" || !TEXT.test(j.decision)) return "judged.decision is not 1 to 256 printable ASCII characters";
   }
+  for (const key of ["asset", "payer", "signer"]) if (!isChecksummed(receipt[key])) return `${key} is not an ERC-55 address`;
+  if (typeof receipt.network !== "string" || !/^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$/.test(receipt.network)) return "network is not a CAIP-2 chain id";
+  if (!(uint256(receipt.nonce) || (typeof receipt.nonce === "string" && HASH.test(receipt.nonce)))) return "nonce is not a decimal string below 2^256 or a lowercase 32-byte hex";
+  const at = receipt.at;
+  if (typeof at !== "string" || !AT.test(at) || Number.isNaN(Date.parse(at)) || new Date(at).toISOString() !== at) return "at is not a UTC time with milliseconds";
+  if (typeof receipt.signature !== "string" || !SIGNATURE.test(receipt.signature)) return "signature is not 65 bytes of lowercase hex with v 27 or 28";
+  if (BigInt(`0x${receipt.signature.slice(66, 130)}`) > N / 2n) return "signature s is above half the curve order";
   if (recover(digest(receiptHash(receipt)), receipt.signature) !== receipt.signer) return "the signature is not the signer's";
   return null;
 }
 
-export const verifyReceipt = (receipt) => problem(receipt) === null;
+/** Reads one receipt from JSON text: repeated member names are refused, then the receipt is checked. Throws on failure. */
+export function parseReceipt(text) {
+  const receipt = parseJson(text);
+  const why = problem(receipt);
+  if (why) throw new Error(why);
+  return receipt;
+}
 
 /** The UTC day a receipt belongs to. */
 export const dayOf = (receipt) => receipt.at.slice(0, 10);
+
+/** Day-list order: ascending `at`, then ascending receipt hash. */
+function order(a, b) {
+  if (a.at !== b.at) return a.at < b.at ? -1 : 1;
+  const [x, y] = [receiptHash(a), receiptHash(b)];
+  return x === y ? 0 : x < y ? -1 : 1;
+}
+
+const paymentOf = (r) => `${r.network} ${r.asset} ${r.payer} ${r.nonce}`;
 
 // Day roots: sorted-pair Keccak-256, an unpaired node carried up as it is.
 
@@ -179,67 +242,122 @@ function pair(a, b) {
   return toHex(keccak256(concat(fromHex(x), fromHex(y))));
 }
 
-function layers(receipts) {
+function tree(receipts) {
   if (receipts.length === 0) throw new Error("a day without receipts has no root");
-  const tree = [receipts.map(receiptHash)];
-  while (tree.at(-1).length > 1) {
-    const below = tree.at(-1), above = [];
+  const layers = [receipts.map(receiptHash)];
+  while (layers.at(-1).length > 1) {
+    const below = layers.at(-1), above = [];
     for (let i = 0; i < below.length; i += 2) above.push(i + 1 < below.length ? pair(below[i], below[i + 1]) : below[i]);
-    tree.push(above);
+    layers.push(above);
   }
-  return tree;
+  return layers;
 }
 
-/** The day root over the receipts in the order given (the order they were signed). */
-export const dayRoot = (receipts) => layers(receipts).at(-1)[0];
+/** The day root over the receipts in the order given. A day list gives them in day-list order. */
+export const dayRoot = (receipts) => tree(receipts).at(-1)[0];
 
-/** Siblings from the receipt's hash up to the root, in the form OpenZeppelin's MerkleProof.verify takes. */
+/** A receipt's leaf, its siblings up to the root (the form OpenZeppelin's MerkleProof.verify takes) and the root. */
 export function proof(receipts, index) {
-  if (!Number.isInteger(index) || index < 0 || index >= receipts.length) throw new RangeError(`no receipt at ${index}`);
-  const path = [];
-  for (const layer of layers(receipts).slice(0, -1)) {
+  if (!Number.isInteger(index) || index < 0 || index >= receipts.length) throw new RangeError(`no receipt at index ${index}: the list has ${receipts.length}`);
+  const layers = tree(receipts), leaf = layers[0][index], path = [];
+  for (const layer of layers.slice(0, -1)) {
     if (layer[index ^ 1] !== undefined) path.push(layer[index ^ 1]);
     index >>= 1;
   }
-  return path;
+  return { leaf, path, root: layers.at(-1)[0] };
 }
 
-/** Whether a receipt is covered by a root. The leaf is always computed from the receipt, never taken as given. */
-export const verifyProof = (receipt, path, root) => path.reduce((node, sibling) => pair(node, sibling), receiptHash(receipt)) === root;
+const NODE = /^0x[0-9a-fA-F]{64}$/;
 
-/** A day file: one receipt per line. Lines that do not parse are counted, not guessed at. */
-export function readDay(text) {
+/** Whether a root covers a receipt. The leaf is computed from the receipt, never taken as given; bad input is false. */
+export function verifyProof(receipt, path, root) {
+  if (!isObject(receipt) || !Array.isArray(path) || typeof root !== "string" || !NODE.test(root) || !path.every((n) => typeof n === "string" && NODE.test(n))) return false;
+  return path.reduce((node, sibling) => pair(node, sibling.toLowerCase()), receiptHash(receipt)) === root.toLowerCase();
+}
+
+/**
+ * A day file: one receipt per line, in any order. Blank lines are skipped; a line that is not JSON, repeats a member
+ * name or is not an object is counted as unreadable. Given `day` and `signer`, so is any receipt that is not a valid
+ * receipt of that day and signer, as an issuer counts them.
+ */
+export function readDay(text, day, signer) {
   const receipts = [];
   let unreadable = 0;
-  for (const line of text.split("\n")) {
-    if (!line) continue;
+  for (const line of text.replace(/^﻿/, "").split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let receipt;
     try {
-      receipts.push(JSON.parse(line));
+      receipt = parseJson(line);
     } catch {
       unreadable += 1;
+      continue;
     }
+    const fits = isObject(receipt) && (day === undefined || (problem(receipt) === null && dayOf(receipt) === day && receipt.signer === signer));
+    if (fits) receipts.push(receipt);
+    else unreadable += 1;
   }
   return { receipts, unreadable };
 }
 
-/** The day list an issuer serves for a day. */
+/** The day list an issuer serves for a day: its receipts in day-list order, with their count and root. */
 export function dayList(day, signer, receipts, unreadable = 0) {
-  return { day, signer, count: receipts.length, root: receipts.length ? dayRoot(receipts) : null, unreadable, receipts };
+  const sorted = [...receipts].sort(order);
+  return { day, signer, count: sorted.length, root: sorted.length ? dayRoot(sorted) : null, unreadable, receipts: sorted };
 }
 
-/** Why a day list fails, or null: every receipt valid, of that day and signer, and the count and root right. */
-export function listProblem(list) {
-  for (const [i, receipt] of list.receipts.entries()) {
+/** Why a set of receipts cannot be one day's list for a signer, in the order given, or null. */
+export function receiptsProblem(day, signer, receipts) {
+  const payments = new Set();
+  for (const [i, receipt] of receipts.entries()) {
     const why = problem(receipt);
     if (why) return `receipt ${i}: ${why}`;
-    if (dayOf(receipt) !== list.day) return `receipt ${i} is of ${dayOf(receipt)}, not ${list.day}`;
-    if (receipt.signer !== list.signer) return `receipt ${i} is signed by ${receipt.signer}, not ${list.signer}`;
+    if (dayOf(receipt) !== day) return `receipt ${i} is of ${dayOf(receipt)}, not ${day}`;
+    if (receipt.signer !== signer) return `receipt ${i} is signed by ${receipt.signer}, not ${signer}`;
+    if (i > 0 && order(receipts[i - 1], receipt) >= 0) return `receipt ${i} is out of day-list order or repeats receipt ${i - 1}`;
+    if (payments.has(paymentOf(receipt))) return `receipt ${i} repeats a payment already listed`;
+    payments.add(paymentOf(receipt));
   }
+  return null;
+}
+
+const LIST = ["day", "signer", "count", "root", "unreadable", "receipts"];
+const isDay = (day) => typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day;
+const isCount = (n) => Number.isSafeInteger(n) && n >= 0;
+
+/** Why a served day list fails, or null: its shape, every receipt valid, of that day and signer, in order, count and root right. */
+export function listProblem(list) {
+  if (!isObject(list)) return "not an object";
+  const extra = Object.keys(list).filter((key) => !LIST.includes(key));
+  if (extra.length) return `unknown members: ${extra.join(", ")}`;
+  const missing = LIST.filter((key) => !Object.hasOwn(list, key));
+  if (missing.length) return `missing members: ${missing.join(", ")}`;
+  if (!isDay(list.day)) return "day is not a YYYY-MM-DD date";
+  if (!isChecksummed(list.signer)) return "signer is not an ERC-55 address";
+  if (!isCount(list.count) || !isCount(list.unreadable)) return "count and unreadable must be whole numbers";
+  if (!Array.isArray(list.receipts)) return "receipts is not an array";
+  const why = receiptsProblem(list.day, list.signer, list.receipts);
+  if (why) return why;
   if (list.count !== list.receipts.length) return `count ${list.count} for ${list.receipts.length} receipts`;
   const root = list.receipts.length ? dayRoot(list.receipts) : null;
   if (list.root !== root) return `root ${list.root}, computed ${root}`;
   return null;
 }
 
-/** The day record an issuer publishes on chain for a closed day. */
-export const dayRecord = (list) => ({ kind: "receipts", date: list.day, signer: list.signer, count: list.count, root: list.root });
+const ZERO = `0x${"0".repeat(64)}`;
+
+/** The day record an issuer publishes for a closed day. A day with unreadable entries gets none until they are resolved. */
+export function dayRecord(list) {
+  if (list.unreadable !== 0) throw new Error(`${list.unreadable} unreadable entries: no record until they are resolved`);
+  return { kind: "receipts", date: list.day, signer: list.signer, count: list.count, root: list.root ?? ZERO };
+}
+
+/** Why a published record does not state a day list, or null. Members beyond the five required are allowed. */
+export function recordProblem(record, list) {
+  if (!isObject(record)) return "not an object";
+  if (record.kind !== "receipts") return "kind is not receipts";
+  if (record.date !== list.day) return `date ${record.date}, list ${list.day}`;
+  if (record.signer !== list.signer) return `signer ${record.signer}, list ${list.signer}`;
+  if (record.count !== list.count) return `count ${record.count}, list ${list.count}`;
+  if (record.root !== (list.root ?? ZERO)) return `root ${record.root}, list ${list.root ?? ZERO}`;
+  return null;
+}

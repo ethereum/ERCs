@@ -1,5 +1,5 @@
 {
-  "description": "Test vectors for the Inference Receipts draft. testKey is a throwaway key derived as keccak256 of a fixed text; never fund it.",
+  "description": "Test vectors for ERC-8510, Inference Receipts. testKey is a throwaway key derived as keccak256 of a fixed text; never fund it. invalid lists receipts that break one rule each, with the reason the reference implementation gives; the ones that break a type or value rule are correctly signed, so the rule is what fails. invalidLines are JSON texts a verifier must refuse before reading them as receipts. trees are the day roots over the first count receipts.",
   "testKey": "0x9b4c7a429a82817c1428acac1ad502d225546137844f7eb40587051de154ee50",
   "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
   "receipts": [
@@ -326,7 +326,7 @@
         "signer": "0x56cb26ee9246d5c181add7c6680717bf47273877",
         "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c"
       },
-      "reason": "signer is not in ERC-55 form"
+      "reason": "signer is not an ERC-55 address"
     },
     {
       "name": "version 2",
@@ -429,10 +429,359 @@
         "signature": "0x80aeb967e9fc8823b4869232175f3e77339f5652d13584857be3914e2070db7c275a602ffc3d1e82a95c9810a99daab6d1f9e7340d012afbc65057dc889026f51b"
       },
       "reason": "at is not a UTC time with milliseconds"
+    },
+    {
+      "name": "price as a number",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": 10003,
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x61ec1f9b29b3ed07da105090a7f73b350b96b16a631f73ef5784acd1ff8841757cb93d214c4e2460f7353d2e9c7ad5af81459cb8b430d278ae6a3b6dc4473e3a1b"
+      },
+      "reason": "price is not a decimal string below 2^256"
+    },
+    {
+      "name": "request as an array",
+      "receipt": {
+        "v": 1,
+        "request": [
+          "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4"
+        ],
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x45c7dfbec6e584670b4e990a51e6ac302e76c37e138aaaf4477b617546fbb104789b8da0b91cb6cdedba655ce6a9c4a1df7d98b5abe0a50d395214d910866d171c"
+      },
+      "reason": "request is not a lowercase 32-byte hash"
+    },
+    {
+      "name": "network as an array",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": [
+          "eip155:4663"
+        ],
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x8ebe51d7606cfea9d28d46fc91d1d7ae551fd0f5230bead22463918ea919e775533abc24bdd3406154b6d2ce3cee1312db72bf756105ef17b9ca05ab9a7299761b"
+      },
+      "reason": "network is not a CAIP-2 chain id"
+    },
+    {
+      "name": "fee more than price",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "20000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xd75d0e7113b591eecd2bb1af40c1b34661e7c4d88ce9538b810ac9f9d595d43c00bb386845be972e9bb18b71350be815f5e9b1aee4aa54c4d5757be227405e121c"
+      },
+      "reason": "fee is more than price"
+    },
+    {
+      "name": "nonce with a leading zero",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "0123",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xc8947f46119420c562dccbd13934c08b2d9a4c812b60ca7b7c7a1d3b73fb5f6c16d7c0bfd20649daa795257a7d05b5aa98df1b3b5cc2e960afd38c67d16374b81c"
+      },
+      "reason": "nonce is not a decimal string below 2^256 or a lowercase 32-byte hex"
+    },
+    {
+      "name": "network not CAIP-2",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "robinhood",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x30a1b7b18b2397aa15bedc468f8a86e1773c3480bfd66ade0f0d296f7ddf74066bfd941038e6d97b7d4afce70adaccd6ad2862a71ab7ac0070018498f94ee8971b"
+      },
+      "reason": "network is not a CAIP-2 chain id"
+    },
+    {
+      "name": "passProbability above 1",
+      "receipt": {
+        "v": 1,
+        "request": "0xf4ffd4a34174bd4c50b60def28fb78746360ace14c84535357ab4f2ba774b7a9",
+        "response": "0xfe9bd3d0d011a5718eaf9d66566c0d7dd26b12ce816376b3ff55fb2d98eef5cb",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 103,
+        "tokensOut": 53,
+        "price": "10009",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": {
+          "accepted": true,
+          "passProbability": 1.2,
+          "bar": 0.7,
+          "decision": "4410"
+        },
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0x029361155605BCc8B6327615601ee9AC1f45c7aA",
+        "nonce": "179867653774160190526638484609099130185253826513286912423845611775412407914",
+        "at": "2026-11-21T03:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xc81c21da4196403c0e6eeaddafa264574bb185a87e79ebe40944587756ef967870bde9f688d71d789d0f05337e2ae1f786997c1f79b4173e2cad5a59f13f7c521b"
+      },
+      "reason": "judged.passProbability is not a number from 0 to 1 with at most 6 decimals"
+    },
+    {
+      "name": "bar with seven decimals",
+      "receipt": {
+        "v": 1,
+        "request": "0xf4ffd4a34174bd4c50b60def28fb78746360ace14c84535357ab4f2ba774b7a9",
+        "response": "0xfe9bd3d0d011a5718eaf9d66566c0d7dd26b12ce816376b3ff55fb2d98eef5cb",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 103,
+        "tokensOut": 53,
+        "price": "10009",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": {
+          "accepted": true,
+          "passProbability": 0.82,
+          "bar": 0.7000001,
+          "decision": "4410"
+        },
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0x029361155605BCc8B6327615601ee9AC1f45c7aA",
+        "nonce": "179867653774160190526638484609099130185253826513286912423845611775412407914",
+        "at": "2026-11-21T03:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x9ad1a90c612b21581c6eb932af388a29353e49cbe01cfaabfb5e44e968ba8226789964b868350a56e73fb9d039364b0ed316a709a8704f162a1031652b216bd51c"
+      },
+      "reason": "judged.bar is not a number from 0 to 1 with at most 6 decimals"
+    },
+    {
+      "name": "model outside printable ASCII",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "modèle-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x3d205c1baedb041b97ad72064dec62e66cde3e8d340570a212aacd3b5598337840c92ae35280ab08b123efe7cb5fc3bedd69433be5fd5e54fb2889b24b9cccd41c"
+      },
+      "reason": "model is not 1 to 256 printable ASCII characters"
+    },
+    {
+      "name": "price of 2^256",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "115792089237316195423570985008687907853269984665640564039457584007913129639936",
+        "fee": "0",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0x28a573844e45e38439f9da964f6034e0e1cf5e3059cbd57792182d02dedab6da46ccae8718d585a194d9c400d72249353202705404318259ec5bf99bef2975231c"
+      },
+      "reason": "price is not a decimal string below 2^256"
+    },
+    {
+      "name": "high s",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e7d90e9db3e66007336a0780051ecd3483006a603145c76d4aad2327e834b829ec1b"
+      },
+      "reason": "signature s is above half the curve order"
+    },
+    {
+      "name": "v as 0 or 1",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e175501"
+      },
+      "reason": "signature is not 65 bytes of lowercase hex with v 27 or 28"
+    },
+    {
+      "name": "signature in uppercase",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+        "signature": "0xDDA413A367DC3352236C7A76AF45FC58F6272199659F4CE49D4DC0A98F08E9E726F1624C199FF8CC95F87FFAE132CB7BBA447CB5698132F112AF36A49B7E17551C"
+      },
+      "reason": "signature is not 65 bytes of lowercase hex with v 27 or 28"
+    },
+    {
+      "name": "no signature",
+      "receipt": {
+        "v": 1,
+        "request": "0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4",
+        "response": "0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd",
+        "model": "model-a",
+        "upstream": "provider/model-a-1",
+        "tokensIn": 101,
+        "tokensOut": 51,
+        "price": "10003",
+        "fee": "10000",
+        "absorbed": "0",
+        "judged": null,
+        "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "network": "eip155:4663",
+        "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+        "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+        "at": "2026-11-21T01:00:00.000Z",
+        "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877"
+      },
+      "reason": "missing members: signature"
     }
   ],
   "public": {
-    "note": "The reference deployment's day list for 2026-11-19 as it serves it. Its record is in block 3719 of chain 274663, sent by 0x70C665780E43BA1496a4E691e408F24844dB58eC through an Inscribed event.",
+    "note": "The reference deployment's day list for 2026-11-19 as it serves it, and its day record as inscribed on chain: inscription.data is the event's data as UTF-8, record is that JSON parsed. The record carries two members beyond the five required, brainchain and at.",
     "dayList": {
       "day": "2026-11-19",
       "signer": "0x70D882879E1954Ac9A06b693379334Fd131B786D",
@@ -463,11 +812,67 @@
       ]
     },
     "record": {
+      "brainchain": 1,
       "kind": "receipts",
       "date": "2026-11-19",
       "signer": "0x70D882879E1954Ac9A06b693379334Fd131B786D",
       "count": 1,
-      "root": "0xf8529c2cbf9e0160ff1892d1fe9da8e941024bb8d13875ca503ef1f1ceb8d064"
+      "root": "0xf8529c2cbf9e0160ff1892d1fe9da8e941024bb8d13875ca503ef1f1ceb8d064",
+      "at": "2026-11-20T00:30:02Z"
+    },
+    "inscription": {
+      "network": "eip155:274663",
+      "contract": "0x770D6756CA8a1627FFf01B846383b13d6fa0c514",
+      "block": 3719,
+      "logIndex": 0,
+      "transaction": "0xcb3558f612377f6aa40e766743dbdae0c9518f31752e5a971fd3a783dc3e1338",
+      "by": "0x70C665780E43BA1496a4E691e408F24844dB58eC",
+      "kind": "receipts",
+      "data": "{\"brainchain\":1,\"kind\":\"receipts\",\"date\":\"2026-11-19\",\"signer\":\"0x70D882879E1954Ac9A06b693379334Fd131B786D\",\"count\":1,\"root\":\"0xf8529c2cbf9e0160ff1892d1fe9da8e941024bb8d13875ca503ef1f1ceb8d064\",\"at\":\"2026-11-20T00:30:02Z\"}"
+    }
+  },
+  "invalidLines": [
+    {
+      "name": "repeated member name",
+      "line": "{\"v\":1,\"request\":\"0xdc8dd6a67577ceb0e8c952ae699fa1cb86ba150ec0651bc5991870680175c0d4\",\"response\":\"0x24918e306b08fdcb40fe6fc9f28e4d23e0501897c5ebf2d0d5e4f7f8fefe3bbd\",\"model\":\"model-a\",\"upstream\":\"provider/model-a-1\",\"tokensIn\":101,\"tokensOut\":51,\"price\":\"99999\",\"price\":\"10003\",\"fee\":\"10000\",\"absorbed\":\"0\",\"judged\":null,\"asset\":\"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168\",\"network\":\"eip155:4663\",\"payer\":\"0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f\",\"nonce\":\"395673029145726960113854713732021355750454628199860965880162379796955085081\",\"at\":\"2026-11-21T01:00:00.000Z\",\"signer\":\"0x56CB26eE9246D5C181ADD7c6680717bF47273877\",\"signature\":\"0xdda413a367dc3352236c7a76af45fc58f6272199659f4ce49d4dc0a98f08e9e726f1624c199ff8cc95f87ffae132cb7bba447cb5698132f112af36a49b7e17551c\"}",
+      "reason": "repeated member name: price"
+    }
+  ],
+  "trees": [
+    {
+      "count": 2,
+      "root": "0xe8c3611243988aad0412dc87a51e99b3256d5fedca0e4f4434358bf5b57d8f78"
+    },
+    {
+      "count": 3,
+      "root": "0xc83405b1465035ca2fdcba03fd790bfb26921a3b823004f8c9a04b375754eb1e"
+    },
+    {
+      "count": 5,
+      "root": "0x2cc196f1080ceb2a2b4571181300f260f3ba8f6f87d3192cd4e26e913a3b0de8"
+    }
+  ],
+  "repeatedPayment": {
+    "note": "A valid receipt for the payment receipts[0] already covers: a list holding both is invalid.",
+    "receipt": {
+      "v": 1,
+      "request": "0x7f5351f805cf65af8b00e894fad669b2f1ffcf3bdf92d28f147000bcb8334dad",
+      "response": "0x7be794bcd68b72711606840788159fe70bf9fd69b7d19ff68d295c2492e6e9ca",
+      "model": "model-b",
+      "upstream": "model-b",
+      "tokensIn": 102,
+      "tokensOut": 52,
+      "price": "10006",
+      "fee": "10000",
+      "absorbed": "0",
+      "judged": null,
+      "asset": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "network": "eip155:4663",
+      "payer": "0xb1266bF90C2404F3C4a8D5427bf331ba89c8b13f",
+      "nonce": "395673029145726960113854713732021355750454628199860965880162379796955085081",
+      "at": "2026-11-21T02:00:00.000Z",
+      "signer": "0x56CB26eE9246D5C181ADD7c6680717bF47273877",
+      "signature": "0x36f31a066413786d81d28ea6d9571880f5e8ac1b4e79c3487c03703f60ed6675520c7edc11731bba5d72dede4f6982afb8869ff9474908b3823747ebc86fa0541c"
     }
   }
 }
