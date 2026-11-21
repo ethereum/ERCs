@@ -259,16 +259,23 @@ contract ERC8473IntegrationTest is Helpers {
                             POLICIES BUILT FROM POLICIES
   //////////////////////////////////////////////////////////////*/
 
+  /// @notice A forwarder over the example policy alone
+  function _newForwarder() internal returns (ForwardingPolicy _forwarder) {
+    IERC8473Policy[] memory _modules = new IERC8473Policy[](1);
+    _modules[0] = IERC8473Policy(address(_policy));
+    _forwarder = new ForwardingPolicy(_modules);
+  }
+
   /// @notice Installs a forwarder over the example policy, with the two current holders as the list
   function _installForwarder() internal returns (ForwardingPolicy _forwarder) {
-    _forwarder = new ForwardingPolicy(IERC8473Policy(address(_policy)));
+    _forwarder = _newForwarder();
     address[] memory _holders = new address[](2);
     (_holders[0], _holders[1]) = (_actors[0], _actors[1]);
     _installWithHolders(address(_forwarder), _holders);
   }
 
   function test_WhenAForwarderIsInstalled_TheModuleTakesItsCallbacks() public {
-    ForwardingPolicy _forwarder = new ForwardingPolicy(IERC8473Policy(address(_policy)));
+    ForwardingPolicy _forwarder = _newForwarder();
     address[] memory _holders = new address[](2);
     (_holders[0], _holders[1]) = (_actors[0], _actors[1]);
 
@@ -327,6 +334,69 @@ contract ERC8473IntegrationTest is Helpers {
       abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_UnauthorizedCaller.selector, address(_forwarder))
     );
     _forwarder.onInstall(address(_token), address(0), abi.encode(_holders));
+  }
+
+  /// @notice Policy requirement 17: the forwarder passes its installation on, so a module that missed movements while
+  ///         another policy was installed counts again, and its cap holds
+  function test_WhenAForwarderIsReinstalled_TheModuleCountsAgain() public {
+    ForwardingPolicy _forwarder = _installForwarder();
+    _swapAwayAndMintTwoHolders();
+    vm.prank(_admin);
+    _policy.setCap(4);
+
+    vm.expectEmit(address(_policy));
+    emit IExamplePolicy.HolderCountSeeded(2, 4);
+    _installWithHolders(address(_forwarder), _everyActor());
+    assertEq(_policy.holderCount(), 4);
+
+    address _fifth = makeAddr('fifth');
+    bytes32 _maxHolders = _policy.MAX_HOLDERS();
+    vm.prank(_admin);
+    _policy.setAllowlisted(_fifth, true);
+    vm.prank(_minter);
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _maxHolders));
+    _token.mint(_fifth, 10);
+  }
+
+  /// @notice Policy requirement 17: the module's refusal goes through the forwarder, so the forwarder cannot come back
+  ///         with a list that misses the holders who arrived while it was away
+  function test_WhenAForwardersModuleRefusesTheList_ItRevertsAndTheOtherPolicyStays() public {
+    ForwardingPolicy _forwarder = _installForwarder();
+    ExamplePolicy _b = _swapAwayAndMintTwoHolders();
+    address[] memory _stale = new address[](2);
+    (_stale[0], _stale[1]) = (_actors[0], _actors[1]);
+    uint256 _sum = _token.balanceOf(_actors[0]) + _token.balanceOf(_actors[1]);
+    uint256 _supply = _token.totalSupply();
+
+    vm.prank(_admin);
+    vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_HoldersIncomplete.selector, _sum, _supply));
+    _token.setPolicy(address(_forwarder), abi.encode(_ascending(_stale)));
+    assertEq(_token.policy(), address(_b));
+  }
+
+  /// @notice Policy requirement 17: the first module does not want the callback for this token and the second does, so
+  ///         the forwarder asks for it and passes it only to the second
+  function test_WhenOneOfTwoModulesWantsTheCallback_TheForwarderPassesItOn() public {
+    CallbackForOneTokenPolicy _elsewhere = new CallbackForOneTokenPolicy(makeAddr('another token'));
+    IERC8473Policy[] memory _modules = new IERC8473Policy[](2);
+    (_modules[0], _modules[1]) = (IERC8473Policy(address(_elsewhere)), IERC8473Policy(address(_policy)));
+    ForwardingPolicy _forwarder = new ForwardingPolicy(_modules);
+    address[] memory _holders = new address[](2);
+    (_holders[0], _holders[1]) = (_actors[0], _actors[1]);
+    _installWithHolders(address(_forwarder), _holders);
+
+    assertFalse(_elsewhere.wantsAfterTransfer(address(_token)));
+    assertTrue(_forwarder.wantsAfterTransfer(address(_token)));
+    vm.prank(_actors[0]);
+    _token.transfer(_actors[2], 5);
+    assertEq(_policy.holderCount(), 3);
+    assertEq(_elsewhere.afterTransferCalls(), 0);
+  }
+
+  /// @notice A forwarder with no modules would return `TRANSFER_OK` from every check, so it cannot be built
+  function test_WhenAForwarderHasNoModules_ItCannotBeBuilt() public {
+    vm.expectRevert(ForwardingPolicy.ForwardingPolicy_NoModules.selector);
+    new ForwardingPolicy(new IERC8473Policy[](0));
   }
 
   /*///////////////////////////////////////////////////////////////
