@@ -1,0 +1,186 @@
+{
+  "description": "Test vectors for the draft ERC Policy-Enforced Agent Accounts. Keys are test-only and public; never fund them.",
+  "interfaceId": "0xcc16d336",
+  "testKeys": {
+    "receiptSigner": {
+      "privateKey": "0xe04c5badc92b189a47966ac7bfa7245721320ebd5f496612f472c1f99269b924",
+      "address": "0x385076125A5CFcE235Bc736C2184045182600028",
+      "label": "policy-enforced-accounts test vector key: receipt signer 1"
+    }
+  },
+  "policies": [
+    {
+      "name": "empty object",
+      "document": {},
+      "jcs": "{}",
+      "policyHash": "0xb48d38f93eaa084033fc5970bf96e559c33c4cdc07d889ab00b4d63f9590739d"
+    },
+    {
+      "name": "key order and nesting",
+      "document": {
+        "b": 1,
+        "a": {
+          "d": [
+            3,
+            2,
+            1
+          ],
+          "c": "x"
+        }
+      },
+      "jcs": "{\"a\":{\"c\":\"x\",\"d\":[3,2,1]},\"b\":1}",
+      "policyHash": "0x0b401cfaf25801566ff3da167d857a5499c71c7dbe4975ed15c3fc3692c03c1a"
+    },
+    {
+      "name": "unicode and escaping",
+      "document": {
+        "é": "€",
+        "a\"b": "line\nbreak",
+        "\u0001": true,
+        "z": null
+      },
+      "jcs": "{\"\\u0001\":true,\"a\\\"b\":\"line\\nbreak\",\"z\":null,\"é\":\"€\"}",
+      "policyHash": "0x557da04bcca3fcb3b240d97f740bfd4007ae15a8b60e5c84fecbd9254493afee"
+    },
+    {
+      "name": "numbers",
+      "document": {
+        "int": 100,
+        "neg": -5,
+        "zero": 0,
+        "float": 1.5,
+        "big": 1e+21,
+        "small": 1e-7
+      },
+      "jcs": "{\"big\":1e+21,\"float\":1.5,\"int\":100,\"neg\":-5,\"small\":1e-7,\"zero\":0}",
+      "policyHash": "0x02a6fecc7c67dac89b4dfa8b1c686ae9ac4176c6733c59adf0ff00ae32fe46ca"
+    },
+    {
+      "name": "minimal common core policy",
+      "document": {
+        "schema": "https://palisec.tech/schemas/peaa-core-1.json",
+        "account": {
+          "chain_id": 4663,
+          "address": "0x1111111111111111111111111111111111111111"
+        },
+        "version": 3,
+        "limits": {
+          "max_transaction_value_wei": "300000000000000",
+          "rolling_budget_usd_micros": "2000000",
+          "rolling_window_seconds": 3600
+        },
+        "contracts": {
+          "default": "deny",
+          "allowlist": [
+            {
+              "address": "0x2222222222222222222222222222222222222222",
+              "selectors": [
+                "0xa9059cbb"
+              ]
+            }
+          ],
+          "denylist": []
+        },
+        "human_approval": {
+          "usd_threshold_micros": "500000"
+        },
+        "loosening_delay_seconds": 3600,
+        "failure_mode": "closed"
+      },
+      "jcs": "{\"account\":{\"address\":\"0x1111111111111111111111111111111111111111\",\"chain_id\":4663},\"contracts\":{\"allowlist\":[{\"address\":\"0x2222222222222222222222222222222222222222\",\"selectors\":[\"0xa9059cbb\"]}],\"default\":\"deny\",\"denylist\":[]},\"failure_mode\":\"closed\",\"human_approval\":{\"usd_threshold_micros\":\"500000\"},\"limits\":{\"max_transaction_value_wei\":\"300000000000000\",\"rolling_budget_usd_micros\":\"2000000\",\"rolling_window_seconds\":3600},\"loosening_delay_seconds\":3600,\"schema\":\"https://palisec.tech/schemas/peaa-core-1.json\",\"version\":3}",
+      "policyHash": "0x04595925239dfef58a1de5f19b73d81e7c2a8cf0229d8343ad3ed44d1ba6837a"
+    }
+  ],
+  "intents": [
+    {
+      "name": "native transfer",
+      "intent": {
+        "chainId": 4663,
+        "account": "0x1111111111111111111111111111111111111111",
+        "target": "0x2222222222222222222222222222222222222222",
+        "value": "20000000000000",
+        "data": "0x"
+      },
+      "intentHash": "0x2fb544f03fdb4cd57f422d9b2e762a4edfb1b892f342330b2c82fca8bed96761"
+    },
+    {
+      "name": "token transfer call",
+      "intent": {
+        "chainId": 4663,
+        "account": "0x1111111111111111111111111111111111111111",
+        "target": "0x2222222222222222222222222222222222222222",
+        "value": "0",
+        "data": "0xa9059cbb0000000000000000000000003333333333333333333333333333333333333333000000000000000000000000000000000000000000000000000000000000000a"
+      },
+      "intentHash": "0x8fe242bbc098f33b596874c6745993eba4a35c7051efc9b49b24f198191d3778"
+    }
+  ],
+  "receipts": [
+    {
+      "name": "allow",
+      "receipt": {
+        "chainId": "4663",
+        "registry": "0x00000000000000000000000000000000000000Aa",
+        "account": "0x1111111111111111111111111111111111111111",
+        "policyHash": "0x04595925239dfef58a1de5f19b73d81e7c2a8cf0229d8343ad3ed44d1ba6837a",
+        "policyVersion": "3",
+        "issuedAt": "1800000000",
+        "expiresAt": "1800000300",
+        "intentHash": "0x2fb544f03fdb4cd57f422d9b2e762a4edfb1b892f342330b2c82fca8bed96761",
+        "decision": "ALLOW",
+        "reasonCode": "NONE",
+        "detailCode": "NONE",
+        "decisionId": "0xa70cd90ebf547d22678d88efb14cf1656fcc1648d32eaa4408901b6c1926bdc6",
+        "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
+        "signature": "0x082b3736317d2b7efc3a36428425159349461359b1e307de1b8f9fac9f8353af52a070aded493d2980b9438edd3e61e7d396f00f0f3f878c8f7f5ba8db1f29a11c"
+      },
+      "digest": "0x60edf56796d687a2dd7c639242f5b0b7b434e0763b11653bd7a95ef945b7a473",
+      "encodedReason": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "encodedDetail": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "deny over limit",
+      "receipt": {
+        "chainId": "4663",
+        "registry": "0x00000000000000000000000000000000000000Aa",
+        "account": "0x1111111111111111111111111111111111111111",
+        "policyHash": "0x04595925239dfef58a1de5f19b73d81e7c2a8cf0229d8343ad3ed44d1ba6837a",
+        "policyVersion": "3",
+        "issuedAt": "1800000000",
+        "expiresAt": "1800000300",
+        "intentHash": "0x2fb544f03fdb4cd57f422d9b2e762a4edfb1b892f342330b2c82fca8bed96761",
+        "decision": "DENY",
+        "reasonCode": "OVER_LIMIT",
+        "detailCode": "palisec:PS_BUDGET_001",
+        "decisionId": "0xf23607914b7aea97c50ae640b8692bfebb3d10305eefb8456780961e7e44086d",
+        "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
+        "signature": "0xd5120ad7daacdc1ff682d180ceaf5f41c1b82eb295e18f07bce7e7372d6d2d0c1c2dacf15944f7b7027e863363f69b68d27dd1fbba61dc7d54e97364531860ac1c"
+      },
+      "digest": "0x4bafcfaae6d0634793605de49e8cbce3a5b6f6d4c57d0cceafb5368cfd734a25",
+      "encodedReason": "0x4f5645525f4c494d495400000000000000000000000000000000000000000000",
+      "encodedDetail": "0x70616c697365633a50535f4255444745545f3030310000000000000000000000"
+    },
+    {
+      "name": "review: human approval",
+      "receipt": {
+        "chainId": "4663",
+        "registry": "0x00000000000000000000000000000000000000Aa",
+        "account": "0x1111111111111111111111111111111111111111",
+        "policyHash": "0x04595925239dfef58a1de5f19b73d81e7c2a8cf0229d8343ad3ed44d1ba6837a",
+        "policyVersion": "3",
+        "issuedAt": "1800000000",
+        "expiresAt": "1800000300",
+        "intentHash": "0x8fe242bbc098f33b596874c6745993eba4a35c7051efc9b49b24f198191d3778",
+        "decision": "REVIEW",
+        "reasonCode": "HUMAN_APPROVAL_REQUIRED",
+        "detailCode": "palisec:PS_HUMAN_001",
+        "decisionId": "0x39aa928ae23ba23098834e8d18e8b72aea8c965923bbce13e74894c785d97fd7",
+        "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
+        "signature": "0x3606fdaad6ca196edc21d3d962efe43677e7919cb0f964828a952bd848ca34c625b45ce8c1d09de3356955bcd8976884ed6e8698896706a68479dc7568bf8c981b"
+      },
+      "digest": "0xd3a4579288215ddaf0ada06e281f8ca89d911592d69c28c36b84818213665fd5",
+      "encodedReason": "0x48554d414e5f415050524f56414c5f5245515549524544000000000000000000",
+      "encodedDetail": "0x70616c697365633a50535f48554d414e5f303031000000000000000000000000"
+    }
+  ]
+}

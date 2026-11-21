@@ -1,0 +1,106 @@
+import { encodeAbiParameters, getAddress, keccak256, recoverTypedDataAddress, toBytes, type Address, type Hex } from "viem";
+import { decodeReason, encodeReason } from "./reasons";
+
+export const DECISIONS = { ALLOW: 0, DENY: 1, REVIEW: 2 } as const;
+export type DecisionName = keyof typeof DECISIONS;
+
+/** What was asked: bound into every receipt so it cannot be reused for another transaction. */
+export interface Intent {
+  chainId: number | bigint;
+  account: Address;
+  target: Address;
+  value: bigint | string;
+  data: Hex;
+}
+
+export const INTENT_TYPEHASH = keccak256(toBytes("Intent(uint256 chainId,address account,address target,uint256 value,bytes32 dataHash)"));
+
+/** intentHash = keccak256(abi.encode(INTENT_TYPEHASH, chainId, account, target, value, keccak256(data))). */
+export function intentHash(i: Intent): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [{ type: "bytes32" }, { type: "uint256" }, { type: "address" }, { type: "address" }, { type: "uint256" }, { type: "bytes32" }],
+      [INTENT_TYPEHASH, BigInt(i.chainId), getAddress(i.account), getAddress(i.target), BigInt(i.value), keccak256(i.data)],
+    ),
+  );
+}
+
+/** The signed message. Times are Unix seconds (UTC). */
+export interface DecisionMessage {
+  account: Address;
+  intentHash: Hex;
+  decision: number;
+  reasonCode: Hex;
+  detailCode: Hex;
+  policyHash: Hex;
+  policyVersion: bigint;
+  issuedAt: bigint;
+  expiresAt: bigint;
+  decisionId: Hex;
+}
+
+export const RECEIPT_TYPES = {
+  Decision: [
+    { name: "account", type: "address" },
+    { name: "intentHash", type: "bytes32" },
+    { name: "decision", type: "uint8" },
+    { name: "reasonCode", type: "bytes32" },
+    { name: "detailCode", type: "bytes32" },
+    { name: "policyHash", type: "bytes32" },
+    { name: "policyVersion", type: "uint64" },
+    { name: "issuedAt", type: "uint64" },
+    { name: "expiresAt", type: "uint64" },
+    { name: "decisionId", type: "bytes32" },
+  ],
+} as const;
+
+export function receiptDomain(chainId: number | bigint, registry: Address) {
+  return { name: "PolicyDecisionReceipt", version: "1", chainId: BigInt(chainId), verifyingContract: getAddress(registry) } as const;
+}
+
+/** JSON form of a receipt (as an API returns it): every field a string, plus the signature. */
+export interface ReceiptJson {
+  chainId: string;
+  registry: Address;
+  account: Address;
+  intentHash: Hex;
+  decision: DecisionName;
+  reasonCode: string;
+  detailCode: string;
+  policyHash: Hex;
+  policyVersion: string;
+  issuedAt: string;
+  expiresAt: string;
+  decisionId: Hex;
+  signer: Address;
+  signature: Hex;
+}
+
+export function toMessage(r: Omit<ReceiptJson, "signature" | "signer" | "chainId" | "registry">): DecisionMessage {
+  return {
+    account: getAddress(r.account),
+    intentHash: r.intentHash,
+    decision: DECISIONS[r.decision],
+    reasonCode: encodeReason(r.reasonCode),
+    detailCode: encodeReason(r.detailCode),
+    policyHash: r.policyHash,
+    policyVersion: BigInt(r.policyVersion),
+    issuedAt: BigInt(r.issuedAt),
+    expiresAt: BigInt(r.expiresAt),
+    decisionId: r.decisionId,
+  };
+}
+
+export const typedReceipt = (r: ReceiptJson) => ({
+  domain: receiptDomain(BigInt(r.chainId), r.registry),
+  types: RECEIPT_TYPES,
+  primaryType: "Decision" as const,
+  message: toMessage(r),
+});
+
+/** Who signed this receipt (EOA signatures). Contract signers are checked with ERC-1271 in verifyReceipt. */
+export async function recoverReceiptSigner(r: ReceiptJson): Promise<Address> {
+  return recoverTypedDataAddress({ ...typedReceipt(r), signature: r.signature });
+}
+
+export { decodeReason };
