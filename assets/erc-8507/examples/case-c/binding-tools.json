@@ -1,0 +1,37 @@
+{
+  "aaf": "1",
+  "kind": "binding",
+  "name": "The gateway does not run excluded tool versions",
+  "adoption": {
+    "consumer": "The service contract",
+    "authority": "The account the service named as its adopter"
+  },
+  "scopeDocument": "0xee657f675a1ea862d87a7a85d4e2dfa023a6a326041d17c8e5190c2e80cbf133",
+  "role": "OBJECT",
+  "actions": [
+    {
+      "action": "aaf.action.use-tool",
+      "reuse": "NONE",
+      "effect": "Proceeding runs the tool. Refusing does not."
+    }
+  ],
+  "lists": {
+    "allow": [],
+    "allowThreshold": 0,
+    "deny": [
+      {
+        "list": "Excluded tool versions (DENY, ENUMERATED)",
+        "follows": "latest"
+      }
+    ],
+    "denyThreshold": 1
+  },
+  "rules": {
+    "onConflict": "DENY",
+    "onNoMatch": "ALLOW",
+    "onIndeterminate": "REFUSE",
+    "onNotApplicable": "PROCEED"
+  },
+  "updates": "Follows the list. Amended by the adopter.",
+  "workInProgress": "Every use is decided on its own. Excluding a tool version says nothing about the agent that asked for it."
+}

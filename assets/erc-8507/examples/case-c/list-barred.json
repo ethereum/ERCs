@@ -1,0 +1,37 @@
+{
+  "aaf": "1",
+  "kind": "list",
+  "name": "Barred",
+  "polarity": "DENY",
+  "mode": "ENUMERATED",
+  "management": {
+    "manager": "eip155:1:0x5bb689C451967B6bdf8D0fAa4F388257C25709aF",
+    "authority": "A single account"
+  },
+  "purpose": {
+    "statement": "Accounts the operator of the service does not work with",
+    "scopeDocument": "0xee657f675a1ea862d87a7a85d4e2dfa023a6a326041d17c8e5190c2e80cbf133"
+  },
+  "subjects": {
+    "kinds": [
+      "aaf.subject.account"
+    ],
+    "bindsTo": "identity",
+    "onChange": "retain"
+  },
+  "basis": {
+    "statement": "The manager's own choice. An entry asserts nothing about the subject.",
+    "designation": true
+  },
+  "time": {
+    "noticePeriod": 0,
+    "validity": "Until revoked",
+    "review": "not used"
+  },
+  "dueProcess": {
+    "notice": "not used",
+    "objection": "not used",
+    "appeal": "not used",
+    "effectDuringObjection": "not used"
+  }
+}

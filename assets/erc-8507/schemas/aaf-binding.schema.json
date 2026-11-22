@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aaf-binding.schema.json",
+  "title": "Agent Allowlist Framework: binding document",
+  "description": "What an adopter declares when it puts lists to use. Its keccak256 over the RFC 8785 form is BindingConfig.documentHash",
+  "type": "object",
+  "required": ["aaf", "kind", "name", "adoption", "scopeDocument", "role", "actions", "lists", "rules", "updates", "workInProgress"],
+  "additionalProperties": false,
+  "properties": {
+    "aaf": { "const": "1" },
+    "kind": { "const": "binding" },
+    "name": { "type": "string" },
+    "adoption": {
+      "description": "Who adopts and on what authority over the consumer",
+      "type": "object",
+      "required": ["consumer", "authority"],
+      "additionalProperties": false,
+      "properties": {
+        "consumer": { "type": "string" },
+        "authority": { "type": "string" }
+      }
+    },
+    "scopeDocument": { "description": "documentHash of the scope the binding applies in", "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+    "role": { "enum": ["ACTOR", "OBJECT"] },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["action", "reuse", "effect"],
+        "additionalProperties": false,
+        "properties": {
+          "action": { "$ref": "aaf-defs.schema.json#/$defs/name" },
+          "reuse": {
+            "description": "Whether a decision on this action may be used again. NONE: every use is decided on its own. WHILE_CURRENT: the consumer may rely on a decision again while it is current. ADMISSION: a decision to proceed is recorded per context and subject and honoured afterwards",
+            "enum": ["NONE", "WHILE_CURRENT", "ADMISSION"]
+          },
+          "effect": { "description": "What proceeding and what refusing mean for this action", "type": "string" }
+        }
+      }
+    },
+    "lists": {
+      "type": "object",
+      "required": ["allow", "allowThreshold", "deny", "denyThreshold"],
+      "additionalProperties": false,
+      "properties": {
+        "allow": { "type": "array", "items": { "$ref": "#/$defs/listUse" } },
+        "allowThreshold": { "type": "integer", "minimum": 0 },
+        "deny": { "type": "array", "items": { "$ref": "#/$defs/listUse" } },
+        "denyThreshold": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "required": ["onConflict", "onNoMatch", "onIndeterminate", "onNotApplicable"],
+      "additionalProperties": false,
+      "properties": {
+        "onConflict": { "enum": ["ALLOW", "DENY", "INDETERMINATE"] },
+        "onNoMatch": { "enum": ["ALLOW", "DENY", "NOT_APPLICABLE"] },
+        "onIndeterminate": { "$ref": "aaf-defs.schema.json#/$defs/disposition" },
+        "onNotApplicable": { "$ref": "aaf-defs.schema.json#/$defs/disposition" },
+        "restriction": { "$ref": "#/$defs/restriction" }
+      },
+      "if": {
+        "anyOf": [
+          { "properties": { "onIndeterminate": { "const": "PROCEED_RESTRICTED" } } },
+          { "properties": { "onNotApplicable": { "const": "PROCEED_RESTRICTED" } } }
+        ]
+      },
+      "then": { "required": ["restriction"], "properties": { "restriction": {} } }
+    },
+    "standing": { "description": "ACTOR: how it is established that a caller may act for a subject", "type": "string" },
+    "updates": { "description": "How the binding follows changes of its lists and who may amend it", "type": "string" },
+    "workInProgress": { "description": "What a change of result means for work already admitted, and why each action is declared with the reuse it has", "type": "string" }
+  },
+  "$defs": {
+    "listUse": {
+      "type": "object",
+      "required": ["list", "follows"],
+      "additionalProperties": false,
+      "properties": {
+        "list": { "type": "string" },
+        "follows": { "description": "latest: every change of the list applies at once. pinned: the binding holds to one state until it is amended", "enum": ["latest", "pinned"] },
+        "why": { "type": "string" }
+      }
+    },
+    "restriction": {
+      "description": "The limit the consumer applies, in the call that carries out the action, when it proceeds under PROCEED_RESTRICTED. Required where that disposition is declared",
+      "type": "object",
+      "required": ["limits", "appliedBy"],
+      "additionalProperties": false,
+      "properties": {
+        "limits": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["kind", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "description": "What is limited: cap, count, targets, expiry, or another name the document explains", "type": "string" },
+              "value": { "type": "string" },
+              "per": { "description": "What the limit is counted per, such as subject and context", "type": "string" }
+            }
+          }
+        },
+        "appliedBy": { "description": "Where the limit is applied: the contract and the call that carries out the action", "type": "string" }
+      }
+    }
+  }
+}

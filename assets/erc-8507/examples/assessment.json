@@ -1,0 +1,54 @@
+{
+  "aaf": "1",
+  "kind": "assessment",
+  "chainId": 1,
+  "guard": "0xF02DE745d536eE32910e9f69895a593d0823De31",
+  "bindingId": "0x061be9acbe60272773a770f0e0701139547ffadb76152606ae62a4551a383a66",
+  "bindingVersion": 1,
+  "subject": {
+    "kind": "aaf.subject.account",
+    "chainId": 1,
+    "namespace": "0x0000000000000000000000000000000000000000",
+    "id": "0x0000000000000000000000008f68b6bb541fceab09400809185158d433a2e5ae",
+    "label": "alice"
+  },
+  "presenter": "0x8F68b6bB541fCeAb09400809185158D433a2e5ae",
+  "controller": "0x8F68b6bB541fCeAb09400809185158D433a2e5ae",
+  "action": "aaf.action.invoke",
+  "context": "0x214638c9828ddc3dd6ee4e99b01cc551bea8893f1c44691273a5ec47d3d85662",
+  "standing": "MATCH",
+  "allowSide": "MATCH",
+  "denySide": "NO_MATCH",
+  "outcome": "ALLOW",
+  "reason": "ALLOW_MATCH",
+  "disposition": "PROCEED",
+  "assessedAt": 1800000000,
+  "validUntil": 1800086399,
+  "stateDigest": "0xd66a37fa17de8cf91ba1d570eef27a1493662e9117eb1ceaba559a4881aca662",
+  "findings": [
+    {
+      "listId": "0xecce9ca4f266133fde60c5407955d9b27b02408ecdf51e1d5d9ba873caac6e5c",
+      "polarity": "ALLOW",
+      "result": "MATCH",
+      "reason": "LISTED",
+      "revision": 1,
+      "stateHash": "0x8d612b9eed1cbce45ebbac404c3f09233f09ce9d8baae6d677971e4091bab769"
+    },
+    {
+      "listId": "0xeee61d9d077cbbbd605afc2640d37d2e48f0cbc71b6cf009fb56b9935de3f2db",
+      "polarity": "DENY",
+      "result": "NO_MATCH",
+      "reason": "NOT_LISTED",
+      "revision": 1,
+      "stateHash": "0xb7e341ed62a8e03ab8aa899a65d01f74ba07621c91217f850eb693575e1b8828"
+    },
+    {
+      "listId": "0x765698efe136a68ce093857c6fb8cb40d1a26a6984117be15485df74502c8c96",
+      "polarity": "DENY",
+      "result": "NO_MATCH",
+      "reason": "SET_NON_MEMBER",
+      "revision": 1,
+      "stateHash": "0x4ab2363b97ed07739298fa190a886333b1da18be6286cf63706cdd0025b803ff"
+    }
+  ]
+}

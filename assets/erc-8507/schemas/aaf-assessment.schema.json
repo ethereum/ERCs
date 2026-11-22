@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aaf-assessment.schema.json",
+  "title": "Agent Allowlist Framework: assessment record",
+  "description": "JSON form of an assessment, for logs and receipts kept off chain",
+  "type": "object",
+  "required": ["aaf", "kind", "chainId", "guard", "bindingId", "bindingVersion", "subject", "presenter", "action", "context", "allowSide", "denySide", "outcome", "reason", "disposition", "assessedAt", "validUntil", "stateDigest", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "aaf": { "const": "1" },
+    "kind": { "const": "assessment" },
+    "chainId": { "type": "integer", "minimum": 1 },
+    "guard": { "$ref": "aaf-defs.schema.json#/$defs/address" },
+    "bindingId": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+    "bindingVersion": { "type": "integer", "minimum": 1 },
+    "subject": { "$ref": "aaf-defs.schema.json#/$defs/subjectRef" },
+    "presenter": { "$ref": "aaf-defs.schema.json#/$defs/address" },
+    "controller": { "$ref": "aaf-defs.schema.json#/$defs/address" },
+    "action": { "$ref": "aaf-defs.schema.json#/$defs/name" },
+    "context": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+    "standing": { "$ref": "aaf-defs.schema.json#/$defs/match" },
+    "allowSide": { "$ref": "aaf-defs.schema.json#/$defs/match" },
+    "denySide": { "$ref": "aaf-defs.schema.json#/$defs/match" },
+    "outcome": { "$ref": "aaf-defs.schema.json#/$defs/outcome" },
+    "reason": { "type": "string" },
+    "disposition": { "$ref": "aaf-defs.schema.json#/$defs/disposition" },
+    "assessedAt": { "type": "integer" },
+    "validUntil": { "type": "integer" },
+    "stateDigest": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["listId", "polarity", "result", "reason", "revision", "stateHash"],
+        "additionalProperties": false,
+        "properties": {
+          "listId": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+          "polarity": { "$ref": "aaf-defs.schema.json#/$defs/polarity" },
+          "result": { "$ref": "aaf-defs.schema.json#/$defs/match" },
+          "reason": { "type": "string" },
+          "revision": { "type": "integer" },
+          "stateHash": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+          "criteriaId": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+          "validUntil": { "type": "integer" },
+          "basis": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" },
+          "derivedFrom": { "$ref": "aaf-defs.schema.json#/$defs/bytes32" }
+        }
+      }
+    }
+  }
+}

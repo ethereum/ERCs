@@ -1,0 +1,38 @@
+{
+  "aaf": "1",
+  "kind": "binding",
+  "name": "Tender 7 admits qualified bidders",
+  "adoption": {
+    "consumer": "The task board",
+    "authority": "The account the board named as its adopter"
+  },
+  "scopeDocument": "0xaa558bb5b650a04e8a9f57c9de5ddcc07a44b5e4e5863e54fb437976e9a63f51",
+  "role": "ACTOR",
+  "actions": [
+    {
+      "action": "aaf.action.bid",
+      "reuse": "NONE",
+      "effect": "Proceeding records the bid. Refusing leaves the bidder free to bid again with other evidence."
+    }
+  ],
+  "lists": {
+    "allow": [
+      {
+        "list": "Qualified bidders (ALLOW, PREDICATE)",
+        "follows": "latest"
+      }
+    ],
+    "allowThreshold": 1,
+    "deny": [],
+    "denyThreshold": 0
+  },
+  "rules": {
+    "onConflict": "DENY",
+    "onNoMatch": "DENY",
+    "onIndeterminate": "DEFER",
+    "onNotApplicable": "REFUSE"
+  },
+  "standing": "The caller owns the agent identity or is approved for it.",
+  "updates": "Follows the list. Amended by the adopter.",
+  "workInProgress": "Every bid is decided on its own, because the credential the criteria read can be revoked at any time. A bid already recorded stays recorded."
+}

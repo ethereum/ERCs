@@ -1,0 +1,17 @@
+{
+  "aaf": "1",
+  "kind": "scope",
+  "name": "Tender 7",
+  "activity": "Bidding for task 7 on a task board. The context of the scope is the task number.",
+  "actions": [
+    {
+      "action": "aaf.action.bid",
+      "meaning": "Submitting a bid that the board will consider"
+    }
+  ],
+  "resources": [
+    "The task description",
+    "The bidding slot"
+  ],
+  "boundary": "Other tasks of the board, delivery, acceptance and payment are outside this scope."
+}
