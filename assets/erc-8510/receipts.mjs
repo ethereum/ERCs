@@ -361,3 +361,78 @@ export function recordListProblem(record, list) {
   if (record.root !== (list.root ?? ZERO)) return `root ${record.root}, list ${list.root ?? ZERO}`;
   return null;
 }
+
+const INSCRIBED = toHex(keccak256(utf8("Inscribed(address,string,bytes)")));
+const strictUtf8 = new TextDecoder("utf-8", { fatal: true });
+
+/** The `kind` string and `data` bytes of an Inscribed log, ABI-decoded by hand; throws on anything malformed. */
+function decodeInscribed(data) {
+  const bytes = fromHex(data);
+  const word = (at) => {
+    if (at + 32 > bytes.length) throw new Error("data ends early");
+    return Number(bigint(bytes.slice(at, at + 32)));
+  };
+  const dynamic = (head) => {
+    const offset = word(head), length = word(offset);
+    if (offset + 32 + length > bytes.length) throw new Error("data ends early");
+    return bytes.slice(offset + 32, offset + 32 + length);
+  };
+  return { kind: strictUtf8.decode(dynamic(0)), data: strictUtf8.decode(dynamic(32)) };
+}
+
+const quantity = (hex) => Number(BigInt(hex));
+const topicOf = (address) => `0x${address.slice(2).toLowerCase().padStart(64, "0")}`;
+
+/**
+ * Finds a day list's record on chain over JSON-RPC: the first log, by block number then log index, of the contract named
+ * in `records`, sent by one of its publishers after the day closed, whose kind is "receipts" and whose data is a
+ * well-formed record for the list's signer and day. Returns null when there is none yet.
+ */
+export async function findRecord(rpcUrl, list, { fetch: fetchImpl = fetch, chunk = 50_000 } = {}) {
+  const why = listProblem(list);
+  if (why) throw new Error(`the day list is invalid: ${why}`);
+  let id = 0;
+  const rpc = async (method, params) => {
+    const response = await fetchImpl(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }) });
+    if (!response.ok) throw new Error(`${method}: HTTP ${response.status}`);
+    const body = await response.json();
+    if (body.error) throw new Error(`${method}: ${body.error.message ?? JSON.stringify(body.error)}`);
+    return body.result;
+  };
+  const { network, contract, publishers } = list.records;
+  const chainId = BigInt(await rpc("eth_chainId", []));
+  if (`eip155:${chainId}` !== network) throw new Error(`the RPC serves eip155:${chainId}, the records are on ${network}`);
+
+  const closed = Date.parse(`${list.day}T00:00:00.000Z`) / 1000 + 86_400;
+  const timestamp = async (n) => quantity((await rpc("eth_getBlockByNumber", [`0x${n.toString(16)}`, false])).timestamp);
+  const latest = quantity(await rpc("eth_blockNumber", []));
+  if ((await timestamp(latest)) < closed) return null;
+  let low = 0, high = latest;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if ((await timestamp(mid)) >= closed) high = mid;
+    else low = mid + 1;
+  }
+
+  const senders = new Set(publishers.map(topicOf));
+  for (let from = low; from <= latest; from += chunk) {
+    const to = Math.min(from + chunk - 1, latest);
+    const logs = await rpc("eth_getLogs", [{ address: contract, fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}`, topics: [INSCRIBED, [...senders]] }]);
+    const ordered = logs
+      .filter((log) => log.address.toLowerCase() === contract.toLowerCase() && log.topics[0] === INSCRIBED && senders.has(log.topics[1]?.toLowerCase()))
+      .filter((log) => quantity(log.blockNumber) >= low)
+      .sort((a, b) => quantity(a.blockNumber) - quantity(b.blockNumber) || quantity(a.logIndex) - quantity(b.logIndex));
+    for (const log of ordered) {
+      let inscribed, record;
+      try {
+        inscribed = decodeInscribed(log.data);
+        record = parseJson(inscribed.data);
+      } catch {
+        continue;
+      }
+      if (inscribed.kind !== "receipts" || recordProblem(record) || record.date !== list.day || record.signer !== list.signer) continue;
+      return { record, blockNumber: quantity(log.blockNumber), logIndex: quantity(log.logIndex), transactionHash: log.transactionHash, problem: recordListProblem(record, list) };
+    }
+  }
+  return null;
+}

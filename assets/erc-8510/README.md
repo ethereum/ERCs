@@ -18,6 +18,8 @@ For a verifier:
 - `verifyProof(receipt, proof, root)`: whether the root covers the receipt.
 - `recordProblem(record)`: why a day record is not well-formed, or null.
 - `recordListProblem(record, list)`: why a well-formed record does not state that list, or null.
+- `findRecord(rpcUrl, list, { chunk, fetch })`: the day's record on chain, found as the spec says, or null before there
+  is one; plain JSON-RPC over `fetch`, `chunk` blocks per `eth_getLogs` (50,000 by default).
 
 For an issuer, as well:
 
@@ -36,23 +38,22 @@ For an issuer, as well:
     node cli.mjs check <day-list.json>                          a served day list is valid
     node cli.mjs check-proof <receipt.json> <proof.json> <root> the root covers the receipt (proof.json: a list, or prove's output)
     node cli.mjs check-record <record.json> <day-list.json>     the record is well formed and states the list, which must be valid
+    node cli.mjs find-record <rpc-url> <day-list.json> [<n>]    the day's record on chain, checked against the list; n blocks per query
 
-Exit codes: 0 when the check passes, 1 when it fails or a file cannot be read, 2 for a usage mistake (a missing or
-extra argument, an index that is not a whole number without leading zeros).
+Exit codes: 0 when the check passes, 1 when it fails, a file cannot be read or no record is on chain yet, 2 for a usage
+mistake (a missing or extra argument, an index or block count that is not a whole number without leading zeros).
 
 A day file holds one receipt per line, in any order; blank lines, CRLF line ends and a leading byte-order mark are fine.
 `root` counts every other line that is not a valid receipt of the day and signer as unreadable. Given no day and
 signer, it uses those of the first valid receipt and prints them; an empty file gives count 0 and root null. A day
 with a non-zero `unreadable` cannot be published until those entries are resolved.
 
-Reading a record out of a log is left to an RPC client. With Foundry, for the reference deployment's 2026-11-19 record:
+`find-record` reads the chain, contract and publishers from the list's `records`, checks the RPC serves that chain,
+finds the first block after the day closed by binary search on block timestamps, and scans the contract's `Inscribed`
+logs from those publishers forward from there. It prints the record with its block, log index and transaction, then
+checks it against the list:
 
-    cast logs --from-block 3719 --to-block 3719 --address 0x770D6756CA8a1627FFf01B846383b13d6fa0c514 \
-      'Inscribed(address indexed,string,bytes)' --rpc-url https://rpc.usebrainchain.com
-
-Decode the log's `data` as `(string,bytes)` with `cast abi-decode --input "x(string,bytes)" <data>`, check the string
-is `receipts` and the first topic after the event's is a stated publisher, and save the bytes as UTF-8 for
-`check-record`.
+    node cli.mjs find-record https://rpc.usebrainchain.com day-list-2026-11-19.json
 
 ## The vectors
 
@@ -68,6 +69,7 @@ the file holds:
   signed, so the rule is what fails;
 - `invalidLines`: JSON texts that repeat a member name, once written with an escape;
 - `trees`: day roots over the first 2, 3 and 5 receipts;
+- `findRecord`: a mocked chain holding the real 2026-11-19 record log and the logs a verifier must skip around it;
 - `repeatedPayment`: a valid receipt for a payment another receipt already covers;
 - `public`: the reference deployment's day list for 2026-11-19 (with the `records` member added, since it was served
   before the member existed), one receipt whose hash is that day's root, and the day record as inscribed on chain with
@@ -75,10 +77,14 @@ the file holds:
 
 ## Deployments
 
-BrainChain's inference gateway on Robinhood Chain issues these receipts for calls paid in USDG over x402, signed by
-`0x70D882879E1954Ac9A06b693379334Fd131B786D`. It serves its day lists at
-`https://inference.usebrainchain.com/v1/receipts/<YYYY-MM-DD>` and publishes each closed day's record on BrainChain
-(chain 274663) through `0x770D6756CA8a1627FFf01B846383b13d6fa0c514`, sent by
-`0x70C665780E43BA1496a4E691e408F24844dB58eC`. Where it differs from the proposal: it returns the receipt in an
-`X-BrainChain-Receipt` header, its records carry two more members, `brainchain` and `at`, and it served day lists before
-they carried `records`.
+BrainChain's inference gateway issues these receipts for calls paid in USDG over x402, signed by
+`0x70D882879E1954Ac9A06b693379334Fd131B786D`, and serves its day lists at
+`https://inference.usebrainchain.com/v1/receipts/<YYYY-MM-DD>`. Two chains are involved:
+
+- The payments settle on Robinhood Chain, chain id 4663, so receipts carry `network` `eip155:4663`.
+- The day records are published on BrainChain, chain id 274663, an L3 that settles on Robinhood Chain, so lists carry
+  `records.network` `eip155:274663`. Its public RPC is `https://rpc.usebrainchain.com`. Records go through
+  `0x770D6756CA8a1627FFf01B846383b13d6fa0c514`, sent by `0x70C665780E43BA1496a4E691e408F24844dB58eC`.
+
+Where it differs from the proposal: it returns the receipt in an `X-BrainChain-Receipt` header, and its records carry
+two more members, `brainchain` and `at`. It served day lists before they carried `records`; they carry it now.

@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
-  canonical, checksum, dayList, dayRecord, dayRoot, digest, keccak256, listProblem, parseJson, proof, readDay, receiptProblem,
+  canonical, checksum, dayList, dayRecord, dayRoot, digest, findRecord, keccak256, listProblem, parseJson, proof, readDay, receiptProblem,
   receiptHash, receiptsProblem, recordListProblem, recordProblem, recover, toHex, verifyProof,
 } from "./receipts.mjs";
 
@@ -212,6 +212,46 @@ test("a record is well-formed only with its five members written as the spec say
   assert.equal(recordProblem({ ...r, extra: "allowed" }), null);
 });
 
+/** A JSON-RPC endpoint over the mocked chain in vectors.json; eth_getLogs filters by block range only. */
+function mockRpc(chain, { latest = chain.latest } = {}) {
+  const calls = [];
+  const timestamp = (n) => chain.closedAt + (n - chain.firstClosedBlock) * chain.secondsPerBlock;
+  const answer = ({ method, params }) => {
+    if (method === "eth_chainId") return chain.chainId;
+    if (method === "eth_blockNumber") return `0x${latest.toString(16)}`;
+    if (method === "eth_getBlockByNumber") return { timestamp: `0x${timestamp(Number(BigInt(params[0]))).toString(16)}` };
+    if (method === "eth_getLogs") {
+      const [from, to] = [Number(BigInt(params[0].fromBlock)), Number(BigInt(params[0].toBlock))];
+      return chain.logs.filter((log) => Number(BigInt(log.blockNumber)) >= from && Number(BigInt(log.blockNumber)) <= to);
+    }
+    throw new Error(`unexpected ${method}`);
+  };
+  const fetch = async (_url, init) => {
+    const request = JSON.parse(init.body);
+    calls.push(request.method);
+    return { ok: true, json: async () => ({ jsonrpc: "2.0", id: request.id, result: answer(request) }) };
+  };
+  return { fetch, calls };
+}
+
+test("findRecord takes the first well-formed record from a publisher after the day closed", async () => {
+  for (const chunk of [50_000, 4]) {
+    const { fetch } = mockRpc(v.findRecord);
+    const found = await findRecord("http://rpc.test", v.public.dayList, { fetch, chunk });
+    assert.deepEqual({ blockNumber: found.blockNumber, logIndex: found.logIndex, transactionHash: found.transactionHash }, v.findRecord.expected, `chunk ${chunk}`);
+    assert.deepEqual(found.record, v.public.record);
+    assert.equal(found.problem, null);
+  }
+});
+
+test("findRecord refuses a chain other than the list's records name, and finds nothing before the day closes", async () => {
+  const wrong = mockRpc({ ...v.findRecord, chainId: "0x1237" });
+  await assert.rejects(findRecord("http://rpc.test", v.public.dayList, { fetch: wrong.fetch }), /serves eip155:4663, the records are on eip155:274663/);
+  const early = mockRpc(v.findRecord, { latest: v.findRecord.firstClosedBlock - 1 });
+  assert.equal(await findRecord("http://rpc.test", v.public.dayList, { fetch: early.fetch }), null);
+  assert.ok(!early.calls.includes("eth_getLogs"));
+});
+
 test("the CLI: exit 0 when a check passes, 1 when it fails or cannot read, 2 for a usage mistake", () => {
   const dir = mkdtempSync(join(tmpdir(), "erc8510-"));
   const file = (name, body) => {
@@ -254,6 +294,9 @@ test("the CLI: exit 0 when a check passes, 1 when it fails or cannot read, 2 for
     [["check-record", record, publicList], 0],
     [["check-record", upper, publicList], 1],
     [["check-record", record, list], 1],
+    [["find-record", "http://127.0.0.1:9", publicList, "0"], 2],
+    [["find-record", "http://127.0.0.1:9"], 2],
+    [["find-record", "http://127.0.0.1:9", file("bad-list.json", "{}")], 1],
     [["nonsense"], 2],
   ];
   for (const [args, code] of cases) assert.equal(cli(...args).status, code, args.join(" "));

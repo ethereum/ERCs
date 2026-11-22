@@ -1,7 +1,7 @@
 // Command line for receipts.mjs; README.md lists the commands and exit codes.
 import { readFileSync } from "node:fs";
 
-import { dayList, listProblem, parseJson, proof, readDay, receiptProblem, recordListProblem, verifyProof } from "./receipts.mjs";
+import { dayList, findRecord, listProblem, parseJson, proof, readDay, receiptProblem, recordListProblem, verifyProof } from "./receipts.mjs";
 
 const USAGE = `usage:
   node cli.mjs verify <receipt.json>
@@ -9,7 +9,8 @@ const USAGE = `usage:
   node cli.mjs prove <day.jsonl> <index>
   node cli.mjs check <day-list.json>
   node cli.mjs check-proof <receipt.json> <proof.json> <root>
-  node cli.mjs check-record <record.json> <day-list.json>`;
+  node cli.mjs check-record <record.json> <day-list.json>
+  node cli.mjs find-record <rpc-url> <day-list.json> [<blocks-per-query>]`;
 
 class Usage extends Error {}
 
@@ -72,13 +73,24 @@ const COMMANDS = {
       return passes(listProblem(list) ?? recordListProblem(json(recordFile), list));
     },
   },
+  "find-record": {
+    arity: [2, 3],
+    run: async ([rpcUrl, listFile, chunk = "50000"]) => {
+      if (!/^[1-9][0-9]*$/.test(chunk)) throw new Usage(`blocks-per-query must be a positive whole number\n${USAGE}`);
+      const found = await findRecord(rpcUrl, json(listFile), { chunk: Number(chunk) });
+      if (!found) throw new Error("no record for this day yet");
+      const { problem, ...where } = found;
+      console.log(JSON.stringify(where, null, 2));
+      return passes(problem);
+    },
+  },
 };
 
 try {
   const [command, ...args] = process.argv.slice(2);
   const entry = COMMANDS[command];
   if (!entry || !entry.arity.includes(args.length)) throw new Usage(USAGE);
-  console.log(entry.run(args));
+  console.log(await entry.run(args));
 } catch (error) {
   console.error(error.message);
   process.exit(error instanceof Usage ? 2 : 1);
