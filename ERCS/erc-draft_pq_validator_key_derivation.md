@@ -1,0 +1,252 @@
+---
+title: Post-Quantum Validator Key Derivation
+description: Hierarchical derivation of the leanXMSS and VRF seeds of Ethereum validators from a mnemonic
+author: Manu Nalepa (@nalepae)
+discussions-to: https://ethereum-magicians.org/t/TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-23
+---
+
+## Abstract
+
+This standard defines how the post-quantum secrets of an Ethereum validator or builder are derived from a seed, usually a [BIP-39](https://github.com/bitcoin/bips/blob/43ce3a461dfb48e62ffa0cfc70f5f54d1eb5c577/bip-0039.mediawiki) mnemonic. It replaces [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) and [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md) for these secrets.
+
+A tree of keys is built from the seed with hardened-only HMAC-SHA512 derivation. The key of the node at path `m/5326/3600/<account>` is the *validator seed* of one account. Two seeds are expanded from it with HKDF: the seed of the leanXMSS signing key, and the seed of the verifiable random function (VRF) tree. All the post-quantum keys of a validator are therefore recoverable from the mnemonic and its account index.
+
+## Motivation
+
+[ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) derives BLS12-381 secret keys, and [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md) assigns them paths. Post-quantum consensus replaces BLS with leanXMSS, a stateful hash-based signature scheme, and with a hash-based VRF. Both are generated from 32-byte seeds rather than from scalars of a curve. Validators register a leanXMSS public key and a VRF root for each of their indices.
+
+Without a standard derivation, each tool generates these seeds from fresh randomness. Every key then needs its own backup, and a validator cannot recover its post-quantum keys from the mnemonic it already holds. A standard derivation gives every tool the same keys from the same mnemonic. It also lets a stake owner who holds the mnemonic build the whole registration, including the proof of possession, for a validator run by another party.
+
+The post-quantum secrets MUST NOT be derived from a BLS secret key. A BLS public key is published on chain, and a quantum adversary could recover the BLS secret key from it. Every secret derived from that BLS secret key falls with it. The derivation of this standard has no input in common with BLS keys apart from the root seed, and it only uses hash functions.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Notation
+
+* `a || b` is the concatenation of the octet strings `a` and `b`.
+* `I2OSP(n, l)` is the big-endian encoding of the non-negative integer `n` in `l` octets, as in RFC 8017.
+* `HMAC-SHA512(key, data)` is HMAC (RFC 2104) with SHA-512.
+* `HKDF-Expand(prk, info, l)` is the expand step of HKDF (RFC 5869) with SHA-256.
+* `x[a:b]` is the octet string of the octets of `x` at positions `a` to `b - 1`.
+
+### Constants
+
+| Name | Value |
+| - | - |
+| `MASTER_KEY_DOMAIN` | `"Ethereum PQ seed"` (ASCII, 16 octets) |
+| `PQ_PURPOSE` | `5326` |
+| `COIN_TYPE` | `3600` |
+| `HARDENED_OFFSET` | `2**31` |
+| `XMSS_SEED_INFO` | `"leanXMSS key"` (ASCII, 12 octets) |
+| `VRF_SEED_INFO` | `"VRF key"` (ASCII, 7 octets) |
+
+### Seed
+
+The `seed` is an octet string of 16 to 64 octets. It SHOULD be the 64-octet output of the BIP-39 `mnemonic_to_seed` function. A validator that already holds an [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) mnemonic SHOULD use the same mnemonic and passphrase. Its BLS and post-quantum keys then share one backup.
+
+### Nodes
+
+A node of the tree is a pair `(key, chain_code)` of two 32-octet strings.
+
+The master node of `seed` is:
+
+```text
+master(seed):
+    I = HMAC-SHA512(MASTER_KEY_DOMAIN, seed)
+    return (I[0:32], I[32:64])
+```
+
+The child of index `index` of the node `(key, chain_code)` is, for `0 <= index < HARDENED_OFFSET`:
+
+```text
+child((key, chain_code), index):
+    I = HMAC-SHA512(chain_code, 0x00 || key || I2OSP(index + HARDENED_OFFSET, 4))
+    return (I[0:32], I[32:64])
+```
+
+Every child is hardened: knowing a child node, its siblings or other nodes of the tree does not reveal its parent. An implementation MUST refuse an `index` outside `[0, HARDENED_OFFSET)`.
+
+### Path
+
+A path is written `m / i_1 / i_2 / ... / i_n`. `m` is the master node, and `i_k` is the index of the child taken at depth `k`. Every level is hardened. Paths are written without the `'` marker of BIP-32: the index `i` of a path is the child index `i + HARDENED_OFFSET`.
+
+The *validator seed* of account `account`, for `0 <= account < HARDENED_OFFSET`, is the `key` of the node at path `m / PQ_PURPOSE / COIN_TYPE / account`:
+
+```text
+node = master(seed)                       # m
+node = child(node, PQ_PURPOSE)            # m / PQ_PURPOSE
+node = child(node, COIN_TYPE)             # m / PQ_PURPOSE / COIN_TYPE
+(key, chain_code) = child(node, account)  # m / PQ_PURPOSE / COIN_TYPE / account
+validator_seed = key
+```
+
+The `chain_code` of that node is not used.
+
+`account` plays the role of the account index `i` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md): the `account`-th validator or builder of the seed. A tool that derives both BLS and post-quantum keys for a validator SHOULD use the same index for both.
+
+### Seeds of the keys
+
+The leanXMSS seed and the VRF seed of a validator seed `validator_seed` are:
+
+```text
+xmss_seed = HKDF-Expand(validator_seed, XMSS_SEED_INFO, 32)
+vrf_seed  = HKDF-Expand(validator_seed, VRF_SEED_INFO, 32)
+```
+
+A builder has no VRF tree. A builder's tool MUST NOT require a VRF seed, and it MAY skip deriving it.
+
+### Keystores
+
+A keystore of these keys SHOULD encrypt the validator seed, and SHOULD record the path from which it was derived. Both the leanXMSS seed and the VRF seed are expanded from it. One keystore therefore holds the keys of one account.
+
+## Rationale
+
+### Hardened HMAC-SHA512 derivation
+
+[ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) derives every child through a Lamport public key, and outputs a scalar modulo the order of BLS12-381. The Lamport step was a commitment for a post-quantum backup of BLS keys. Post-quantum keys need no such backup, and the reduction modulo the order of a curve has no meaning for a 32-octet seed. Each level of ERC-2333 also costs more than 500 SHA-256 evaluations, which matters on hardware wallets and in zero-knowledge proofs of key derivation.
+
+The derivation of this standard is the hardened derivation of SLIP-0010, used for Ed25519 keys and already implemented by hardware wallets and libraries. Ed25519 keys and leanXMSS seeds are both arbitrary 32-octet strings: no key is rejected and no derivation is retried. Only the domain of the master node differs. Each level costs two SHA-512 evaluations of HMAC.
+
+The distinct `MASTER_KEY_DOMAIN` makes the tree of this standard disjoint from every SLIP-0010 tree of the same seed, whatever the path.
+
+### One validator seed per account
+
+Each registration binds one leanXMSS public key and one VRF root, and both change together. Deriving both seeds from one node lets one keystore hold both, with one secret. HKDF with distinct `info` strings keeps the two seeds independent. Builders, which have no VRF, use the same path and only derive the leanXMSS seed. A builder index and a validator index of the same seed therefore never share a key, as long as they use different accounts.
+
+### Path
+
+* `PQ_PURPOSE` is `5326`, the word "lean" typed on a phone keypad (L = 5, E = 3, A = 2, N = 6). The purpose names Lean Ethereum, whose post-quantum signature scheme is leanXMSS, in the way the purpose `12381` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md) names the curve BLS12-381. The value itself carries no security: the distinct `MASTER_KEY_DOMAIN` already separates this tree from every other tree of the same seed. It only leaves room for other families of post-quantum keys under the same master node.
+* `COIN_TYPE` keeps the `3600` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md): the keys are consensus keys of the same chain.
+* The `use` level of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md) is dropped. Its only use was the split between withdrawal and signing keys. Post-quantum withdrawal credentials are execution addresses, and the two seeds of one account are split by HKDF.
+
+## Backwards Compatibility
+
+This standard defines a new tree, disjoint from the trees of [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) and of BIP-32 and SLIP-0010 for other curves. It changes no existing key. A mnemonic created for [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) can be reused as is.
+
+## Test Cases
+
+`seed` is the BIP-39 seed of the mnemonic and passphrase when they are given. All values are hexadecimal, except paths.
+
+### Test Case 0
+
+```text
+mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+passphrase = "TREZOR"
+seed = c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04
+master_key = 677bd6e9a2326115c3ab6bba3b781135e055220703b4049b3a68f3b44e3bc6ce
+master_chain_code = 608452b43eb5cffb4c40cad053235bd7daae1dcab03c53ccdfea69a7e92982ce
+path = m/5326/3600/0
+validator_seed = 657768d4c2ef1a1e7a2ec5c4af4eb818415cff8a1d52fa943ca13b5ad3b1e5bc
+xmss_seed = 813fc0f31d0f32e8089a587de4d3765b4349e3fdf71409892a29d296fb7d3645
+vrf_seed = 1b964528028cc9eed983499272ef8f48c7af5215e3685238cf065756308dbc57
+```
+
+### Test Case 1
+
+```text
+mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+passphrase = "TREZOR"
+path = m/5326/3600/1
+validator_seed = 56f03ca9757b773e8a26f7ef6560c8318f145f76c548cfc55cd551e2ba9357fa
+xmss_seed = 6cac8ac2ac4220e1ffdc3c89005b1bf194e62c4e67d78ef3d2bb5d0b6eb39601
+vrf_seed = feacbe9be158b9a728e61b71d283c171419dc67f64219b56508749e06ef65de2
+```
+
+### Test Case 2
+
+```text
+seed = 3141592653589793238462643383279502884197169399375105820974944592
+master_key = 4c6871abf495324e1cc4cf7822d24dcfca7e268cd86fb81c79447a3bfe33d433
+master_chain_code = 3f1a9d39e9ecb890cc8f41786055e60eef457d02d00c3f330379057556eb5965
+path = m/5326/3600/2147483647
+validator_seed = 5b57b7bc9fd077ec64331f3b03f4089a95a082512c34831813f0b6d84c02af26
+xmss_seed = 07be6595f629de1b7d6803d877fccf631185acab0166047a6b794f4b7e684796
+vrf_seed = 9ac6578ee34af2fa1f6f3747ea580f345a400d1966393e4e727491e7c545e888
+```
+
+## Reference Implementation
+
+```python
+import hashlib
+import hmac
+
+MASTER_KEY_DOMAIN = b"Ethereum PQ seed"
+PQ_PURPOSE = 5326
+COIN_TYPE = 3600
+HARDENED_OFFSET = 2**31
+XMSS_SEED_INFO = b"leanXMSS key"
+VRF_SEED_INFO = b"VRF key"
+
+
+def mnemonic_to_seed(mnemonic: str, passphrase: str = "") -> bytes:
+    return hashlib.pbkdf2_hmac("sha512", mnemonic.encode(), ("mnemonic" + passphrase).encode(), 2048)
+
+
+def derive_master_node(seed: bytes) -> tuple[bytes, bytes]:
+    assert 16 <= len(seed) <= 64
+    i = hmac.new(MASTER_KEY_DOMAIN, seed, hashlib.sha512).digest()
+    return i[:32], i[32:]
+
+
+def derive_child_node(key: bytes, chain_code: bytes, index: int) -> tuple[bytes, bytes]:
+    assert 0 <= index < HARDENED_OFFSET
+    data = b"\x00" + key + (index + HARDENED_OFFSET).to_bytes(4, "big")
+    i = hmac.new(chain_code, data, hashlib.sha512).digest()
+    return i[:32], i[32:]
+
+
+def derive_validator_seed(seed: bytes, account: int) -> bytes:
+    key, chain_code = derive_master_node(seed)
+    for index in (PQ_PURPOSE, COIN_TYPE, account):
+        key, chain_code = derive_child_node(key, chain_code, index)
+    return key
+
+
+def hkdf_expand(prk: bytes, info: bytes, length: int) -> bytes:
+    output, block, counter = b"", b"", 1
+    while len(output) < length:
+        block = hmac.new(prk, block + info + bytes([counter]), hashlib.sha256).digest()
+        output += block
+        counter += 1
+    return output[:length]
+
+
+def derive_xmss_seed(validator_seed: bytes) -> bytes:
+    return hkdf_expand(validator_seed, XMSS_SEED_INFO, 32)
+
+
+def derive_vrf_seed(validator_seed: bytes) -> bytes:
+    return hkdf_expand(validator_seed, VRF_SEED_INFO, 32)
+```
+
+## Security Considerations
+
+### Independence from BLS keys
+
+The only input shared with [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) keys is the root seed. Recovering a BLS secret key, for example with a quantum computer, reveals nothing about the tree of this standard. Implementations MUST NOT derive post-quantum seeds from a BLS secret key, or from any value that a published BLS public key reveals to a quantum adversary.
+
+### Quantum security of the derivation
+
+The derivation only uses HMAC-SHA512, HKDF with SHA-256, and PBKDF2 with HMAC-SHA512 for the mnemonic. Grover's algorithm at most halves their security level in bits. 256-bit keys and chain codes keep about 128 bits of security against a quantum adversary.
+
+### Reuse of leanXMSS leaves
+
+leanXMSS is stateful: a key that signs two different messages at the same leaf allows forgeries. The seed does not record which leaves a key has signed at. Restoring a key from its seed is safe, but signing with it requires the signing history of the key. A tool that cannot obtain that history MUST NOT sign with the restored key.
+
+### Reuse across chains
+
+A leanXMSS key that signs on two chains signs different messages at the same leaves, which allows forgeries. A VRF tree used on two chains gives away the randomness of one chain on the other. The keys of a validator seed MUST NOT be used on more than one chain. A validator that runs on several chains MUST use a different mnemonic or a different account on each.
+
+### Seed compromise
+
+The root seed and the master node give access to every key of every account. Validator seeds SHOULD be the only secrets given to signing infrastructure. Knowing a validator seed reveals no other node of the tree.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
