@@ -1,11 +1,25 @@
 export { canonicalize, policyHash } from "./jcs";
 export { REASONS, PALISEC_REASON_MAP, encodeReason, decodeReason, type ReasonCode } from "./reasons";
-export { INTERFACE_ID, REGISTRY_ABI, REGISTRY_ADDRESSES, REGISTRY_INIT_CODE_HASH, REGISTRY_SALT } from "./abi";
+export {
+  INTERFACE_ID,
+  INTERFACE_ID_V1,
+  REGISTRY_ABI,
+  REGISTRY_ADDRESSES,
+  REGISTRY_INIT_CODE_HASH,
+  REGISTRY_SALT,
+  REGISTRY_V1_ABI,
+  REGISTRY_V1_ADDRESSES,
+  SIGNER_TYPES,
+} from "./abi";
 export {
   DECISIONS,
   INTENT_TYPEHASH,
+  INTENT_TYPEHASH_V1,
+  OPERATIONS,
   RECEIPT_TYPES,
   intentHash,
+  intentHashV1,
+  isV1Registry,
   receiptDomain,
   recoverReceiptSigner,
   toMessage,
@@ -15,4 +29,16 @@ export {
   type Intent,
   type ReceiptJson,
 } from "./receipt";
-export { fetchPolicy, readAccount, supportsStandard, verifyReceipt, type AccountStatus, type Commitment, type ReceiptCheck, type VerifyOptions } from "./read";
+export {
+  fetchPolicy,
+  readAccount,
+  standardOf,
+  supportsStandard,
+  verifyReceipt,
+  type AccountStatus,
+  type Commitment,
+  type ReceiptCheck,
+  type SeenStore,
+  type SignerSet,
+  type VerifyOptions,
+} from "./read";

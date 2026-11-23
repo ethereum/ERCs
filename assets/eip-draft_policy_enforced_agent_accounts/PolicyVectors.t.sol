@@ -6,7 +6,8 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {PolicyDecisionReceipt as R} from "../src/peaa/PolicyDecisionReceipt.sol";
 import {IPolicyEnforcedAccount} from "../src/peaa/IPolicyEnforcedAccount.sol";
 
-/// The published test vectors, checked by an independent Solidity implementation.
+/// The published v2 test vectors (operation in the intent, EIP-712 domain version "2"), checked by an
+/// independent Solidity implementation.
 contract PolicyVectorsTest is Test {
     using stdJson for string;
 
@@ -28,14 +29,15 @@ contract PolicyVectorsTest is Test {
     }
 
     function test_intents() public view {
-        for (uint256 i = 0; i < 2; i++) {
+        for (uint256 i = 0; i < 3; i++) {
             string memory p = string.concat("$.intents[", vm.toString(i), "]");
             bytes32 h = R.intentHash(
                 json.readUint(string.concat(p, ".intent.chainId")),
                 json.readAddress(string.concat(p, ".intent.account")),
                 json.readAddress(string.concat(p, ".intent.target")),
                 vm.parseUint(json.readString(string.concat(p, ".intent.value"))),
-                json.readBytes(string.concat(p, ".intent.data"))
+                json.readBytes(string.concat(p, ".intent.data")),
+                uint8(json.readUint(string.concat(p, ".intent.operation")))
             );
             assertEq(h, json.readBytes32(string.concat(p, ".intentHash")));
         }
@@ -57,7 +59,7 @@ contract PolicyVectorsTest is Test {
 
     function test_receipts() public view {
         address expected = json.readAddress("$.testKeys.receiptSigner.address");
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 4; i++) {
             string memory p = string.concat("$.receipts[", vm.toString(i), "]");
             uint256 chainId = vm.parseUint(json.readString(string.concat(p, ".receipt.chainId")));
             address registry = json.readAddress(string.concat(p, ".receipt.registry"));
@@ -73,5 +75,9 @@ contract PolicyVectorsTest is Test {
         d.decision = R.ALLOW;
         bytes32 digest = R.digest(d, 4663, json.readAddress(string.concat(p, ".receipt.registry")));
         assertTrue(R.recover(digest, json.readBytes(string.concat(p, ".receipt.signature"))) != json.readAddress("$.testKeys.receiptSigner.address"));
+    }
+
+    function test_callAndDelegatecallDiffer() public view {
+        assertTrue(json.readBytes32("$.intents[1].intentHash") != json.readBytes32("$.intents[2].intentHash"));
     }
 }

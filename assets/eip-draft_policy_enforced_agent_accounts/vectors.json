@@ -1,6 +1,11 @@
 {
   "description": "Test vectors for the draft ERC Policy-Enforced Agent Accounts. Keys are test-only and public; never fund them.",
-  "interfaceId": "0xcc16d336",
+  "version": 2,
+  "domain": {
+    "name": "PolicyDecisionReceipt",
+    "version": "2"
+  },
+  "interfaceId": "0x7e0f19f9",
   "testKeys": {
     "receiptSigner": {
       "privateKey": "0xe04c5badc92b189a47966ac7bfa7245721320ebd5f496612f472c1f99269b924",
@@ -99,9 +104,10 @@
         "account": "0x1111111111111111111111111111111111111111",
         "target": "0x2222222222222222222222222222222222222222",
         "value": "20000000000000",
-        "data": "0x"
+        "data": "0x",
+        "operation": 0
       },
-      "intentHash": "0x2fb544f03fdb4cd57f422d9b2e762a4edfb1b892f342330b2c82fca8bed96761"
+      "intentHash": "0xcdadd95276461222b2013b63a0b639598c4bc1ac6e624f37f9eb66d658dc4e6f"
     },
     {
       "name": "token transfer call",
@@ -110,9 +116,22 @@
         "account": "0x1111111111111111111111111111111111111111",
         "target": "0x2222222222222222222222222222222222222222",
         "value": "0",
-        "data": "0xa9059cbb0000000000000000000000003333333333333333333333333333333333333333000000000000000000000000000000000000000000000000000000000000000a"
+        "data": "0xa9059cbb0000000000000000000000003333333333333333333333333333333333333333000000000000000000000000000000000000000000000000000000000000000a",
+        "operation": 0
       },
-      "intentHash": "0x8fe242bbc098f33b596874c6745993eba4a35c7051efc9b49b24f198191d3778"
+      "intentHash": "0xf52cb8169073e261f516b76af8e5fbd21d1964ed7c4ef75ec69752a1180e9381"
+    },
+    {
+      "name": "same call as a delegatecall",
+      "intent": {
+        "chainId": 4663,
+        "account": "0x1111111111111111111111111111111111111111",
+        "target": "0x2222222222222222222222222222222222222222",
+        "value": "0",
+        "data": "0xa9059cbb0000000000000000000000003333333333333333333333333333333333333333000000000000000000000000000000000000000000000000000000000000000a",
+        "operation": 1
+      },
+      "intentHash": "0x10e4f9e97303fb45414b47c4949468f7f5033593cda2a9dfa2fdf43b466fd128"
     }
   ],
   "receipts": [
@@ -126,15 +145,15 @@
         "policyVersion": "3",
         "issuedAt": "1800000000",
         "expiresAt": "1800000300",
-        "intentHash": "0x2fb544f03fdb4cd57f422d9b2e762a4edfb1b892f342330b2c82fca8bed96761",
+        "intentHash": "0xcdadd95276461222b2013b63a0b639598c4bc1ac6e624f37f9eb66d658dc4e6f",
         "decision": "ALLOW",
         "reasonCode": "NONE",
         "detailCode": "NONE",
         "decisionId": "0xa70cd90ebf547d22678d88efb14cf1656fcc1648d32eaa4408901b6c1926bdc6",
         "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
-        "signature": "0x082b3736317d2b7efc3a36428425159349461359b1e307de1b8f9fac9f8353af52a070aded493d2980b9438edd3e61e7d396f00f0f3f878c8f7f5ba8db1f29a11c"
+        "signature": "0x26206326954b5adc967e3d4a663807c6749df0d714cf35ddbbd203425b76aa8b7831775c59de9dacef4e0415af6bea1a275e2532e806243a8dedb86d7cd155db1c"
       },
-      "digest": "0x60edf56796d687a2dd7c639242f5b0b7b434e0763b11653bd7a95ef945b7a473",
+      "digest": "0x07c4b33e5ea4d2fcb1f4e09e739d97fe15b6e808414c8bbc87ebe9bdcc8d2a3f",
       "encodedReason": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "encodedDetail": "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
@@ -148,15 +167,15 @@
         "policyVersion": "3",
         "issuedAt": "1800000000",
         "expiresAt": "1800000300",
-        "intentHash": "0x2fb544f03fdb4cd57f422d9b2e762a4edfb1b892f342330b2c82fca8bed96761",
+        "intentHash": "0xcdadd95276461222b2013b63a0b639598c4bc1ac6e624f37f9eb66d658dc4e6f",
         "decision": "DENY",
         "reasonCode": "OVER_LIMIT",
         "detailCode": "palisec:PS_BUDGET_001",
         "decisionId": "0xf23607914b7aea97c50ae640b8692bfebb3d10305eefb8456780961e7e44086d",
         "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
-        "signature": "0xd5120ad7daacdc1ff682d180ceaf5f41c1b82eb295e18f07bce7e7372d6d2d0c1c2dacf15944f7b7027e863363f69b68d27dd1fbba61dc7d54e97364531860ac1c"
+        "signature": "0x8e0bee9e30452c8c934ca7103f481a5ae1cce02b66acc4b60cb195cfa2e7fced341a602be3b8cb7b970a6613cfd6e272e0917e98ea6b0832e750c7fed9bb32e61c"
       },
-      "digest": "0x4bafcfaae6d0634793605de49e8cbce3a5b6f6d4c57d0cceafb5368cfd734a25",
+      "digest": "0x941701cd1854e6b66ddbf3da146d69596e3fb4a058b77d4a6bf4bf4f59a7f6e9",
       "encodedReason": "0x4f5645525f4c494d495400000000000000000000000000000000000000000000",
       "encodedDetail": "0x70616c697365633a50535f4255444745545f3030310000000000000000000000"
     },
@@ -170,17 +189,39 @@
         "policyVersion": "3",
         "issuedAt": "1800000000",
         "expiresAt": "1800000300",
-        "intentHash": "0x8fe242bbc098f33b596874c6745993eba4a35c7051efc9b49b24f198191d3778",
+        "intentHash": "0xf52cb8169073e261f516b76af8e5fbd21d1964ed7c4ef75ec69752a1180e9381",
         "decision": "REVIEW",
         "reasonCode": "HUMAN_APPROVAL_REQUIRED",
         "detailCode": "palisec:PS_HUMAN_001",
         "decisionId": "0x39aa928ae23ba23098834e8d18e8b72aea8c965923bbce13e74894c785d97fd7",
         "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
-        "signature": "0x3606fdaad6ca196edc21d3d962efe43677e7919cb0f964828a952bd848ca34c625b45ce8c1d09de3356955bcd8976884ed6e8698896706a68479dc7568bf8c981b"
+        "signature": "0x5f82d73b58d417d9fc33e67714a8ae2b26c081552ab02eb5d04e9a03dbe7d954203faece68fe9220fd015d3ff74b93c529f586bd2e6fe114fc8e8f691c1dc7f61c"
       },
-      "digest": "0xd3a4579288215ddaf0ada06e281f8ca89d911592d69c28c36b84818213665fd5",
+      "digest": "0xe87cc673bfd6f680b4dc126f9869fc191915633472bb50346ba747c0ea4e80f9",
       "encodedReason": "0x48554d414e5f415050524f56414c5f5245515549524544000000000000000000",
       "encodedDetail": "0x70616c697365633a50535f48554d414e5f303031000000000000000000000000"
+    },
+    {
+      "name": "deny: delegatecall not allowed",
+      "receipt": {
+        "chainId": "4663",
+        "registry": "0x00000000000000000000000000000000000000Aa",
+        "account": "0x1111111111111111111111111111111111111111",
+        "policyHash": "0x04595925239dfef58a1de5f19b73d81e7c2a8cf0229d8343ad3ed44d1ba6837a",
+        "policyVersion": "3",
+        "issuedAt": "1800000000",
+        "expiresAt": "1800000300",
+        "intentHash": "0x10e4f9e97303fb45414b47c4949468f7f5033593cda2a9dfa2fdf43b466fd128",
+        "decision": "DENY",
+        "reasonCode": "METHOD_NOT_ALLOWED",
+        "detailCode": "palisec:PS_METHOD_001",
+        "decisionId": "0x29ccd52f3c73e590ad58a435bd675815f69104a06167097cfff5437035716003",
+        "signer": "0x385076125A5CFcE235Bc736C2184045182600028",
+        "signature": "0x0a569b58f5e67ed2e0f75bbd46486fd088df8a7681b4b0b6f4fefdfbc3ebd0cb670411761779f2342d27efd3ec9d0e30c72dd9d219053629012ae2269dea8f081c"
+      },
+      "digest": "0x1b57358c213991395001162713830cd0753d86bc52385eb92e0a2db49d563d0d",
+      "encodedReason": "0x4d4554484f445f4e4f545f414c4c4f5745440000000000000000000000000000",
+      "encodedDetail": "0x70616c697365633a50535f4d4554484f445f3030310000000000000000000000"
     }
   ]
 }
