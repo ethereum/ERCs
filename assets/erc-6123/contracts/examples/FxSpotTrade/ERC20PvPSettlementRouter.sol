@@ -9,10 +9,10 @@ interface IERC20RouterToken {
 }
 
 /**
- * @notice Common settlement interface called by factory-created FX swaps.
+ * @notice Common settlement interface called by factory-created FX trades.
  */
-interface IAtomicSwapSettlement {
-    function settleAtomicSwap(
+interface IPvPSettlement {
+    function settlePvP(
         IERC20RouterToken baseToken,
         IERC20RouterToken quoteToken,
         address inceptor,
@@ -23,25 +23,25 @@ interface IAtomicSwapSettlement {
 }
 
 /**
- * @title ERC-20 Atomic Swap Settlement Router
- * @notice Common ERC-20 spender for all swaps created by one factory.
+ * @title ERC-20 PvP Settlement Router
+ * @notice Common ERC-20 spender for all trades created by one factory.
  * @dev Token holders approve this router once. The router stores only whether a
- *      factory-created swap still has an unused settlement authorization. The
- *      immutable swap itself is the source of its tokens, parties, and amounts.
+ *      factory-created trade still has an unused settlement authorization. The
+ *      immutable trade itself is the source of its tokens, parties, and amounts.
  */
-contract ERC20AtomicSwapSettlementRouter is IAtomicSwapSettlement {
+contract ERC20PvPSettlementRouter is IPvPSettlement {
     error InvalidFactory();
-    error InvalidSwap();
+    error InvalidTrade();
     error NotFactory();
-    error InactiveSwap();
+    error InactiveTrade();
     error TransferFromFailed(address token);
 
     address public immutable factory;
-    mapping(address swap => bool active) public activeSwap;
+    mapping(address trade => bool active) public activeTrade;
 
     /**
      * @notice Creates a settlement router controlled by one immutable factory.
-     * @param factory_ Factory allowed to register newly created swaps.
+     * @param factory_ Factory allowed to register newly created trades.
      */
     constructor(address factory_) {
         if (factory_ == address(0)) revert InvalidFactory();
@@ -49,27 +49,27 @@ contract ERC20AtomicSwapSettlementRouter is IAtomicSwapSettlement {
     }
 
     /**
-     * @notice Gives one factory-created swap a single settlement authorization.
-     * @dev The factory deploys the exact trusted swap implementation and calls this method in the same transaction.
-     * @param swap Newly deployed swap contract.
+     * @notice Gives one factory-created trade a single settlement authorization.
+     * @dev The factory deploys the exact trusted trade implementation and calls this method in the same transaction.
+     * @param trade Newly deployed trade contract.
      */
-    function registerSwap(address swap) external {
+    function registerTrade(address trade) external {
         if (msg.sender != factory) revert NotFactory();
-        if (swap.code.length == 0 || activeSwap[swap]) revert InvalidSwap();
+        if (trade.code.length == 0 || activeTrade[trade]) revert InvalidTrade();
 
-        activeSwap[swap] = true;
+        activeTrade[trade] = true;
     }
 
     /**
-     * @notice Transfers both token legs for one authorized single-use swap.
-     * @dev `msg.sender` must be a swap registered by the immutable factory. Its
+     * @notice Transfers both token legs for one authorized single-use trade.
+     * @dev `msg.sender` must be a trade registered by the immutable factory. Its
      *      authorization is consumed before either external token call. This is
-     *      the per-swap reentrancy guard: a callback cannot reuse the same swap;
-     *      independent swaps do not need a global lock. Any failure reverts both
+     *      the per-trade reentrancy guard: a callback cannot reuse the same trade;
+     *      independent trades do not need a global lock. Any failure reverts both
      *      transfers and restores the authorization atomically.
      *
      *      Signed amounts are viewed from `inceptor`: positive means receive the
-     *      token and negative means deliver it. The trusted swap has already
+     *      token and negative means deliver it. The trusted trade has already
      *      validated that both legs are nonzero, opposite in sign, and not
      *      `type(int256).min`.
      * @param baseToken ERC-20 token represented by `position`.
@@ -79,7 +79,7 @@ contract ERC20AtomicSwapSettlementRouter is IAtomicSwapSettlement {
      * @param position Signed base-token amount.
      * @param paymentAmount Signed quote-token amount.
      */
-    function settleAtomicSwap(
+    function settlePvP(
         IERC20RouterToken baseToken,
         IERC20RouterToken quoteToken,
         address inceptor,
@@ -87,10 +87,10 @@ contract ERC20AtomicSwapSettlementRouter is IAtomicSwapSettlement {
         int256 position,
         int256 paymentAmount
     ) external override {
-        if (!activeSwap[msg.sender]) revert InactiveSwap();
+        if (!activeTrade[msg.sender]) revert InactiveTrade();
 
         // Consume the authorization before calling either ERC-20 contract.
-        activeSwap[msg.sender] = false;
+        activeTrade[msg.sender] = false;
 
         _move(baseToken, inceptor, counterparty, position);
         _move(quoteToken, inceptor, counterparty, paymentAmount);
@@ -114,7 +114,7 @@ contract ERC20AtomicSwapSettlementRouter is IAtomicSwapSettlement {
             // forge-lint: disable-next-line(unsafe-typecast)
             _safeTransferFrom(token, otherParty, viewParty, uint256(signedAmount));
         } else {
-            // The trusted swap rejects zero and type(int256).min, so negation is positive and safe.
+            // The trusted trade rejects zero and type(int256).min, so negation is positive and safe.
             // forge-lint: disable-next-line(unsafe-typecast)
             _safeTransferFrom(token, viewParty, otherParty, uint256(-signedAmount));
         }

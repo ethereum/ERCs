@@ -53,6 +53,21 @@ contract FinancialLeaseTest is Test {
 
     // ─── helpers ────────────────────────────────────────────
 
+    /// @dev Advances time to `t` re-attesting the oracle every day, so the
+    ///      index stays continuously fresh (tolerance 7 days) and the
+    ///      payment-path liveness grace never blocks default actions. Tests
+    ///      that exercise outages live in test/liveness.
+    function _warpFresh(uint256 t) internal {
+        // vm.getBlockTimestamp(), not block.timestamp: solc may treat the
+        // latter as constant within the tx and hoist it out of the loop.
+        for (uint256 cur = vm.getBlockTimestamp() + 1 days; cur < t; cur += 1 days) {
+            vm.warp(cur);
+            oracle.set(1e18);
+        }
+        vm.warp(t);
+        oracle.set(1e18);
+    }
+
     function _schedule(uint256 n, uint256 amountEach)
         internal
         view
@@ -205,8 +220,7 @@ contract FinancialLeaseTest is Test {
         uint256 id = _defaultLease();
         (, uint64 dueDate1) = lease.nextPayment(id);
 
-        vm.warp(uint256(dueDate1) + 1 days);
-        oracle.set(1e18); // refresh staleness
+        _warpFresh(uint256(dueDate1) + 1 days); // refresh staleness
 
         // status() reports accrual as of block.timestamp without
         // needing a prior tx: it already reflects InArrears here, before
@@ -248,8 +262,7 @@ contract FinancialLeaseTest is Test {
         uint256 id = _defaultLease();
         (, uint64 dueDate0) = lease.nextPayment(id);
 
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
 
         // Cross the due date and act on the lease before reading `paid`
         vm.prank(defaultDeclarer);
@@ -270,15 +283,13 @@ contract FinancialLeaseTest is Test {
         // date of each tranche (dueDates[i]), not from the
         // moment a tx "notices" it — declareDefault no longer has
         // any effect on WHEN the penalty starts to run.
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
 
         // Step 2: let additional days pass so that the stock of 100
         // overdue units keeps accruing penalty.
-        vm.warp(block.timestamp + 10 days);
-        oracle.set(1e18); // refresh staleness
+        _warpFresh(block.timestamp + 10 days); // refresh staleness
 
         uint256 outstandingBefore = lease.outstandingUnits(id);
         uint256 lessorBalBefore = token.balanceOf(lessor);
@@ -664,8 +675,7 @@ contract FinancialLeaseTest is Test {
             _createLeaseWithServicingConfig(address(oracle), 7 days, dueDates, unitAmounts, inputs, maxStalenesses);
         (, uint64 dueDate1) = lease.nextPayment(id);
 
-        vm.warp(uint256(dueDate1) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate1) + 1 days);
 
         // Attest the 4 categories before generating arrears
         vm.startPrank(lessor);
@@ -731,8 +741,7 @@ contract FinancialLeaseTest is Test {
     function test_T36_viewMatchesPersistedStateExactly() public {
         uint256 id = _defaultLease();
         (, uint64 dueDate1) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate1) + 45 days);
-        oracle.set(1e18); // refresh staleness for the declareDefault/pay that follow
+        _warpFresh(uint256(dueDate1) + 45 days); // refresh staleness for the declareDefault/pay that follow
 
         IFinancialLease.LeaseStatus statusBefore = lease.status(id);
         uint256 arrearsBefore = lease.arrears(id);
@@ -762,8 +771,7 @@ contract FinancialLeaseTest is Test {
 
         // Put the lease in default with a real tx. Penalties accrue in closed
         // form from each installment's own due date (see T7).
-        vm.warp(uint256(dueDate1) + 5 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate1) + 5 days);
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
@@ -804,8 +812,7 @@ contract FinancialLeaseTest is Test {
         (uint64[] memory dd, uint256[] memory ua) = _schedule(1, 100 * UNIT);
         uint256 id = _createLease(address(oracle), 7 days, dd, ua);
 
-        vm.warp(uint256(dd[0]));
-        oracle.set(1e18);
+        _warpFresh(uint256(dd[0]));
         _pay(id, lease.convertToAssets(id, ua[0]));
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
 
@@ -852,8 +859,7 @@ contract FinancialLeaseTest is Test {
         uint256 id = _createLease(address(oracle), 0, dueDates, unitAmounts); // penaltyBpsPerDay = 10
 
         // Both installments overdue: installment0 60 days late, installment1 30 days late.
-        vm.warp(uint256(dueDates[1]) + 30 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[1]) + 30 days);
 
         // Total dynamic penalty before paying: installment0 (100*10*60/10000
         // = 6) + installment1 (100*10*30/10000 = 3) = 9 UNIT.
@@ -901,8 +907,7 @@ contract FinancialLeaseTest is Test {
 
         // installment0: 60 days in arrears. installment1: 30 days in arrears. Total
         // dynamic penalty: 6 + 3 = 9 UNIT. arrears() = 209 UNIT.
-        vm.warp(uint256(dueDates[1]) + 30 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[1]) + 30 days);
         assertEq(lease.arrears(id), 209 * UNIT, "precondition");
 
         // Pay 9 (penalty) + 100 (installment0 IN FULL) + 50 (installment1 PARTIAL)
@@ -937,8 +942,7 @@ contract FinancialLeaseTest is Test {
         assertEq(lease.outstandingUnits(id), 12 * 100 * UNIT, "the last 12 installments must remain");
 
         // Let the remaining 12 fall due.
-        vm.warp(uint256(dueDates[59]) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[59]) + 1 days);
 
         uint256 g0 = gasleft();
         lease.arrears(id);
@@ -1001,8 +1005,7 @@ contract FinancialLeaseTest is Test {
         vm.prank(lessor);
         uint256 id = lease.createLease(p);
 
-        vm.warp(uint256(dueDates[0]) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[0]) + 1 days);
 
         address rando = makeAddr("t51_rando");
         address newOwner = makeAddr("t51_newOwner");
@@ -1051,8 +1054,7 @@ contract FinancialLeaseTest is Test {
         lease.assignDefaultDeclarer(id, riskManager);
 
         (, uint64 dueDate0) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
 
         // The old declarer lost the power; the delegate has it.
         vm.prank(defaultDeclarer);
@@ -1099,8 +1101,7 @@ contract FinancialLeaseTest is Test {
         uint256 id = lease.createLease(p);
 
         // The lessee pays the whole installment on time -> Completed.
-        vm.warp(uint256(dueDates[0]));
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[0]));
         _pay(id, lease.convertToAssets(id, unitAmounts[0]));
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
 
@@ -1142,8 +1143,7 @@ contract FinancialLeaseTest is Test {
     function test_T58_mutualAgreementFromInDefault() public {
         uint256 id = _defaultLease();
         (, uint64 dueDate0) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
@@ -1208,8 +1208,7 @@ contract FinancialLeaseTest is Test {
     function test_T61_terminateForDefaultBeforeTimelockReverts() public {
         uint256 id = _defaultLease(); // terminationDelay = 7 days
         (, uint64 dueDate0) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
 
@@ -1224,8 +1223,7 @@ contract FinancialLeaseTest is Test {
     function test_T62_terminateForDefaultAfterTimelock() public {
         uint256 id = _defaultLease();
         (, uint64 dueDate0) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
 
@@ -1246,8 +1244,7 @@ contract FinancialLeaseTest is Test {
         lease.terminateForDefault(id);
 
         (, uint64 dueDate0) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InArrears)); // derived, without declareDefault
 
         vm.prank(lessor);
@@ -1260,8 +1257,7 @@ contract FinancialLeaseTest is Test {
     function test_T64_terminateForDefaultNotOwnerReverts() public {
         uint256 id = _defaultLease();
         (, uint64 dueDate0) = lease.nextPayment(id);
-        vm.warp(uint256(dueDate0) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDate0) + 1 days);
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
         vm.warp(block.timestamp + 7 days);
@@ -1407,15 +1403,13 @@ contract FinancialLeaseTest is Test {
         if (target == IFinancialLease.LeaseStatus.Active) return id;
 
         if (target == IFinancialLease.LeaseStatus.Completed) {
-            vm.warp(uint256(dueDates[0]));
-            oracle.set(1e18);
+            _warpFresh(uint256(dueDates[0]));
             _pay(id, lease.convertToAssets(id, unitAmounts[0]));
             return id;
         }
 
         if (target == IFinancialLease.LeaseStatus.PurchaseExercised) {
-            vm.warp(uint256(dueDates[0]));
-            oracle.set(1e18);
+            _warpFresh(uint256(dueDates[0]));
             _pay(id, lease.convertToAssets(id, unitAmounts[0]));
             oracle.set(1e18);
             vm.prank(lessee);
@@ -1424,8 +1418,7 @@ contract FinancialLeaseTest is Test {
         }
 
         // InArrears, InDefault, Terminated: all cross the due date first.
-        vm.warp(uint256(dueDates[0]) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[0]) + 1 days);
         if (target == IFinancialLease.LeaseStatus.InArrears) return id;
 
         vm.prank(defaultDeclarer);
@@ -1455,8 +1448,7 @@ contract FinancialLeaseTest is Test {
     function _mkLeaseWithArrears(bool persistAsInArrears) internal returns (uint256 id) {
         (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
         id = _createLease(address(oracle), 7 days, dueDates, unitAmounts);
-        vm.warp(uint256(dueDates[0]) + 1 days);
-        oracle.set(1e18);
+        _warpFresh(uint256(dueDates[0]) + 1 days);
         if (persistAsInArrears) {
             _pay(id, 1); // minimal poke, does not cure, forces l.status = InArrears
         }
@@ -1665,8 +1657,7 @@ contract FinancialLeaseTest is Test {
         (uint64[] memory dueDatesB, uint256[] memory unitAmountsB) = _schedule(12, 1e23);
         uint256 idB = _createLease(address(oracle), 0, dueDatesB, unitAmountsB);
 
-        vm.warp(block.timestamp + 200 days);
-        oracle.set(1e18);
+        _warpFresh(block.timestamp + 200 days);
 
         uint256 owed = lease.arrears(idA);
         uint256 total = bound(uint256(totalRaw), 1, owed);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -54,6 +54,12 @@ contract RamsGatedURWA20Test is Test {
     }
 
     function _grant() internal {
+        IAgentMandate.Action[] memory enabled = new IAgentMandate.Action[](actions.length);
+        for (uint256 index = 0; index < actions.length; index++) {
+            enabled[index].action = actions[index];
+        }
+        IAgentMandate.Limit[] memory limits = new IAgentMandate.Limit[](1);
+        limits[0] = IAgentMandate.Limit(address(token), IAgentMandate.Direction.OUTFLOW, 1000, 1500, 0);
         IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
             agent: agent,
             validFrom: 0,
@@ -61,11 +67,10 @@ contract RamsGatedURWA20Test is Test {
             principal: principal,
             complianceProvider: address(compliance),
             identityRef: IDREF,
-            asset: address(token),
-            maxTransactionValue: 1000,
-            maxCumulativeValue: 1500,
+            target: address(token),
+            actions: enabled,
+            limits: limits,
             metadata: bytes32(0),
-            actions: actions,
             deadline: 0
         });
         vm.prank(principal);
@@ -81,7 +86,7 @@ contract RamsGatedURWA20Test is Test {
         token.transferFrom(principal, recipient, 400);
 
         assertEq(token.balanceOf(recipient), 400);
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 400);
+        assertEq(mandate.getLimits(agent, principal, address(token))[0].cumulativeUsed, 400);
     }
 
     function test_ApproveForRecordsWithoutMovingTokens() public {
@@ -93,7 +98,7 @@ contract RamsGatedURWA20Test is Test {
 
         assertEq(token.allowance(principal, spender), 700);
         assertEq(token.totalSupply(), supply);
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 700);
+        assertEq(mandate.getLimits(agent, principal, address(token))[0].cumulativeUsed, 700);
     }
 
     function test_MintForNeedsRoleAndMandate() public {
@@ -114,7 +119,7 @@ contract RamsGatedURWA20Test is Test {
         token.mintFor(principal, 300);
 
         assertEq(token.balanceOf(principal), 5300);
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 300);
+        assertEq(mandate.getLimits(agent, principal, address(token))[0].cumulativeUsed, 300);
     }
 
     function test_EachActionSpendsTheSameBudget() public {
@@ -125,10 +130,12 @@ contract RamsGatedURWA20Test is Test {
         token.approveFor(principal, spender, 600);
         vm.stopPrank();
 
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 1500);
+        assertEq(mandate.getLimits(agent, principal, address(token))[0].cumulativeUsed, 1500);
 
         vm.expectRevert(
-            abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP)
+            abi.encodeWithSelector(
+                IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP
+            )
         );
         vm.prank(agent);
         token.transferFrom(principal, recipient, 1);
@@ -138,7 +145,7 @@ contract RamsGatedURWA20Test is Test {
 
     function test_BlockedNonexistent() public {
         vm.expectRevert(
-            abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.NONEXISTENT)
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.NONEXISTENT)
         );
         vm.prank(agent);
         token.transferFrom(principal, recipient, 1);
@@ -148,7 +155,9 @@ contract RamsGatedURWA20Test is Test {
         _grant();
         vm.warp(block.timestamp + 2 days);
 
-        vm.expectRevert(abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.EXPIRED));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.EXPIRED)
+        );
         vm.prank(agent);
         token.transferFrom(principal, recipient, 1);
     }
@@ -158,7 +167,9 @@ contract RamsGatedURWA20Test is Test {
         vm.prank(principal);
         mandate.revokeMandate(agent, principal, address(token), 0, "");
 
-        vm.expectRevert(abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.REVOKED));
+        vm.expectRevert(
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.REVOKED)
+        );
         vm.prank(agent);
         token.transferFrom(principal, recipient, 1);
     }
@@ -167,7 +178,7 @@ contract RamsGatedURWA20Test is Test {
         _grant();
 
         vm.expectRevert(
-            abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_TX_CAP)
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_TX_CAP)
         );
         vm.prank(agent);
         token.transferFrom(principal, recipient, 1001);
@@ -179,7 +190,7 @@ contract RamsGatedURWA20Test is Test {
         mandate.freezeAgent(agent);
 
         vm.expectRevert(
-            abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.AGENT_FROZEN)
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.AGENT_FROZEN)
         );
         vm.prank(agent);
         token.transferFrom(principal, recipient, 1);
@@ -191,7 +202,9 @@ contract RamsGatedURWA20Test is Test {
         _grant();
 
         vm.expectRevert(
-            abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.ACTION_NOT_ENABLED)
+            abi.encodeWithSelector(
+                IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.ACTION_NOT_ENABLED
+            )
         );
         vm.prank(agent);
         token.approveFor(principal, spender, 1);
