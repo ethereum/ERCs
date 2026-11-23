@@ -37,10 +37,10 @@ interface ILockingContract {
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token, if it was provided to inceptTransfer.
      */
     event TransferIncepted(
-        uint256 id,
+        uint256 indexed id,
         int amount,
-        address from,
-        address to,
+        address indexed from,
+        address indexed to,
         bytes transaction,
         bytes keyHashedSeller,
         bytes keyEncryptedSeller
@@ -57,10 +57,10 @@ interface ILockingContract {
      * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token, if it was provided to confirmTransfer.
      */
     event TransferConfirmed(
-        uint256 id,
+        uint256 indexed id,
         int amount,
-        address from,
-        address to,
+        address indexed from,
+        address indexed to,
         bytes transaction,
         bytes keyHashedBuyer,
         bytes keyEncryptedBuyer
@@ -80,14 +80,14 @@ interface ILockingContract {
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param key the key that was used to claim the asset
      */
-    event TokenClaimed(uint256 id, bytes key);
+    event TokenClaimed(uint256 indexed id, bytes key);
 
     /**
      * @dev Emitted when the token was re-claimed (back to seller).
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param key the key that was used to claim the asset
      */
-    event TokenReclaimed(uint256 id, bytes key);
+    event TokenReclaimed(uint256 indexed id, bytes key);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
