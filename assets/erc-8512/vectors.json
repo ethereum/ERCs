@@ -1,0 +1,429 @@
+{
+  "description": "ERC-8512 deterministic test vectors for device keys, statements, EIP-712 digests, Merkle roots, and reports.",
+  "keys": {
+    "servicer": {
+      "privateKey": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "address": "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf"
+    },
+    "lesseeMeter": {
+      "privateKey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "address": "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+    },
+    "thirdPartyAttester": {
+      "privateKey": "0x0000000000000000000000000000000000000000000000000000000000000003",
+      "address": "0x6813eb9362372eef6200f3b1dbc3f819671cba69"
+    }
+  },
+  "context": {
+    "chainId": 1,
+    "registryAddress": "0x1111111111111111111111111111111111111111",
+    "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+    "servicerAddress": "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+    "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+    "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+    "periodStart": 1735689600,
+    "periodEnd": 1735776000,
+    "pledgedDeviceKeys": [
+      "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+      "0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd",
+      "0x7dd005b442427668eaef5672ab5da1394cfcd29f01574f26c05b2b686d8abcf8"
+    ]
+  },
+  "domainSeparator": "0xb0669c033d16f6ffd024a9e9ecc80c15f66432e46b89acbf6584bca2ec0e21b1",
+  "emptyRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "devices": [
+    {
+      "label": "gpu-1-h100-spki",
+      "pciVendorId": 4318,
+      "idType": 1,
+      "idBytesHex": "0x3059301306072a8648ce3d020106082a8648ce3d0301070342000411111111111111111111111111111111111111111111111111111111111111112222222222222222222222222222222222222222222222222222222222222222",
+      "idBytesUtf8": null,
+      "deviceKey": "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3"
+    },
+    {
+      "label": "gpu-2-h100-spki",
+      "pciVendorId": 4318,
+      "idType": 1,
+      "idBytesHex": "0x3059301306072a8648ce3d020106082a8648ce3d0301070342000433333333333333333333333333333333333333333333333333333333333333334444444444444444444444444444444444444444444444444444444444444444",
+      "idBytesUtf8": null,
+      "deviceKey": "0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd"
+    },
+    {
+      "label": "gpu-3-serial",
+      "pciVendorId": 4318,
+      "idType": 2,
+      "idBytesHex": "0x534e2d30303134323032352d4750553033",
+      "idBytesUtf8": "SN-00142025-GPU03",
+      "deviceKey": "0x7dd005b442427668eaef5672ab5da1394cfcd29f01574f26c05b2b686d8abcf8"
+    }
+  ],
+  "statements": [
+    {
+      "label": "gpu-1-hw-attestation",
+      "observerAddress": "0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+      "statementId": "0xc5cd9d50c9b9865f68b257787dce67024451033f92e33fb1efac577655f45fa9",
+      "digest": "0xf404da67d505a44f7a265b4e48124e6550f6207d68ef6570563df462769f3fd4",
+      "signature": "0x60bbf2f2f376652697084e1829d1dbd40226b44ad8ba475dfec27658b2c58b920dde457e3e840d25ed50ca87be883e86214bfea11dfce71012421ceea159d7271c",
+      "canonicalJson": "{\"checksFailed\":\"0\",\"checksPassed\":\"24\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3\",\"evidence\":[{\"hash\":\"0x2774889ce6302c441a3bed05cc629a56243e9132730d069e73c3cad218ec4a15\",\"type\":\"nvidia-spdm-attestation-bundle\",\"uri\":\"ipfs://bafybeigpu1attestationbundle0001\"}],\"kind\":\"ERC8512/statement/1\",\"location\":\"US\",\"method\":\"hw-attestation\",\"missedSeconds\":\"0\",\"observer\":\"eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"third-party\",\"servedSeconds\":\"0\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"86400\"}",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+          "pciDeviceId": "2330",
+          "location": "US",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+          "role": "third-party",
+          "method": "hw-attestation",
+          "checksPassed": "24",
+          "checksFailed": "0",
+          "servedSeconds": "0",
+          "missedSeconds": "0",
+          "unknownSeconds": "86400",
+          "evidence": [
+            {
+              "type": "nvidia-spdm-attestation-bundle",
+              "uri": "ipfs://bafybeigpu1attestationbundle0001",
+              "hash": "0x2774889ce6302c441a3bed05cc629a56243e9132730d069e73c3cad218ec4a15"
+            }
+          ]
+        },
+        "signature": "0x60bbf2f2f376652697084e1829d1dbd40226b44ad8ba475dfec27658b2c58b920dde457e3e840d25ed50ca87be883e86214bfea11dfce71012421ceea159d7271c"
+      }
+    },
+    {
+      "label": "gpu-1-lessee-workload-meter",
+      "observerAddress": "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+      "statementId": "0xf31bc41507388636111fd67d950e636f738183fa93e5ed5ccfcfadd23d30643c",
+      "digest": "0x7db32d95814ceb171e548c1c9744347eb5b03cd1360c7aacb18bcf7a8591cece",
+      "signature": "0xa57dc60fac04a0b25887b85dbe7ef9ad93bf459241a1ab38c43ca6dd0db44737078fbb3f975086460dded8a477f21cd9f21c7a45f5cd2afa55b4e4086017727f1c",
+      "canonicalJson": "{\"checksFailed\":\"0\",\"checksPassed\":\"0\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3\",\"evidence\":[{\"hash\":\"0x1ddd42aeecc0775a9f9a6bf339f6a17b4db8080ed8d8e7cfdd146f19c6451374\",\"type\":\"slurm-usage-log\",\"uri\":\"ipfs://bafybeigpu1lesseemeter0001\"}],\"kind\":\"ERC8512/statement/1\",\"location\":\"US\",\"method\":\"workload-meter\",\"missedSeconds\":\"3600\",\"observer\":\"eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"lessee\",\"servedSeconds\":\"72000\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"10800\"}",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+          "pciDeviceId": "2330",
+          "location": "US",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "role": "lessee",
+          "method": "workload-meter",
+          "checksPassed": "0",
+          "checksFailed": "0",
+          "servedSeconds": "72000",
+          "missedSeconds": "3600",
+          "unknownSeconds": "10800",
+          "evidence": [
+            {
+              "type": "slurm-usage-log",
+              "uri": "ipfs://bafybeigpu1lesseemeter0001",
+              "hash": "0x1ddd42aeecc0775a9f9a6bf339f6a17b4db8080ed8d8e7cfdd146f19c6451374"
+            }
+          ]
+        },
+        "signature": "0xa57dc60fac04a0b25887b85dbe7ef9ad93bf459241a1ab38c43ca6dd0db44737078fbb3f975086460dded8a477f21cd9f21c7a45f5cd2afa55b4e4086017727f1c"
+      }
+    },
+    {
+      "label": "gpu-1-servicer-workload-meter",
+      "observerAddress": "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+      "statementId": "0x387a25c22266c87f2d3051a2e8b7c6744dcfe34ad776f6fbf9259523887aa10c",
+      "digest": "0x306ed3f7b368422c5e4493ad9614cb86d39ded7002e619352cbb1af1432bb98c",
+      "signature": "0x3a6bf35d02c283625fc38de720ba6f9e895b4b852c1404845ae7aa68b52010f3633b5a8ddd05750843f47137abef0f2881a31475843a1ec4cfd9b67bcb19b6391b",
+      "canonicalJson": "{\"checksFailed\":\"0\",\"checksPassed\":\"0\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3\",\"evidence\":[{\"hash\":\"0xd5d1bb575687a0663d0db8e292e08226f2cb96f643bc8b31505e8ee18db2ca28\",\"type\":\"servicer-billing-meter\",\"uri\":\"ipfs://bafybeigpu1servicermeter0001\"}],\"kind\":\"ERC8512/statement/1\",\"location\":\"US\",\"method\":\"workload-meter\",\"missedSeconds\":\"1800\",\"observer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"servicer\",\"servedSeconds\":\"73800\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"10800\"}",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+          "pciDeviceId": "2330",
+          "location": "US",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "role": "servicer",
+          "method": "workload-meter",
+          "checksPassed": "0",
+          "checksFailed": "0",
+          "servedSeconds": "73800",
+          "missedSeconds": "1800",
+          "unknownSeconds": "10800",
+          "evidence": [
+            {
+              "type": "servicer-billing-meter",
+              "uri": "ipfs://bafybeigpu1servicermeter0001",
+              "hash": "0xd5d1bb575687a0663d0db8e292e08226f2cb96f643bc8b31505e8ee18db2ca28"
+            }
+          ]
+        },
+        "signature": "0x3a6bf35d02c283625fc38de720ba6f9e895b4b852c1404845ae7aa68b52010f3633b5a8ddd05750843f47137abef0f2881a31475843a1ec4cfd9b67bcb19b6391b"
+      }
+    },
+    {
+      "label": "gpu-2-hw-attestation",
+      "observerAddress": "0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+      "statementId": "0xf6f806327340ff31ea7b855638d0376ea5bb544243b1f620a5c81a1bf9b8326b",
+      "digest": "0x786410e6a8c5bbf98cf14fc4591e9cc6293f09b1881d0a03b799fbe8eb3de6f9",
+      "signature": "0xbd18cf4b7805c964bd46f4c26c9ad2021362f7700a49aac39c2dd45d86aed8ab2b2a323a0fc8fcde2750b76fef1442d041aa2c747603947f7096c413ab9762781b",
+      "canonicalJson": "{\"checksFailed\":\"1\",\"checksPassed\":\"12\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd\",\"evidence\":[{\"hash\":\"0x8aa516a61d953ea24da26d93802d8e6fe05bedb7f2126a73e94c89522f0fb8a4\",\"type\":\"nvidia-spdm-attestation-bundle\",\"uri\":\"ipfs://bafybeigpu2attestationbundle0001\"}],\"kind\":\"ERC8512/statement/1\",\"location\":\"US\",\"method\":\"hw-attestation\",\"missedSeconds\":\"0\",\"observer\":\"eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"third-party\",\"servedSeconds\":\"0\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"86400\"}",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd",
+          "pciDeviceId": "2330",
+          "location": "US",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+          "role": "third-party",
+          "method": "hw-attestation",
+          "checksPassed": "12",
+          "checksFailed": "1",
+          "servedSeconds": "0",
+          "missedSeconds": "0",
+          "unknownSeconds": "86400",
+          "evidence": [
+            {
+              "type": "nvidia-spdm-attestation-bundle",
+              "uri": "ipfs://bafybeigpu2attestationbundle0001",
+              "hash": "0x8aa516a61d953ea24da26d93802d8e6fe05bedb7f2126a73e94c89522f0fb8a4"
+            }
+          ]
+        },
+        "signature": "0xbd18cf4b7805c964bd46f4c26c9ad2021362f7700a49aac39c2dd45d86aed8ab2b2a323a0fc8fcde2750b76fef1442d041aa2c747603947f7096c413ab9762781b"
+      }
+    },
+    {
+      "label": "gpu-2-bmc-telemetry",
+      "observerAddress": "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+      "statementId": "0x1b10e0297c7d18df05a36141f3ada5a1355fcfed28f83ee5e15dc5f8f539ab5d",
+      "digest": "0xfb78addb99524fbf4a31c21c367ebf7bdbe73a0e0064252ac4500a1a1027d31a",
+      "signature": "0x2703a52b8b59b2f3fecb85fade8632d154013b8590c55dc7e698fd4b6aa80c0c5864f2a81ee4615eb19fefb5394018b593f0a68f6721e2d7358770f8631e655a1c",
+      "canonicalJson": "{\"checksFailed\":\"0\",\"checksPassed\":\"0\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd\",\"evidence\":[{\"hash\":\"0x860881e855670eef412028d1062673af94ee6cfbeaa4067add763e52e9db81fe\",\"type\":\"redfish-telemetry-csv\",\"uri\":\"ipfs://bafybeigpu2bmctelemetry0001\"}],\"kind\":\"ERC8512/statement/1\",\"location\":\"US\",\"method\":\"bmc-telemetry\",\"missedSeconds\":\"0\",\"observer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"servicer\",\"servedSeconds\":\"0\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"86400\"}",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd",
+          "pciDeviceId": "2330",
+          "location": "US",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "role": "servicer",
+          "method": "bmc-telemetry",
+          "checksPassed": "0",
+          "checksFailed": "0",
+          "servedSeconds": "0",
+          "missedSeconds": "0",
+          "unknownSeconds": "86400",
+          "evidence": [
+            {
+              "type": "redfish-telemetry-csv",
+              "uri": "ipfs://bafybeigpu2bmctelemetry0001",
+              "hash": "0x860881e855670eef412028d1062673af94ee6cfbeaa4067add763e52e9db81fe"
+            }
+          ]
+        },
+        "signature": "0x2703a52b8b59b2f3fecb85fade8632d154013b8590c55dc7e698fd4b6aa80c0c5864f2a81ee4615eb19fefb5394018b593f0a68f6721e2d7358770f8631e655a1c"
+      }
+    },
+    {
+      "label": "gpu-3-site-inspection",
+      "observerAddress": "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+      "statementId": "0x15fb279e2cddd9b991c11547c0a92258f737ee57f7e11e08deb5c6f02a84820f",
+      "digest": "0xd926195eaeaf83bbced85565bf9dfd2d51dca8ca4689033017d6d117c208454a",
+      "signature": "0xe16bde74cca34d629f4a5b46a7c62957224295e6b5631487f9937dfc881079ca36f2b33660881823bf00fa55750370ecc22a6a8535ad1aed5cd0c90ca2ab9db01c",
+      "canonicalJson": "{\"checksFailed\":\"0\",\"checksPassed\":\"0\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0x7dd005b442427668eaef5672ab5da1394cfcd29f01574f26c05b2b686d8abcf8\",\"evidence\":[],\"kind\":\"ERC8512/statement/1\",\"location\":\"DE\",\"method\":\"site-inspection\",\"missedSeconds\":\"0\",\"observer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"servicer\",\"servedSeconds\":\"0\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"86400\"}",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0x7dd005b442427668eaef5672ab5da1394cfcd29f01574f26c05b2b686d8abcf8",
+          "pciDeviceId": "2330",
+          "location": "DE",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "role": "servicer",
+          "method": "site-inspection",
+          "checksPassed": "0",
+          "checksFailed": "0",
+          "servedSeconds": "0",
+          "missedSeconds": "0",
+          "unknownSeconds": "86400",
+          "evidence": []
+        },
+        "signature": "0xe16bde74cca34d629f4a5b46a7c62957224295e6b5631487f9937dfc881079ca36f2b33660881823bf00fa55750370ecc22a6a8535ad1aed5cd0c90ca2ab9db01c"
+      }
+    }
+  ],
+  "sortedStatementIds": [
+    "0x15fb279e2cddd9b991c11547c0a92258f737ee57f7e11e08deb5c6f02a84820f",
+    "0x1b10e0297c7d18df05a36141f3ada5a1355fcfed28f83ee5e15dc5f8f539ab5d",
+    "0x387a25c22266c87f2d3051a2e8b7c6744dcfe34ad776f6fbf9259523887aa10c",
+    "0xc5cd9d50c9b9865f68b257787dce67024451033f92e33fb1efac577655f45fa9",
+    "0xf31bc41507388636111fd67d950e636f738183fa93e5ed5ccfcfadd23d30643c",
+    "0xf6f806327340ff31ea7b855638d0376ea5bb544243b1f620a5c81a1bf9b8326b"
+  ],
+  "selectedByDevice": {
+    "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3": "0x387a25c22266c87f2d3051a2e8b7c6744dcfe34ad776f6fbf9259523887aa10c",
+    "0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd": "0x1b10e0297c7d18df05a36141f3ada5a1355fcfed28f83ee5e15dc5f8f539ab5d",
+    "0x7dd005b442427668eaef5672ab5da1394cfcd29f01574f26c05b2b686d8abcf8": "0x15fb279e2cddd9b991c11547c0a92258f737ee57f7e11e08deb5c6f02a84820f"
+  },
+  "report": {
+    "periodStart": 1735689600,
+    "periodEnd": 1735776000,
+    "devicesReported": 3,
+    "devicesAttested": 2,
+    "servedSeconds": 73800,
+    "missedSeconds": 1800,
+    "unknownSeconds": 183600,
+    "statementRoot": "0xa05835c9534e6f1397ce50575b78ad3a49ecbcfafc85399b8e42111ee445eb20"
+  },
+  "invalidCases": [
+    {
+      "name": "tamperedServedSeconds",
+      "check": "verifyEnvelope",
+      "envelope": {
+        "statement": {
+          "kind": "ERC8512/statement/1",
+          "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+          "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+          "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+          "deviceKey": "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+          "pciDeviceId": "2330",
+          "location": "US",
+          "periodStart": "1735689600",
+          "periodEnd": "1735776000",
+          "observer": "eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "role": "lessee",
+          "method": "workload-meter",
+          "checksPassed": "0",
+          "checksFailed": "0",
+          "servedSeconds": "75600",
+          "missedSeconds": "3600",
+          "unknownSeconds": "7200",
+          "evidence": [
+            {
+              "type": "slurm-usage-log",
+              "uri": "ipfs://bafybeigpu1lesseemeter0001",
+              "hash": "0x1ddd42aeecc0775a9f9a6bf339f6a17b4db8080ed8d8e7cfdd146f19c6451374"
+            }
+          ]
+        },
+        "signature": "0xa57dc60fac04a0b25887b85dbe7ef9ad93bf459241a1ab38c43ca6dd0db44737078fbb3f975086460dded8a477f21cd9f21c7a45f5cd2afa55b4e4086017727f1c"
+      },
+      "expectedProblem": "signature does not recover to observer"
+    },
+    {
+      "name": "unpledgedDevice",
+      "check": "reportProblem",
+      "report": {
+        "periodStart": 1735689600,
+        "periodEnd": 1735776000,
+        "devicesReported": 1,
+        "devicesAttested": 0,
+        "servedSeconds": 0,
+        "missedSeconds": 0,
+        "unknownSeconds": 86400,
+        "statementRoot": "0x2d13df124f72ffc91d46750e32e06a918621549934a7c218d7aae6a6ba46ac86"
+      },
+      "envelopes": [
+        {
+          "statement": {
+            "kind": "ERC8512/statement/1",
+            "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+            "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+            "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+            "deviceKey": "0x07d5033f63d98aa68d5efe1b1f0f78bd8442f377b653c06b8dbfbbd512ccd06f",
+            "pciDeviceId": "2330",
+            "location": "US",
+            "periodStart": "1735689600",
+            "periodEnd": "1735776000",
+            "observer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+            "role": "servicer",
+            "method": "site-inspection",
+            "checksPassed": "0",
+            "checksFailed": "0",
+            "servedSeconds": "0",
+            "missedSeconds": "0",
+            "unknownSeconds": "86400",
+            "evidence": []
+          },
+          "signature": "0x6c38c70c6ad8a59b5302fe8b37855385de530b0588bf2ae86e79f43cb0080d2b3194757a7700df9d183d30cce86375fc21f918aa0b507162e81ead44541281ca1b"
+        }
+      ],
+      "context": {
+        "chainId": 1,
+        "registryAddress": "0x1111111111111111111111111111111111111111",
+        "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+        "servicerAddress": "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+        "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+        "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+        "periodStart": 1735689600,
+        "periodEnd": 1735776000,
+        "pledgedDeviceKeys": [
+          "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+          "0x95a2fbf397506473b2dc0273e0e882614fd90230e546bee099c0228b26351ecd",
+          "0x7dd005b442427668eaef5672ab5da1394cfcd29f01574f26c05b2b686d8abcf8"
+        ]
+      },
+      "expectedProblem": "envelope[0]: deviceKey 0x07d5033f63d98aa68d5efe1b1f0f78bd8442f377b653c06b8dbfbbd512ccd06f is not actively pledged"
+    },
+    {
+      "name": "attestationWithNonzeroServedSeconds",
+      "check": "statementProblem",
+      "statement": {
+        "kind": "ERC8512/statement/1",
+        "registry": "eip155:1:0x1111111111111111111111111111111111111111",
+        "servicer": "eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+        "collateralId": "0x000000000000000000000000000000000000000000000000000000000000c011",
+        "deviceKey": "0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3",
+        "pciDeviceId": "2330",
+        "location": "US",
+        "periodStart": "1735689600",
+        "periodEnd": "1735776000",
+        "observer": "eip155:1:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+        "role": "third-party",
+        "method": "hw-attestation",
+        "checksPassed": "24",
+        "checksFailed": "0",
+        "servedSeconds": "3600",
+        "missedSeconds": "0",
+        "unknownSeconds": "82800",
+        "evidence": [
+          {
+            "type": "nvidia-spdm-attestation-bundle",
+            "uri": "ipfs://bafybeigpu1attestationbundle0001",
+            "hash": "0x2774889ce6302c441a3bed05cc629a56243e9132730d069e73c3cad218ec4a15"
+          }
+        ]
+      },
+      "expectedProblem": "hw-attestation must report the whole period as unknownSeconds"
+    },
+    {
+      "name": "duplicateMemberName",
+      "check": "parseJson",
+      "rawJson": "{\"checksFailed\":\"0\",\"checksPassed\":\"0\",\"collateralId\":\"0x000000000000000000000000000000000000000000000000000000000000c011\",\"deviceKey\":\"0xad0db340cca514cfae8414005961abeaa41a738b298fb00139e80efc0c9baba3\",\"evidence\":[{\"hash\":\"0x1ddd42aeecc0775a9f9a6bf339f6a17b4db8080ed8d8e7cfdd146f19c6451374\",\"type\":\"slurm-usage-log\",\"uri\":\"ipfs://bafybeigpu1lesseemeter0001\"}],\"kind\":\"ERC8512/statement/1\",\"location\":\"US\",\"method\":\"workload-meter\",\"missedSeconds\":\"3600\",\"observer\":\"eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf\",\"pciDeviceId\":\"2330\",\"periodEnd\":\"1735776000\",\"periodStart\":\"1735689600\",\"registry\":\"eip155:1:0x1111111111111111111111111111111111111111\",\"role\":\"lessee\",\"servedSeconds\":\"72000\",\"servedSeconds\":\"75600\",\"servicer\":\"eip155:1:0x7e5f4552091a69125d5dfcb7b8c2659029395bdf\",\"unknownSeconds\":\"10800\"}",
+      "expectedProblem": "Duplicate member name: \"servedSeconds\""
+    }
+  ]
+}
