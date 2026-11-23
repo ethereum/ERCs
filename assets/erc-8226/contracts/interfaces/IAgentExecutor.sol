@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
-/// @notice OPTIONAL, non-normative companion interface for the account-side enforcement venues
-///         (an EIP-7702 delegate or a standalone executor). The forwarding logic is never part of IAgentMandate.
+/// @notice Optional interface for the account-side venues. The forwarding logic is never part of IAgentMandate.
 interface IAgentExecutor {
-    /// @dev msg.sender is the agent; the implementer is bound to a principal. The action label is the
-    ///      selector bytes4(data); the gated amount is read from `data` at a registered per-action position,
-    ///      not supplied by the caller, so gated values match the real call. Calls canExecute and reverts if
-    ///      false, records the execution, then forwards the call.
+    /// @dev msg.sender is the agent; the principal is the account that runs the code. The action label is the
+    ///      selector bytes4(data). Calls canExecute and reverts if false, forwards the call, then measures the
+    ///      change of the principal's balance in each token that the mandate limits, checks it against the limits
+    ///      and records it. An approval moves no funds, so it spends nothing: a mandate that enables approve SHOULD
+    ///      constrain the spender.
     function execute(address target, bytes calldata data) external returns (bytes memory);
 }
