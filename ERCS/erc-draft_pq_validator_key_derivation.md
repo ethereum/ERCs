@@ -49,7 +49,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Seed
 
-The `seed` is an octet string of 16 to 64 octets. It SHOULD be the 64-octet output of the BIP-39 `mnemonic_to_seed` function. A validator that already holds an [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) mnemonic SHOULD use the same mnemonic and passphrase. Its BLS and post-quantum keys then share one backup.
+The `seed` is an octet string of 16 to 64 octets. It SHOULD be the 64-octet output of the BIP-39 `mnemonic_to_seed` function. A validator that already holds an [ERC-2333](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2333.md) mnemonic SHOULD use the same mnemonic and passphrase. Its BLS and post-quantum keys then share one backup. It MAY instead use a different mnemonic (see [Separate mnemonics](#separate-mnemonics)).
 
 ### Nodes
 
@@ -89,7 +89,7 @@ validator_seed = key
 
 The `chain_code` of that node is not used.
 
-`account` plays the role of the account index `i` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md): the `account`-th validator or builder of the seed. A tool that derives both BLS and post-quantum keys for a validator SHOULD use the same index for both.
+`account` plays the role of the account index `i` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md): the `account`-th validator or builder of the seed. A tool that derives both BLS and post-quantum keys for a validator from the same seed SHOULD use the same index for both.
 
 ### Seeds of the keys
 
@@ -125,6 +125,10 @@ Each registration binds one leanXMSS public key and one VRF root, and both chang
 * `PQ_PURPOSE` is `5326`, the word "lean" typed on a phone keypad (L = 5, E = 3, A = 2, N = 6). The purpose names Lean Ethereum, whose post-quantum signature scheme is leanXMSS, in the way the purpose `12381` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md) names the curve BLS12-381. The value itself carries no security: the distinct `MASTER_KEY_DOMAIN` already separates this tree from every other tree of the same seed. It only leaves room for other families of post-quantum keys under the same master node.
 * `COIN_TYPE` keeps the `3600` of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md): the keys are consensus keys of the same chain.
 * The `use` level of [ERC-2334](https://github.com/ethereum/ERCs/blob/master/ERCS/erc-2334.md) is dropped. Its only use was the split between withdrawal and signing keys. Post-quantum withdrawal credentials are execution addresses, and the two seeds of one account are split by HKDF.
+
+### Separate mnemonics
+
+Reusing the mnemonic of the BLS keys is a convenience, not a requirement. Nothing in this standard links the post-quantum keys of a validator to its BLS keys, and a stake owner MAY derive them from a different mnemonic, with any free `account`.
 
 ## Backwards Compatibility
 
