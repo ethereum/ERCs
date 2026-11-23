@@ -1,0 +1,459 @@
+---
+eip: XXXX
+title: Sovereign ERC-20 Receive Protection
+description: Opt-in, recipient-sovereign gating for incoming ERC-20 transfers and mints via allow/denylists, one-time permits, and external policies.
+author: Radek Svarz (@radeksvarz)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-sovereign-erc-20-receive-protection/30485
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-15
+requires: 20, 165
+---
+
+## Abstract
+
+This ERC defines an opt-in extension to [ERC-20](./eip-20.md) that enables any account to gate
+incoming token transfers and mints. A minimal core interface exposes standard
+protection status and pre-flight checks for integrations, while modular
+extensions allow recipients to authorize or block senders through per-token
+allow-lists, deny-lists, one-off off-chain signatures, or external policy
+contracts across both EOAs and smart accounts.
+
+## Motivation
+
+Standard [ERC-20](./eip-20.md) tokens allow any address to push tokens to any recipient without
+consent. This creates several recurring issues:
+
+1. **Address poisoning and dust/spam transfers**: Attackers send zero-value or
+   dust transfers from lookalike addresses to pollute transaction history.
+2. **Tainted inflows & compliance**: Treasuries, decentralized autonomous
+   organizations, and regulated entities
+   may wish to reject transfers from unverified or sanctioned sources rather
+   than custodying unexpected assets.
+3. **Accounting hygiene**: Automated treasury systems benefit from rejecting
+   unsolicited inflows at the protocol layer.
+
+Existing transfer-restriction standards (such as [ERC-3643](./eip-3643.md)) are typically
+issuer-controlled, while earlier recipient-hook designs (such as [ERC-777](./eip-777.md)'s
+`tokensReceived`) introduced state-mutating reentrancy vectors during transfers
+and did not natively protect EOAs. This proposal introduces **recipient-side
+sovereignty** for both EOAs and smart accounts without reentrancy risk, while
+remaining backwards-compatible with existing ERC-20 wallets, DEX routers, and
+bridges through an **opt-in** default.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Core Behavior
+
+1. **Opt-In Default**: Fresh accounts MUST default to
+   `isReceiveProtected(account) == false`. Unprotected accounts MUST accept
+   incoming transfers and mints with standard ERC-20 semantics.
+2. **Economic Sender Attribution**: When `to` has enabled protection
+   (`isReceiveProtected(to) == true`), checks MUST evaluate `from` (the economic
+   sender), NOT `msg.sender` (which may be a DEX router or spender in
+   `transferFrom`).
+3. **Exemptions & Minting**:
+   - Burns (`to == address(0)`) MUST NOT be blocked by receive protection.
+   - Self-transfers (`from == to`) MUST be allowed even when `to` is protected.
+   - Mints (`from == address(0)`) MUST be subject to `to`'s protection rules;
+     `address(0)` MAY be allow-listed or permitted via `permitReceive`.
+4. **Authorization**: When `to != address(0)`, `from != to`, and
+   `isReceiveProtected(to) == true`, the evaluation order and composition (`OR`
+   vs. `AND`) across implemented authorization extensions are up to the token
+   implementer, subject to the following invariants:
+   - `canReceive(from, to, amount)` MUST return the exact same authorization
+     outcome as the transfer check.
+   - If a one-time receive permit
+     (`oneTimeReceiveLimit(from, to) > 0 && amount <= oneTimeReceiveLimit(from, to)`)
+     is used to authorize the transfer, the entire one-time limit MUST be
+     cleared to `0` (strictly single-use, even for partial amounts).
+   - If an external `IReceivePolicy` is queried, it MUST be invoked via
+     `staticcall` and MUST fail closed (treat `false` or revert as denied).
+   - If the transfer is not authorized, the token MUST revert with
+     `RecipientTransferNotAllowed(from, to, amount)`.
+
+### Core Interface (REQUIRED — `MUST`)
+
+For **external integrations and off-chain/on-chain tooling** (wallets, DEXs,
+bridges, batch distributors, block explorers, and indexers), compliant tokens
+MUST implement the following minimal core interface to expose protection status,
+pre-flight transfer checks, and standard error decoding, and SHOULD implement
+[ERC-165](./eip-165.md) (`supportsInterface`) to advertise Core and optional extension
+support:
+
+```solidity
+interface IERCProtectedReceiveCore {
+    event ReceiveProtectionUpdated(address indexed account, bool enabled);
+
+    error RecipientTransferNotAllowed(address from, address to, uint256 amount);
+
+    function isReceiveProtected(address account) external view returns (bool);
+    function canReceive(address from, address to, uint256 amount) external view returns (bool);
+}
+```
+
+### Account Protection Configuration Extensions
+
+These extensions govern **how an account enables, configures, or delegates** its
+receive protection state:
+
+#### Opt-In Toggle Extension (RECOMMENDED — `SHOULD`)
+
+For **account owners and wallet/custody interfaces** (EOAs, hardware/cold wallets, MPC
+custody, and multisig dashboards), this extension provides a standard
+self-service toggle to enable or disable incoming transfer protection on the
+caller's own account:
+
+```solidity
+interface IERCProtectedReceiveOptIn {
+    function setReceiveProtection(bool enabled) external;
+}
+```
+
+#### Protection Level Extension (OPTIONAL — `MAY`)
+
+For **wallet interfaces and smart accounts** that support granular `bytes32` protection
+bit masks or tiers (`bytes32(0)` = unprotected, `bytes32(uint256(1))` = default),
+implementations MAY expose `setReceiveProtection(bytes32)`. Updating between two
+non-zero levels MUST emit `ReceiveProtectionLevelUpdated` and MUST NOT re-emit
+`ReceiveProtectionUpdated` (which is reserved for `0 <-> non-zero` transitions):
+
+```solidity
+interface IERCProtectedReceiveLevel {
+    event ReceiveProtectionLevelUpdated(address indexed account, bytes32 protectionLevel);
+
+    function receiveProtectionLevel(address account) external view returns (bytes32);
+    function setReceiveProtection(bytes32 protectionLevel) external;
+}
+```
+
+#### Signature-Based Protection Extension (OPTIONAL — `MAY`)
+
+For **relayers, paymasters, senders, and wallet/checkout interfaces** acting on behalf
+of **0-ETH accounts** (such as recipient-derived one-off/invoice addresses,
+counterfactual smart accounts, or cold storage), implementations MAY expose
+[EIP-712](./eip-712.md) signature-based protection management:
+
+```solidity
+interface IERCProtectedReceiveSig {
+    error ExpiredReceiveProtectionSetupSignature(uint256 deadline);
+    error InvalidReceiveProtectionSetupSignature(address account);
+
+    function setReceiveProtectionWithSig(
+        address account,
+        bytes32 protectionLevel,
+        uint256 deadline,
+        bytes calldata signature
+    ) external;
+}
+```
+
+- **EIP-712 Type Hash**:
+  ```
+  SetReceiveProtection(address account,bytes32 protectionLevel,uint256 nonce,uint256 deadline)
+  ```
+  _(The `uint256 nonce` MUST provide single-use replay protection per `account`,
+  while the nonce scheme - sequential or unordered - and any on-chain query
+  getter are implementation-defined and outside the scope of this standard.)_
+- **Atomic One-Off Account Protection**: For recipient-derived one-off
+  addresses, the sender or relayer can execute `1. transfer(S, amount)` →
+  `2. setReceiveProtectionWithSig(S, level, deadline, sig)` in a single
+  transaction—leaving `S` funded and immediately protected with 0 ETH and no
+  unprotected window.
+
+  _(Note: in sender-derived stealth schemes such as [ERC-5564](./eip-5564.md) where the recipient
+  does not know `S` until after scanning the announcement, `S` remains
+  unprotected between the funding tx and the relayed
+  `setReceiveProtectionWithSig` tx.)_
+
+#### External Policy Delegation Extension (OPTIONAL — `MAY`)
+
+For **treasuries, modular smart accounts, and power users** that need
+shared multi-token rules or custom receive logic (such as cross-token
+allow-lists/deny-lists, minimum-amount dust filters, rate limits, or compliance
+and taint checks) without duplicating state per token:
+
+```solidity
+interface IERCProtectedReceivePolicy {
+    event ReceivePolicyUpdated(address indexed account, address indexed policy);
+
+    function receivePolicy(address account) external view returns (address);
+    function setReceivePolicy(address policy) external;
+}
+
+interface IReceivePolicy {
+    function canReceive(
+        address token,
+        address from,
+        address to,
+        uint256 amount,
+        bytes calldata data
+    ) external view returns (bool allowed);
+}
+```
+
+Tokens MUST query `IReceivePolicy.canReceive` via `staticcall` (enforced by the
+`view` interface), guaranteeing EVM-level read-only execution during `_update`
+without reentrancy risk. The `data` parameter allows tokens to pass optional
+ABI-encoded context (such as `msg.sender`, allowance, token-specific flags, or
+sender/recipient account metadata like tiers or compliance attributes; `""` by
+default). Because `data` is opaque and token-defined, generic multi-token
+policies SHOULD NOT assume a fixed `data` schema across arbitrary tokens unless
+coordinated with the calling token. Modular smart accounts (such as [ERC-7579](./eip-7579.md)
+accounts) or shared registries can implement `IReceivePolicy` directly to
+enforce unified account-level receive rules across all supporting tokens.
+
+### Sender Authorization & Blocking Extensions
+
+These extensions govern **which senders or individual transfers** are authorized
+or blocked for a protected recipient:
+
+#### One-Time Receive Permit Extension (OPTIONAL — `MAY`)
+
+For **protected recipients, senders, relayers, and checkout/invoice interfaces**
+settling single, amount-capped incoming payments (such as one-off invoices, OTC
+trades, or rare senders) without adding the sender to a persistent
+allow-list policy:
+
+```solidity
+interface IERCProtectedReceivePermit {
+    event OneTimeReceivePermitted(
+        address indexed from,
+        address indexed to,
+        uint256 indexed nonce,
+        uint256 maxAmount,
+        uint256 deadline
+    );
+
+    error ExpiredReceivePermit(uint256 deadline);
+    error InvalidReceivePermitSignature(address recipient);
+    error InvalidReceiveNonce(address recipient, uint256 nonce);
+
+    function oneTimeReceiveLimit(address from, address to) external view returns (uint256);
+    function isReceiveNonceUsed(address account, uint256 nonce) external view returns (bool);
+
+    function permitReceive(
+        address from,
+        address to,
+        uint256 maxAmount,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external;
+}
+```
+
+- **EIP-712 Type Hash**:
+  ```
+  PermitReceive(address from,address to,uint256 maxAmount,uint256 nonce,uint256 deadline)
+  ```
+- **Signature Verification & Domain Discovery**: Implementations MUST support
+  both ECDSA and [ERC-1271](./eip-1271.md) smart contract signatures (e.g., via OpenZeppelin
+  `SignatureChecker`), and SHOULD implement [ERC-5267](./eip-5267.md) (`eip712Domain()`) so
+  wallets can dynamically discover the EIP-712 signing domain. The authorized
+  signer MAY be the recipient `to` itself or a designated delegated signer
+  configured for `to` (e.g., an ops/treasury co-signer or ERC-1271 validator).
+- **Replay Protection (Unordered Nonces)**: Sequential nonces serialize
+  concurrent off-chain permits—if a recipient issues permits to multiple
+  senders, out-of-order settlement would revert or collide. Instead,
+  `permitReceive` uses arbitrary unordered `uint256` nonces scoped per recipient
+  `to`. Implementations MUST mark each consumed `nonce` as used, MUST report
+  that status via `isReceiveNonceUsed(to, nonce)`, and MUST revert with
+  `InvalidReceiveNonce(to, nonce)` if a `nonce` has already been used. As a
+  gas-efficient reference pattern (like `Permit2`), implementations MAY store
+  nonces in an unordered 256-bit bitmap indexed by
+  `wordPos = uint248(nonce >> 8)` and `bitPos = uint8(nonce)`
+  (`mask = 1 << bitPos`), packing 256 concurrent permits into a single storage
+  slot; off-chain signers can then choose axes by need (e.g., `wordPos = 0` for
+  warm-slot packing, `wordPos = uint248(uint160(from))` for per-sender
+  isolation, or a random `uint248` `wordPos` for stateless multi-device
+  issuance).
+- **Unlimited Cap**: Signing `maxAmount = type(uint256).max` permits any single
+  transfer amount once.
+- **Zero-Address Checks**: Implementations MUST revert if `from` or `to` is
+  `address(0)`.
+
+#### Embedded Allowlist Extension (OPTIONAL — `MAY`)
+
+For **explorers, indexers, and wallet/custody interfaces** inspecting embedded
+allowlist. How entries are administered (e.g., direct `msg.sender` setters,
+batching, or delegated managers) is left to the implementation:
+
+```solidity
+interface IERCProtectedReceiveAllowlist {
+    event ReceiveSenderAllowlistUpdated(address indexed from, address indexed to, uint40 expiry);
+
+    function receiveSenderAllowlistedUntil(address from, address to) external view returns (uint40);
+}
+```
+
+#### Embedded Denylist Extension (OPTIONAL — `MAY`)
+
+For **explorers, indexers, and wallet/custody interfaces** inspecting embedded denylist
+entries (e.g., for denylist-only protection or explicit sender blocks), this
+extension exposes current block expirations and updates. How entries are
+administered (e.g., direct `msg.sender` setters, batching, or delegated
+managers) and how they compose with allow-lists, `permitReceive`, or
+`protectionLevel` are left to the implementation:
+
+```solidity
+interface IERCProtectedReceiveDenylist {
+    event ReceiveSenderDenylistUpdated(address indexed from, address indexed to, uint40 expiry);
+
+    function receiveSenderDenylistedUntil(address from, address to) external view returns (uint40);
+}
+```
+
+- **Expiry Semantics**: `expiry == 0` or `expiry <= block.timestamp` means not
+  actively denied; `expiry > block.timestamp` blocks `from` until `expiry`;
+  `type(uint40).max` denotes a permanent block.
+- **Other Deny Rules**: Minimum-amount dust filters, rate limits, or taint
+  screening belong in `IReceivePolicy` and `IERCProtectedReceiveLevel`.
+
+### Convenience & Interoperability
+
+#### Atomic Transfer Helpers (OPTIONAL — `MAY`)
+
+Implementations MAY expose convenience helpers for single-transaction
+settlement:
+
+- `transferWithReceivePermit(address to, uint256 amount, uint256 maxAmount, uint256 nonce, uint256 deadline, bytes calldata receiveSignature)`:
+  Calls `permitReceive` and `transfer` atomically.
+- `transferFromWithPermits(address from, address to, uint256 amount, SpendPermit calldata spendPermit, ReceivePermit calldata receivePermit)`:
+  Combines [EIP-2612](./eip-2612.md) `permit` (from `from`, where `SpendPermit` carries
+  `{deadline, v, r, s}` using on-chain `nonces(from)`), `permitReceive` (from
+  `to`, where `ReceivePermit` carries
+  `{maxAmount, nonce, deadline, signature}`), and `transferFrom` in one relayer
+  transaction.
+
+#### Compatibility with [ERC-7943](./eip-7943.md) (OPTIONAL — `MAY`)
+
+Tokens implementing both this standard and **ERC-7943** keep
+`canReceive(from, to, amount)` as the canonical recipient-gating check, with the
+following optional interaction:
+
+- **`canTransfer(address from, address to, uint256 amount)`**: If implemented
+  alongside this standard, `canTransfer(from, to, amount)` MUST return `false`
+  whenever `canReceive(from, to, amount)` returns `false`.
+
+## Rationale
+
+- **Opt-in vs. Opt-out**: Opting in by default avoids breaking exchange withdrawals,
+  bridges, and cold addresses that have never sent a transaction.
+- **Hybrid Embedded + Policy Model**: Embedded allow-lists require zero external
+  calls for simple users, while optional `IReceivePolicy` delegation lets
+  treasuries and power users maintain one shared allowlist across all supporting
+  tokens.
+- **Read-Only Policy Calls (`staticcall` + [EIP-1153](./eip-1153.md))**: Requiring
+  `IReceivePolicy.canReceive` to be `view` (`staticcall`) eliminates reentrancy
+  risk during `_update`, while still letting policies read EIP-1153 transient
+  storage (`TLOAD`) populated earlier in the same transaction (e.g., signed
+  allowlist tickets for 10,000+ senders without `SSTORE` bloat or Merkle
+  privacy leaks).
+- **Strictly One-Time Permits**: Clearing the entire `oneTimeReceiveLimit` on
+  the first matching transfer prevents a sender from splitting an authorized
+  amount into multiple dust/spam transfers.
+- **Burn Exemption (`to == address(0)`)**: Burns destroy tokens rather than
+  delivering funds to a recipient; explicitly exempting `to == address(0)`
+  ensures protected accounts can always burn or redeem their tokens without
+  accidentally triggering receive checks.
+- **Self-Transfer Exemption (`from == to`)**: Transfers where `from == to`
+  cannot introduce tainted inflows, new senders, or lookalike
+  address-poisoning logs, and exempting them avoids breaking net-zero
+  internal/accounting flows in smart accounts and protocols.
+- **Mint Gating (`from == address(0)`)**: Mints increase a recipient's balance
+  and can still be used for unsolicited airdrops or accounting noise; gating
+  `from == address(0)` keeps protection consistent while letting recipients
+  explicitly allowlist `address(0)` or issue a `permitReceive` when expecting a
+  mint.
+
+## Backwards Compatibility
+
+This standard is a purely additive extension to **ERC-20** and is compatible
+with any canonical ERC-20 implementation, wallet, DEX, or bridge:
+
+- **Unchanged Canonical Interface**: No existing ERC-20 function signatures
+  (`transfer`, `transferFrom`, `approve`, `balanceOf`, `allowance`,
+  `totalSupply`) or events (`Transfer`, `Approval`) are altered or removed.
+  Support is discoverable via ERC-165 (`supportsInterface`).
+- **Identical Default Behavior**: Because accounts default to
+  `isReceiveProtected(account) == false`, all existing EOAs, smart contracts,
+  liquidity pools, and cold addresses behave identically to canonical ERC-20
+  unless they explicitly opt in.
+- **Aggregator & Router Compatibility**: Evaluating `from` rather than
+  `msg.sender` in `transferFrom` ensures DEX routers, aggregators, and relayers
+  work seamlessly without needing to be allow-listed themselves.
+- **Revert Behavior for Protected Accounts**: When
+  `isReceiveProtected(to) == true` and a transfer is unauthorized, `transfer`
+  and `transferFrom` revert—consistent with ERC-20 transfer-restriction patterns
+  (such as ERC-3643 and [ERC-1404](./eip-1404.md)). Protocols executing push-based batch
+  distributions to arbitrary recipients should pre-check
+  `canReceive(from, to, amount)` or isolate/skip reverting transfers so one
+  protected recipient cannot block the entire batch.
+
+## Reference Implementation
+
+- [`IERCProtectedReceiveCore.sol`](src/interfaces/IERCProtectedReceiveCore.sol)
+  — Minimal required integrator core (`MUST`).
+- [`IERCProtectedReceiveOptIn.sol`](src/interfaces/IERCProtectedReceiveOptIn.sol)
+  — Self-service opt-in toggle extension (`SHOULD`).
+- [`IERCProtectedReceiveLevel.sol`](src/interfaces/IERCProtectedReceiveLevel.sol)
+  — Optional granular `bytes32` protection-level extension (`MAY`).
+- [`IERCProtectedReceiveSig.sol`](src/interfaces/IERCProtectedReceiveSig.sol) —
+  Optional EIP-712 signature-based protection extension (`MAY`).
+- [`IERCProtectedReceiveAllowlist.sol`](src/interfaces/IERCProtectedReceiveAllowlist.sol)
+  — Optional embedded allowlist inspection extension (`MAY`).
+- [`IERCProtectedReceiveDenylist.sol`](src/interfaces/IERCProtectedReceiveDenylist.sol)
+  — Optional embedded denylist inspection extension (`MAY`).
+- [`IERCProtectedReceivePermit.sol`](src/interfaces/IERCProtectedReceivePermit.sol)
+  — Optional one-time EIP-712 receive permit extension (`MAY`).
+- [`IERCProtectedReceivePolicy.sol`](src/interfaces/IERCProtectedReceivePolicy.sol)
+  — External policy delegation extension (`MAY`).
+- [`IERCProtectedReceive.sol`](src/interfaces/IERCProtectedReceive.sol) —
+  Consolidating token interface (`Core` + `OptIn` + `Level` + `Sig` +
+  `Allowlist` + `Denylist` + `Permit` + `Policy`).
+- [`IReceivePolicy.sol`](src/interfaces/IReceivePolicy.sol) — External read-only
+  policy interface.
+- [`ProtectedERC20.sol`](src/ProtectedERC20.sol) — Abstract OpenZeppelin
+  v5-based ERC-20 + ERC-20 Permit implementation. Uses the example precedence
+  `(1) one-time receive permit → (2) embedded allowlist → (3) external IReceivePolicy`
+  (`OR` composition); other implementations may reorder (e.g., checking the
+  embedded allowlist first to save an `SLOAD` on frequent transfers, or
+  enforcing `IReceivePolicy` first/`AND` for compliance).
+- [`MultiTokenAllowlistPolicy.sol`](src/MultiTokenAllowlistPolicy.sol) — Example
+  multi-token shared allowlist registry supporting both persistent mappings and
+  EIP-1153 transient Signed Allowlist Tickets for large sets: combines a single
+  packed `TicketConfig(signer, epoch)` slot with `TSTORE`/`TLOAD` so senders can
+  batch a 65-byte EIP-712 `AllowlistTicket` verification immediately before
+  `transfer`/`transferFrom`, incurring zero permanent storage growth while
+  supporting O(1) mass revocation (`epoch++`) and sparse per-sender early
+  revocation.
+
+## Security Considerations
+
+- **Fail-Closed Policy Calls**: If an account configures a buggy or reverting
+  `IReceivePolicy`, `ProtectedERC20` catches the revert and treats the transfer
+  as denied (`false`). The account owner can recover at any time by calling
+  `setReceivePolicy(address(0))` or `setReceiveProtection(false)`.
+- **Zero-Amount Transfers**: Checks explicitly require `oneTimeLimit > 0` so
+  uninitialized storage (`0`) never authorizes a `0`-value transfer.
+- **Read-Only Policy Queries (`staticcall`)**: Querying
+  `IReceivePolicy.canReceive` via `staticcall` guarantees at the EVM level that
+  a malicious or buggy policy cannot mutate state or reenter the token during
+  `_update`.
+- **Pre-flight Divergence with Caller-Sensitive Policy `data`**: If a token
+  forwards caller-sensitive context (such as `msg.sender`) in `data` and an
+  `IReceivePolicy` depends on it, pre-flight `canReceive(from, to, amount)` view
+  calls (where `_msgSender()` is the querying UI/wallet) MAY return a different
+  result than the subsequent `transferFrom` execution (where `_msgSender()` is a
+  router or relayer). Policies SHOULD avoid depending on `msg.sender` unless
+  that trade-off is explicitly intended.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
