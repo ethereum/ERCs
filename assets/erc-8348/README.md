@@ -1,7 +1,7 @@
 # Financial Lease — Reference Implementation
 
 Reference implementation of ERC-8348. Core contract, conversion oracle
-interface and adapters, and a Foundry test suite (94 tests, including fuzz
+interface and adapters, and a Foundry test suite (95 tests, including fuzz
 coverage of the rounding and frequency-invariance properties).
 
 Payment-path liveness: `declareDefault` and `terminateForDefault` revert while
