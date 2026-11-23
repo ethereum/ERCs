@@ -4,7 +4,7 @@ Reference Solidity contracts, zero-dependency Node.js off-chain library, determi
 
 ## How to Run
 
-From `assets/erc-8512/`:
+From `assets/eip-8512/`:
 
 ```bash
 # 0. Once: fetch forge-std (not vendored here)
