@@ -25,10 +25,10 @@ interface ILockingContractWithKeyGeneration is
      * @param decryptionContract The authorized generated-key source.
      */
     event TransferInceptedWithKeyGeneration(
-        uint256 id,
+        uint256 indexed id,
         int amount,
-        address from,
-        address to,
+        address indexed from,
+        address indexed to,
         bytes transaction,
         IDecryptionContractWithKeyGeneration decryptionContract
     );

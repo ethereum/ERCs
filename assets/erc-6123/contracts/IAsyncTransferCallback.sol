@@ -19,14 +19,14 @@ interface IAsyncTransferCallback {
      * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event TransferSucceeded(uint256 transactionID, string transactionData);
+    event TransferSucceeded(uint256 indexed transactionID, string transactionData);
 
     /**
      * @dev Emitted when transfer process has been finished
      * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event TransferFailed(uint256 transactionID, string transactionData);
+    event TransferFailed(uint256 indexed transactionID, string transactionData);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 

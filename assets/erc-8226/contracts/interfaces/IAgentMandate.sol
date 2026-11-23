@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
@@ -7,22 +7,73 @@ interface IAgentMandate is IERC165 {
     /// @notice Reason a canExecute check passed or failed. OK means the action may execute.
     /// @dev The listed reasons are the normative check set. OTHER is only for implementation-specific
     ///      checks not covered here, and MUST NOT stand in for one of the listed reasons.
-    ///      Enum order is fixed for append-only compatibility and does not reflect evaluation order.
-    ///      AGENT_FROZEN and PRINCIPAL_FROZEN are enforcement-scoped: they apply across every mandate the
-    ///      frozen party holds, and are evaluated ahead of the mandate-specific reasons, after NONEXISTENT,
-    ///      so a freeze is reported in preference to them and lifting one may reveal one of them.
+    ///      The reasons are listed in the order canExecute checks them. A future revision adds new reasons at the end.
     enum MandateReason {
         OK,
         NONEXISTENT,
+        AGENT_FROZEN,
+        PRINCIPAL_FROZEN,
         NOT_YET_VALID,
         EXPIRED,
         REVOKED,
         ACTION_NOT_ENABLED,
-        AGENT_FROZEN,
-        PRINCIPAL_FROZEN,
+        CONSTRAINT_FAILED,
+        NO_LIMIT,
         OVER_TX_CAP,
         OVER_CUMULATIVE_CAP,
         OTHER
+    }
+
+    /// @notice Reverts recordExecution, and any gate, with the reason of the first failing check.
+    error MandateBlocked(MandateReason reason);
+
+    /// @notice How a constraint compares a calldata parameter with its value.
+    enum Check {
+        EQUALS,
+        NOT_EQUALS,
+        AT_MOST,
+        AT_LEAST
+    }
+
+    /// @notice A rule on one parameter of an action's calldata. Several EQUALS constraints on the same index pass
+    ///         if any of them matches. All other constraints must pass.
+    /// @param index Index of the 32-byte calldata word after the selector.
+    /// @param check The comparison.
+    /// @param value The value the word is compared with. AT_MOST and AT_LEAST compare it as uint256.
+    struct Constraint {
+        uint8 index;
+        Check check;
+        bytes32 value;
+    }
+
+    /// @notice An enabled action and the constraints on its calldata.
+    struct Action {
+        bytes32 action;
+        Constraint[] constraints;
+    }
+
+    /// @notice The side of a balance change that a limit counts: what leaves the principal's account, or what
+    ///         enters it.
+    enum Direction {
+        OUTFLOW,
+        INFLOW
+    }
+
+    /// @notice The budget of one asset in one direction, in its base unit, shared by every action of the mandate.
+    /// @param cumulativeUsed Starting value at grant. 0 for a new budget.
+    struct Limit {
+        address asset;
+        Direction direction;
+        uint256 maxTransactionValue;
+        uint256 maxCumulativeValue;
+        uint256 cumulativeUsed;
+    }
+
+    /// @notice An amount of one asset that an execution moves in one direction.
+    struct Flow {
+        address asset;
+        Direction direction;
+        uint256 amount;
     }
 
     struct Mandate {
@@ -33,10 +84,7 @@ interface IAgentMandate is IERC165 {
         bool revoked;
         address complianceProvider;
         bytes32 identityRef;
-        address asset;
-        uint256 maxTransactionValue;
-        uint256 maxCumulativeValue;
-        uint256 cumulativeUsed;
+        address target;
         bytes32 metadata;
     }
 
@@ -47,11 +95,10 @@ interface IAgentMandate is IERC165 {
     /// @param principal The address of the principal granting the mandate.
     /// @param complianceProvider Address of an IComplianceProvider. MUST be a non-zero address.
     /// @param identityRef Off-chain identity reference for the principal.
-    /// @param asset Specific asset address.
-    /// @param maxTransactionValue Per-transaction value cap.
-    /// @param maxCumulativeValue Cumulative value cap over the mandate's lifetime.
+    /// @param target The contract the agent calls.
+    /// @param actions The enabled actions, each with its constraints.
+    /// @param limits One budget per asset and direction. An amount with no limit on its asset and direction fails.
     /// @param metadata Optional 32-byte pointer to off-chain metadata (e.g., legal-text content hash).
-    /// @param actions Array of action labels.
     /// @param deadline Signature expiry timestamp (replay protection).
     struct GrantMandateParams {
         address agent;
@@ -60,11 +107,10 @@ interface IAgentMandate is IERC165 {
         address principal;
         address complianceProvider;
         bytes32 identityRef;
-        address asset;
-        uint256 maxTransactionValue;
-        uint256 maxCumulativeValue;
+        address target;
+        Action[] actions;
+        Limit[] limits;
         bytes32 metadata;
-        bytes32[] actions;
         uint256 deadline;
     }
 
@@ -72,7 +118,7 @@ interface IAgentMandate is IERC165 {
     event MandateGranted(
         address indexed agent,
         address indexed principal,
-        address indexed asset,
+        address indexed target,
         address complianceProvider,
         uint48 validFrom,
         uint48 validUntil,
@@ -80,25 +126,39 @@ interface IAgentMandate is IERC165 {
     );
 
     /// @notice Emitted when an action is enabled on a mandate at grant time.
-    event ActionEnabled(address indexed agent, address indexed principal, bytes32 indexed action, address asset);
+    event ActionEnabled(address indexed agent, address indexed principal, bytes32 indexed action, address target);
+
+    /// @notice Emitted for each limit of a mandate at grant time.
+    event LimitSet(
+        address indexed agent,
+        address indexed principal,
+        address indexed asset,
+        address target,
+        Direction direction,
+        uint256 maxTransactionValue,
+        uint256 maxCumulativeValue,
+        uint256 cumulativeUsed
+    );
 
     /// @notice Emitted when a mandate is revoked.
-    event MandateRevoked(address indexed agent, address indexed principal, address indexed asset, address revokedBy);
+    event MandateRevoked(address indexed agent, address indexed principal, address indexed target, address revokedBy);
 
     /// @notice Emitted when a mandate's validity is extended.
     event MandateExtended(
-        address indexed agent, address indexed principal, address indexed asset, uint48 newValidUntil
+        address indexed agent, address indexed principal, address indexed target, uint48 newValidUntil
     );
 
     /// @notice Emitted when an operator approval is set or revoked.
     event OperatorSet(address indexed principal, address indexed operator, bool approved);
 
-    /// @notice Emitted when an agent executes an action recorded by a RAMS-aware token.
+    /// @notice Emitted for each amount an execution moves.
     event ExecutionRecorded(
         address indexed agent,
         address indexed principal,
         bytes32 indexed action,
+        address target,
         address asset,
+        Direction direction,
         uint256 amount,
         uint256 cumulativeUsed
     );
@@ -116,34 +176,34 @@ interface IAgentMandate is IERC165 {
     event PrincipalUnfrozen(address indexed principal, address indexed enforcer);
 
     /// @notice Grants a mandate from a principal to an agent.
-    /// @dev If `signature` is empty, msg.sender MUST equal params.principal. Otherwise the signature is verified
-    ///      via SignatureChecker against the GrantMandate EIP-712 digest.
+    /// @dev If `signature` is empty, msg.sender MUST be params.principal or an approved operator of it. Otherwise the
+    ///      GrantMandate EIP-712 digest MUST be signed by the principal (ERC-1271 supported) or by an approved operator.
     /// @param params The mandate parameters.
-    /// @param signature Principal signature (EIP-712, EIP-1271 supported).
+    /// @param signature Principal or operator signature (EIP-712).
     function grantMandate(GrantMandateParams calldata params, bytes calldata signature) external;
 
-    /// @notice Revokes the active mandate for the given agent, principal and asset.
-    /// @dev Callable by the principal directly or by anyone with a valid principal signature. An approved operator MAY also call this.
+    /// @notice Revokes the active mandate for the given agent, principal and target.
+    /// @dev Callable by the principal or an approved operator, directly or by signature.
     /// @param agent The agent address whose mandate is revoked.
     /// @param principal The principal address whose mandate is revoked.
-    /// @param asset The asset of the mandate being revoked.
+    /// @param target The target of the mandate being revoked.
     /// @param deadline Signature expiry timestamp.
-    /// @param signature Principal signature (EIP-712, EIP-1271 supported).
-    function revokeMandate(address agent, address principal, address asset, uint256 deadline, bytes calldata signature)
+    /// @param signature Principal or operator signature (EIP-712).
+    function revokeMandate(address agent, address principal, address target, uint256 deadline, bytes calldata signature)
         external;
 
     /// @notice Extends the validity of an existing mandate without resetting cumulativeUsed.
-    /// @dev Callable by the principal directly or by anyone with a valid principal signature. An approved operator MAY also call this.
+    /// @dev Callable by the principal or an approved operator, directly or by signature.
     /// @param agent The agent address.
     /// @param principal The principal address.
-    /// @param asset The asset of the mandate being extended.
+    /// @param target The target of the mandate being extended.
     /// @param newValidUntil New expiry timestamp. MUST be greater than the current validUntil.
     /// @param deadline Signature expiry timestamp.
-    /// @param signature Principal signature (EIP-712, EIP-1271 supported).
+    /// @param signature Principal or operator signature (EIP-712).
     function extendMandate(
         address agent,
         address principal,
-        address asset,
+        address target,
         uint48 newValidUntil,
         uint256 deadline,
         bytes calldata signature
@@ -169,57 +229,73 @@ interface IAgentMandate is IERC165 {
     /// @param principal The principal address to unfreeze.
     function unfreezePrincipal(address principal) external;
 
-    /// @notice Sets or revokes operator approval for the principal.
-    /// @dev Callable by the principal directly or by anyone with a valid principal signature.
+    /// @notice Sets or revokes operator approval for the principal. An operator can do everything the principal can
+    ///         on its mandates, except set operators.
+    /// @dev Callable by the principal, directly or by signature. An enforcer can call it directly, but only to remove
+    ///      an operator.
     /// @param principal The principal granting/revoking operator status.
     /// @param operator The operator address being approved or revoked.
     /// @param approved True to approve, false to revoke.
     /// @param deadline Signature expiry timestamp.
-    /// @param signature Principal signature (EIP-712, EIP-1271 supported).
+    /// @param signature Principal signature (EIP-712, ERC-1271 supported).
     function setOperator(address principal, address operator, bool approved, uint256 deadline, bytes calldata signature)
         external;
 
-    /// @notice Records an agent-initiated execution. Called by RAMS-aware regulated tokens.
+    /// @notice Records an agent-initiated execution and adds each flow to the cumulativeUsed of its limit.
     /// @param agent The agent address.
     /// @param principal The principal on whose behalf the action is executed.
-    /// @param asset The asset of the mandate. When the caller is the asset, it MUST pass its own address.
+    /// @param target The target of the mandate. When the caller is the target, it MUST pass its own address.
     /// @param action The action label being executed.
-    /// @param amount The amount in the asset's base unit.
-    function recordExecution(address agent, address principal, address asset, bytes32 action, uint256 amount)
-        external;
+    /// @param data The calldata the constraints are checked against.
+    /// @param flows The amounts the execution moves, each asset and direction at most once.
+    function recordExecution(
+        address agent,
+        address principal,
+        address target,
+        bytes32 action,
+        bytes calldata data,
+        Flow[] calldata flows
+    ) external;
 
-    /// @notice Returns whether the agent can execute the action on the asset for the principal at the given
-    ///         amount, and the reason.
-    /// @dev Bundles asset, existence, validity, agent and principal freeze, action, and cap checks into one call.
+    /// @notice Returns whether the agent can execute the action on the target for the principal, and the reason.
+    /// @dev Bundles existence, validity, agent and principal freeze, action, constraint and limit checks.
     /// @param agent The agent address.
     /// @param principal The principal address.
-    /// @param asset The asset the action targets; selects the mandate.
+    /// @param target The contract the action calls; selects the mandate.
     /// @param action The action label being checked.
-    /// @param amount The amount to check, in the asset's base unit.
-    /// @return ok True if the agent can execute the action at this amount.
+    /// @param data The calldata the constraints are checked against.
+    /// @param flows The amounts to check, each asset and direction at most once.
+    /// @return ok True if the agent can execute the action.
     /// @return reason MandateReason.OK when ok is true, otherwise the first failing check.
-    function canExecute(address agent, address principal, address asset, bytes32 action, uint256 amount)
-        external
-        view
-        returns (bool ok, MandateReason reason);
+    function canExecute(
+        address agent,
+        address principal,
+        address target,
+        bytes32 action,
+        bytes calldata data,
+        Flow[] calldata flows
+    ) external view returns (bool ok, MandateReason reason);
 
     /// @notice Returns true if the action is enabled on the mandate.
-    /// @param agent The agent address.
-    /// @param principal The principal address.
-    /// @param asset The asset of the mandate.
-    /// @param action The action label.
-    /// @return True if the action is enabled.
-    function isActionEnabled(address agent, address principal, address asset, bytes32 action)
+    function isActionEnabled(address agent, address principal, address target, bytes32 action)
         external
         view
         returns (bool);
 
-    /// @notice Returns the full Mandate struct for the given agent, principal and asset.
-    /// @param agent The agent address.
-    /// @param principal The principal address.
-    /// @param asset The asset of the mandate.
-    /// @return The Mandate struct.
-    function getMandate(address agent, address principal, address asset) external view returns (Mandate memory);
+    /// @notice Returns the Mandate struct for the given agent, principal and target.
+    function getMandate(address agent, address principal, address target) external view returns (Mandate memory);
+
+    /// @notice Returns the enabled actions of the mandate.
+    function getActions(address agent, address principal, address target) external view returns (bytes32[] memory);
+
+    /// @notice Returns the limits of the mandate, with their cumulativeUsed.
+    function getLimits(address agent, address principal, address target) external view returns (Limit[] memory);
+
+    /// @notice Returns the constraints of an enabled action.
+    function getConstraints(address agent, address principal, address target, bytes32 action)
+        external
+        view
+        returns (Constraint[] memory);
 
     /// @notice Returns true if the operator is approved for the given principal.
     /// @param principal The principal address.
