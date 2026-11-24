@@ -1,7 +1,7 @@
 # ERC-8107 test suite
 
 This file lists what the reference tests check. The normative requirements are in
-[ERC-8107](https://eips.ethereum.org/EIPS/eip-8107); section names below refer to it.
+[ERC-8107](../../../EIPS/eip-8107.md); section names below refer to it.
 
 [`TrustRegistry.t.sol`](TrustRegistry.t.sol) is the reference suite and needs no network
 access. The files in [`continuity/`](continuity/ExecutionWindow.fork.t.sol) run on an Ethereum mainnet fork and are
@@ -28,7 +28,7 @@ skipped without one.
 * A parent that reassigns a subname hands the new controller the subname's authority and the trust placed in it, documenting the behaviour described under Parent-Controlled Subnames
 * `TrustSet` carries the attestation's nonce, for single attestations and for each item in a batch
 * Domain separation prevents an attestation from replaying onto a second registry
-* Every row of the Revert Order table has a test that violates that row and every later row, and asserts the row's exact error and arguments
+* Every revert condition listed under Semantics has a test that violates that condition and every later one, and asserts the condition's exact error and arguments
 
 ## Scope
 
@@ -152,4 +152,4 @@ runs it on the same fork. They are skipped without a fork.
 * For a `.eth` second-level name live at block B, wrapped or unwrapped, a coordinator that requires `block.timestamp` no later than the expiry read at block B plus `GRACE_PERIOD`, or that expiry unchanged, rejects a registration at the first second one is possible, ordered before execution in the same block, and a renewal followed by a lapse and a registration by the same holder. It executes on a renewal in the window, at the last second of the grace period, and after the grace period when nothing has been registered. A deadline computed from the expiry read in the executing transaction accepts both registrations
 * For a name below a `.eth` second-level name, as trustee or trustor, the continuity check rejects an attestation once the second-level ancestor is registered again, by another holder or the same one, and not after three renewals of it, nor past the ancestor's grace period while nothing is registered. It also rejects one once the NameWrapper emits `NameWrapped` for the name: when a live parent creates an emancipated subname again after its NameWrapper expiry, or when the holder unwraps the name and wraps it again. The same holds for an ancestor below the second-level name that is unwrapped and wrapped again. A new signature restores the attestation. A parent reassigning a subname that still has a holder leaves it eligible, as do a sibling created under the same parent, an unwrap alone, and a child of the name wrapped for the first time. A name proof that does not hash to the node fails closed
 * A coordinator that applies the gate, the continuity check and the liveness check at block B, and at execution the expiry check, the liveness check and the gate again, executes on a path through a wrapped second-level name, an emancipated subname or an unwrapped second-level name, by node and by address. It rejects at execution a path whose emancipated subname trustor passes its NameWrapper expiry after B, and one whose wrapped second-level trustor, decided on in its grace period, passes its NameWrapper expiry with nothing registered, where `validateParticipantWithPath` still returns `true`. It rejects a registration in the window by its expiry check, and decides against a name registered again before B at the continuity check while the gate passes
-* `resolveAgent` returns the zero address, without reverting, for a resolver with no code and for empty, short, dirty or reverting responses; it reads only the first word of an oversized response; a resolver that consumes gas costs the caller at most the cap, and cannot stop a coordinator that validates several participants in one call from validating the others
+* `resolveAgent` returns the zero address, without reverting, for a resolver with no code and for empty, short, dirty or reverting responses; it reads only the first word of an oversized response; a resolver that consumes gas costs the caller at most the bound the registry was deployed with, and cannot stop a coordinator that validates several participants in one call from validating the others

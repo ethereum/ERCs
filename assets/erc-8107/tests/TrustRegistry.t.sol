@@ -306,7 +306,7 @@ contract TrustRegistryTest is Test {
         ens = new MockENS();
         wrapper = new MockNameWrapper();
         resolver = new MockResolver();
-        registry = new TrustRegistry(address(ens), address(wrapper));
+        registry = new TrustRegistry(address(ens), address(wrapper), RESOLVE_GAS);
 
         ens.setOwner(ALICE, alice);
         ens.setOwner(BOB, bob);
@@ -2862,7 +2862,7 @@ contract TrustRegistryTest is Test {
 
     /// @dev Networks with no NameWrapper deployment pass address(0) and never unwrap
     function test_NameWrapper_DisabledWhenZero() public {
-        TrustRegistry plain = new TrustRegistry(address(ens), address(0));
+        TrustRegistry plain = new TrustRegistry(address(ens), address(0), RESOLVE_GAS);
         _wrapName(WRAPPED, alice);
 
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
@@ -2879,7 +2879,7 @@ contract TrustRegistryTest is Test {
     /// @dev A pinned NameWrapper whose ownerOf reverts yields no controller
     function test_NameWrapper_RevertingOwnerOfHasNoAuthority() public {
         RevertingNameWrapper faulty = new RevertingNameWrapper();
-        TrustRegistry r = new TrustRegistry(address(ens), address(faulty));
+        TrustRegistry r = new TrustRegistry(address(ens), address(faulty), RESOLVE_GAS);
         ens.setOwner(WRAPPED, address(faulty));
 
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
@@ -2920,7 +2920,7 @@ contract TrustRegistryTest is Test {
         assertEq(registry.resolveAgent(CAROL), address(0));
     }
 
-    /// @dev Gas forwarded to the resolver; mirrors TrustRegistry.RESOLVE_GAS
+    /// @dev Gas bound the suite deploys the registry with
     uint256 internal constant RESOLVE_GAS = 50_000;
 
     function _setRawResolver(bytes32 node, RawResponder.Mode mode, bytes32 word, uint256 size) internal {
@@ -2975,6 +2975,23 @@ contract TrustRegistryTest is Test {
 
         assertEq(resolved, address(0));
         assertLt(used, RESOLVE_GAS + 20_000, "gas use bounded by RESOLVE_GAS");
+    }
+
+    /// @dev The bound is chosen at deployment, not fixed in the contract
+    function test_ResolveAgent_GasBoundSetAtDeployment() public {
+        TrustRegistry tight = new TrustRegistry(address(ens), address(wrapper), 10_000);
+        _setRawResolver(CAROL, RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        uint256 before = gasleft();
+        address resolved = tight.resolveAgent{gas: 10_000_000}(CAROL);
+        uint256 used = before - gasleft();
+
+        assertEq(resolved, address(0));
+        assertLt(used, 10_000 + 20_000, "gas use bounded by the deployed bound");
+
+        // A well-behaved resolver still answers within the tighter bound
+        _bindAddr(DAVE, dave);
+        assertEq(tight.resolveAgent(DAVE), dave);
     }
 
     /// @dev One hostile participant cannot exhaust the gas a coordinator budgets for
@@ -3707,7 +3724,7 @@ contract TrustRegistryTest is Test {
 
     /// @dev Domain separation prevents replaying an attestation on another registry
     function test_SignatureDoesNotReplayAcrossRegistries() public {
-        TrustRegistry other = new TrustRegistry(address(ens), address(wrapper));
+        TrustRegistry other = new TrustRegistry(address(ens), address(wrapper), RESOLVE_GAS);
         TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         bytes memory sig = _sign(aliceKey, att);
 
