@@ -69,16 +69,19 @@ interface IPolicyEnforcedAccount {
     function pendingPolicyOf(address account) external view returns (bool exists, PolicyCommitment memory);
     function mandateOf(address account) external view returns (string memory mandateURI, bytes32 configHash);
     function isStopped(address account) external view returns (bool);
+    function stopHeldByAccount(address account) external view returns (bool);
 }
 ```
 
-The ERC-165 interface identifier is `0x7e0f19f9`.
+The ERC-165 interface identifier is `0xf594edcd`.
+
+`stopHeldByAccount` returns true while the emergency stop was engaged by the account itself, which only the account can lift.
 
 All reads follow block time: `policySigner` and `signersAt` return a pending signer set once its `since` has passed, and `policyOf` returns a pending policy once its `effectiveAt` has passed.
 
 ### Discovery
 
-A reader MUST first call `supportsInterface(0x7e0f19f9)` on the account. If it returns true, the account serves the interface itself, and every function is called with the account's own address. Otherwise the reader MUST use a registry implementing the interface and the reader's trust in that registry's address. The reference registry is deployed with the deterministic deployment proxy `0x4e59b44847b379578588920cA78FbF26c0B4956C`, salt `keccak256("policy-enforced-accounts registry v2")`, so that it has the same address on every chain where it is deployed.
+A reader MUST first call `supportsInterface(0xf594edcd)` on the account. If it returns true, the account serves the interface itself, and every function is called with the account's own address. Otherwise the reader MUST use a registry implementing the interface and the reader's trust in that registry's address. The reference registry is deployed with the deterministic deployment proxy `0x4e59b44847b379578588920cA78FbF26c0B4956C`, salt `keccak256("policy-enforced-accounts registry v3")`, so that it has the same address on every chain where it is deployed.
 
 ### Registry write rules
 
@@ -93,6 +96,7 @@ A registry:
 - MUST emit `PolicyCancelled` whenever a pending change is removed before it takes effect: replaced, superseded by an activation, or canceled. It MUST NOT allow canceling a pending change after its `effectiveAt`.
 - MUST return a pending change from `policyOf` once its `effectiveAt` has passed, even if nobody has confirmed it, and MUST NOT lose it when a newer change is posted. `pendingPolicyOf` MUST then return `exists = false`.
 - MUST let the publisher or the account engage the emergency stop at once.
+- MUST let only the account lift a stop the account engaged, and MUST reject an attempt by the publisher. A stop the publisher engaged MAY be lifted by the publisher or the account; when the account engages a stop the publisher engaged, the stop becomes the account's.
 - SHOULD bound `minDelay` (the reference registry: 30 days), so that an account cannot lock its own signers away.
 - SHOULD have no owner, no upgrade path and hold no funds.
 
@@ -176,7 +180,7 @@ A receipt is evidence of what the enforcer decided, not an authorization to exec
 - **A registry for existing accounts.** Most deployed agent accounts are standard multisigs that cannot add functions. A registry keyed by account, written only by the account (signers) and its publisher (commitments), serves them without upgrades. The account's own `declare` call is what binds a signer to it.
 - **Time rules instead of tightening and loosening.** A registry stores hashes and cannot tell whether a new policy is stricter. A rule based on time has no such gap: whatever the publisher posts waits `minDelay`, in public, with its effective time. An enforcer can still apply a tightening off chain at once, because stricter is always safe; the registry shows it after the delay, and until then receipts carry the newer version, which a use-time verifier refuses (it fails closed). The account itself may activate at once, because its owners could change its signers anyway.
 - **Signer changes wait.** A new publisher could post any policy, so replacing the signers is at least as strong as loosening the policy, and waits the same delay. Clearing is the exception: it only withdraws the claim of enforcement, which can mislead nobody.
-- **The account can stop itself.** The stop only restricts. Letting the account engage it gives a fast answer to a leaked publisher or receipt key while a rotation waits its delay.
+- **The account can stop itself, and the stop holds.** The stop only restricts. Letting the account engage it gives a fast answer to a leaked publisher or receipt key while a rotation waits its delay. That answer only works if the publisher cannot undo it, so a stop the account engaged is lifted only by the account.
 - **Hash commitments, not on-chain policies.** Policies can be large and private. Committing a hash keeps chain costs constant, keeps private policies private, and still lets anyone holding the document prove which one applied.
 - **The operation is part of the intent.** A call and a delegatecall to the same target with the same data have very different effects. Binding the operation keeps one from standing for the other.
 - **Separate publisher and receipt keys.** The co-signer key that moves funds never needs to sign anything else. A publisher or receipt key that leaks cannot move funds.
@@ -186,21 +190,23 @@ A receipt is evidence of what the enforcer decided, not an authorization to exec
 
 The interface is new and read-only for consumers. Accounts opt in by calling the registry; nothing changes for accounts that do not.
 
+The previous draft (interface `0x7e0f19f9`) had a reference registry at `0xCa3bAE26d29a3A2cED7B87Fa996ca4C44367448d` on chain 4663, where a publisher could lift a stop the account engaged. It is unchanged and readable; its receipts use the same format and domain version `"2"`, bound to its own address.
+
 An earlier draft of this ERC (interface `0xcc16d336`, receipt domain version `"1"`, intent without `operation`) had a reference registry deployed at `0x20D6B38B47F7cb765A2318a1f318ed54a6f87e92` on chain 4663. It is unchanged and readable, and receipts issued under it can still be audited with domain version `"1"`. They MUST NOT be acted on as a gate, because their intent does not bind the operation.
 
 ## Test Cases
 
-`../assets/eip-draft_policy_enforced_agent_accounts/vectors.json` contains policy documents with their canonical JSON and `policyHash`, intents with their `intentHash` (including the same call as a call and as a delegatecall), and receipts with their EIP-712 digest and signature from a published test-only key. The vectors are checked by an independent TypeScript implementation and by Solidity (`PolicyVectors.t.sol`), and include the RFC 8785 section 3.2.2 example. `PolicyEnforcedRegistry.t.sol` tests each time rule, next to the earlier draft's registry for comparison.
+`../assets/eip-draft_policy_enforced_agent_accounts/vectors.json` contains policy documents with their canonical JSON and `policyHash`, intents with their `intentHash` (including the same call as a call and as a delegatecall), and receipts with their EIP-712 digest and signature from a published test-only key. The vectors are checked by an independent TypeScript implementation and by Solidity (`PolicyVectors.t.sol`), and include the RFC 8785 section 3.2.2 example. `PolicyEnforcedRegistry.t.sol` tests each time rule and the stop hold, next to the earlier drafts' registries for comparison.
 
 ## Reference Implementation
 
 In `../assets/eip-draft_policy_enforced_agent_accounts/`:
 
 - `IPolicyEnforcedAccount.sol`: the interface;
-- `PolicyEnforcedRegistry.sol`: the registry, with no owner and no upgrade path, deployed on mainnet chain 4663 at `0xCa3bAE26d29a3A2cED7B87Fa996ca4C44367448d` with verified source;
+- `PolicyEnforcedRegistry.sol`: the registry, with no owner and no upgrade path, deployed on mainnet chain 4663 at `0x4d37D0aD95593b2C65A0c2A98D5676D51DF3FDAB` with verified source;
 - `PolicyDecisionReceipt.sol`: pure helpers to verify a receipt on chain;
 - `PolicyEnforcedRegistry.t.sol`, `PolicyVectors.t.sol`: tests;
-- `v1/`: the earlier draft's contracts, for the comparison tests;
+- `v1/`, `v2/`: the earlier drafts' contracts, for the comparison tests;
 - `client/`: a dependency-light TypeScript reader and receipt verifier (also published as the JavaScript package `policy-enforced-accounts`), and `independent-read.mjs`, a script that reads an account's signers, delay, policy and pending state, fetches and checks the policy, and verifies a receipt using only the chain.
 
 ## Security Considerations
@@ -209,7 +215,7 @@ In `../assets/eip-draft_policy_enforced_agent_accounts/`:
 - **Scope of a commitment.** A commitment covers only the actions that need the policy signer. Standing authority does not: token allowances and permits, operator approvals (for example [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md) `setApprovalForAll`), modules and executors, guards and hooks, fallback handlers, and an [EIP-7702](./eip-7702.md) delegation target can all move funds without it. Readers MUST check standing authority separately before relying on a commitment. For a Safe: its owners, threshold, enabled modules, guard and fallback handler. For an ERC-7579 account: its installed validators, executors, hooks and fallbacks. For an EIP-7702 account: its delegation target. For any account: the token allowances and operator approvals it has granted.
 - **What this standard does not guarantee.** A commitment proves what the publisher stated, not that the policy signer follows it. Receipts and audits are evidence that can expose a signer that does not. The standard does not say whether a policy is safe, and `policySigner` being set does not prove the account's configuration actually requires that signer.
 - **Delays.** Readers SHOULD alert on `PolicyPending` and `SignersPending` events, and SHOULD compare a pending policy with the active one. A `minDelay` of zero is allowed but removes this protection; readers SHOULD flag it.
-- **Key compromise.** A leaked publisher key can post false commitments, and a leaked receipt key can sign false receipts; neither can move funds. False commitments wait `minDelay` in public. The account can engage the emergency stop at once and replace the keys with `declare`, which waits `minDelay`. Verifiers SHOULD reject receipts from rotated-out keys except in audits.
+- **Key compromise.** A leaked publisher key can post false commitments, and a leaked receipt key can sign false receipts; neither can move funds. False commitments wait `minDelay` in public. The account can engage the emergency stop at once, which the leaked publisher key cannot lift, and replace the keys with `declare`, which waits `minDelay`. Verifiers SHOULD reject receipts from rotated-out keys except in audits.
 - **Replay.** Receipts are bound to the chain, the registry, the account, the intent (including the operation) and a `decisionId`, and expire. A verifier acting on a receipt also checks the current policy and stop, and accepts each `decisionId` once.
 - **Cross-chain.** Each chain has its own commitments. A receipt for one chain is invalid on another because the domain includes `chainId`.
 - **Lagging commitments.** A publisher may confirm a change late. The registry applies pending changes by time, and readers SHOULD compare `effectiveAt` with the current block time.

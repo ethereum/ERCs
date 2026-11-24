@@ -5,7 +5,7 @@
     "name": "PolicyDecisionReceipt",
     "version": "2"
   },
-  "interfaceId": "0x7e0f19f9",
+  "interfaceId": "0xf594edcd",
   "testKeys": {
     "receiptSigner": {
       "privateKey": "0xe04c5badc92b189a47966ac7bfa7245721320ebd5f496612f472c1f99269b924",

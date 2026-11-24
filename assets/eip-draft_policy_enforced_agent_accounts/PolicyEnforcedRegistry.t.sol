@@ -6,6 +6,8 @@ import {PolicyEnforcedRegistry, IERC165} from "../src/peaa/PolicyEnforcedRegistr
 import {IPolicyEnforcedAccount} from "../src/peaa/IPolicyEnforcedAccount.sol";
 import {PolicyEnforcedRegistry as RegistryV1} from "../src/peaa/v1/PolicyEnforcedRegistry.sol";
 import {IPolicyEnforcedAccount as IV1} from "../src/peaa/v1/IPolicyEnforcedAccount.sol";
+import {PolicyEnforcedRegistry as RegistryV2} from "../src/peaa/v2/PolicyEnforcedRegistry.sol";
+import {IPolicyEnforcedAccount as IV2} from "../src/peaa/v2/IPolicyEnforcedAccount.sol";
 
 contract PolicyEnforcedRegistryTest is Test {
     PolicyEnforcedRegistry reg;
@@ -54,7 +56,8 @@ contract PolicyEnforcedRegistryTest is Test {
     function test_supportsInterface() public view {
         assertTrue(reg.supportsInterface(type(IPolicyEnforcedAccount).interfaceId));
         assertTrue(reg.supportsInterface(type(IERC165).interfaceId));
-        assertFalse(reg.supportsInterface(type(IV1).interfaceId), "v2 is a different interface");
+        assertFalse(reg.supportsInterface(type(IV1).interfaceId), "v3 is not the first draft's interface");
+        assertFalse(reg.supportsInterface(type(IV2).interfaceId), "v3 is not v2's interface");
         assertFalse(reg.supportsInterface(0xffffffff));
     }
 
@@ -351,9 +354,10 @@ contract PolicyEnforcedRegistryTest is Test {
     // ----- emergency stop -----
 
     function test_stopByPublisherOrAccount() public {
-        vm.prank(account);
-        reg.setStopped(account, true, "key leaked");
+        vm.prank(publisher);
+        reg.setStopped(account, true, "paused");
         assertTrue(reg.isStopped(account));
+        assertFalse(reg.stopHeldByAccount(account));
         vm.prank(publisher);
         reg.setStopped(account, false, "");
         assertFalse(reg.isStopped(account));
@@ -365,6 +369,90 @@ contract PolicyEnforcedRegistryTest is Test {
         vm.prank(attacker);
         vm.expectRevert(PolicyEnforcedRegistry.NotPublisherOrAccount.selector);
         reg.setStopped(account, true, "x");
+    }
+
+    // ----- stop hold (forum review) -----
+
+    /// The reviewer's case: the account engages its stop; a leaked publisher key tries to lift it.
+    function test_Z9_publisherCannotLiftTheAccountsStop() public {
+        vm.prank(account);
+        reg.setStopped(account, true, "publisher key leaked");
+        assertTrue(reg.stopHeldByAccount(account));
+        vm.prank(publisher);
+        vm.expectRevert(PolicyEnforcedRegistry.StopHeldByAccount.selector);
+        reg.setStopped(account, false, "");
+        assertTrue(reg.isStopped(account), "the stop holds");
+        vm.prank(account);
+        reg.setStopped(account, false, "");
+        assertFalse(reg.isStopped(account));
+        assertFalse(reg.stopHeldByAccount(account));
+    }
+
+    /// The same case on v2: the publisher lifts the stop the account engaged.
+    function test_Z9_v2PublisherLiftsTheAccountsStop() public {
+        RegistryV2 v2 = new RegistryV2();
+        vm.prank(account);
+        v2.declare(cosigner, publisher, receipt, DELAY, 1);
+        vm.prank(account);
+        v2.setStopped(account, true, "publisher key leaked");
+        vm.prank(publisher);
+        v2.setStopped(account, false, "");
+        assertFalse(v2.isStopped(account), "v2: the leaked publisher key lifted the account's stop");
+    }
+
+    function test_Z9_accountTakesOverThePublishersStop() public {
+        vm.prank(publisher);
+        reg.setStopped(account, true, "paused");
+        vm.prank(account);
+        vm.recordLogs();
+        reg.setStopped(account, true, "held by the account");
+        assertEq(vm.getRecordedLogs().length, 1, "taking over is announced");
+        assertTrue(reg.stopHeldByAccount(account));
+        vm.prank(publisher);
+        vm.expectRevert(PolicyEnforcedRegistry.StopHeldByAccount.selector);
+        reg.setStopped(account, false, "");
+    }
+
+    function test_Z9_publisherEngagingAgainDoesNotReleaseTheHold() public {
+        vm.prank(account);
+        reg.setStopped(account, true, "held");
+        vm.prank(publisher);
+        vm.recordLogs();
+        reg.setStopped(account, true, "paused");
+        assertEq(vm.getRecordedLogs().length, 0, "no change");
+        assertTrue(reg.stopHeldByAccount(account));
+    }
+
+    function test_Z9_holdSurvivesAPublisherRotation() public {
+        vm.prank(account);
+        reg.setStopped(account, true, "held");
+        vm.prank(account);
+        reg.declare(cosigner2, publisher2, receipt, DELAY, 1);
+        vm.warp(_now() + DELAY);
+        vm.prank(publisher2);
+        vm.expectRevert(PolicyEnforcedRegistry.StopHeldByAccount.selector);
+        reg.setStopped(account, false, "");
+        vm.prank(publisher);
+        vm.expectRevert(PolicyEnforcedRegistry.NotPublisherOrAccount.selector);
+        reg.setStopped(account, false, "");
+        assertTrue(reg.isStopped(account));
+    }
+
+    function test_Z9_liftingWhenNotStoppedIsANoOp() public {
+        vm.prank(publisher);
+        vm.recordLogs();
+        reg.setStopped(account, false, "");
+        assertEq(vm.getRecordedLogs().length, 0);
+    }
+
+    function testFuzz_Z9_onlyTheAccountLiftsItsStop(address caller) public {
+        vm.assume(caller != account);
+        vm.prank(account);
+        reg.setStopped(account, true, "held");
+        vm.prank(caller);
+        vm.expectRevert();
+        reg.setStopped(account, false, "");
+        assertTrue(reg.isStopped(account));
     }
 
     function test_accountCannotBeStoppedByTheIncomingPublisherEarly() public {

@@ -1,5 +1,5 @@
 import { getAddress, hashTypedData, isAddressEqual, parseAbi, type Address, type Hex, type PublicClient } from "viem";
-import { INTERFACE_ID, INTERFACE_ID_V1, REGISTRY_ABI, REGISTRY_ADDRESSES, REGISTRY_V1_ABI } from "./abi";
+import { INTERFACE_ID, INTERFACE_ID_V1, INTERFACE_ID_V2, REGISTRY_ABI, REGISTRY_ADDRESSES, REGISTRY_V1_ABI, REGISTRY_V2_ABI } from "./abi";
 import { policyHash } from "./jcs";
 import { intentHash, intentHashV1, isV1Registry, recoverReceiptSigner, typedReceipt, type Intent, type ReceiptJson } from "./receipt";
 
@@ -27,7 +27,7 @@ export interface AccountStatus {
   /** Where the interface was read: the account itself or the registry. */
   source: Address;
   /** Which version of the interface the source implements. */
-  standard: "v2" | "v1";
+  standard: "v3" | "v2" | "v1";
   enforced: boolean;
   policySigner: Address;
   publisher: Address;
@@ -41,12 +41,14 @@ export interface AccountStatus {
   pending: Commitment | null;
   mandate: { uri: string; configHash: Hex } | null;
   stopped: boolean;
+  /** The stop was engaged by the account itself: only the account can lift it (v3; false on older sources). */
+  stopHeldByAccount: boolean;
 }
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 const ZERO32 = `0x${"0".repeat(64)}`;
 
-/** True if `address` answers ERC-165 for IPolicyEnforcedAccount (v2 by default; a revert or no code counts as no). */
+/** True if `address` answers ERC-165 for IPolicyEnforcedAccount (v3 by default; a revert or no code counts as no). */
 export async function supportsStandard(client: PublicClient, address: Address, interfaceId: `0x${string}` = INTERFACE_ID): Promise<boolean> {
   try {
     return await client.readContract({ address, abi: REGISTRY_ABI, functionName: "supportsInterface", args: [interfaceId] });
@@ -56,8 +58,9 @@ export async function supportsStandard(client: PublicClient, address: Address, i
 }
 
 /** Which version of the interface `address` implements, or null. */
-export async function standardOf(client: PublicClient, address: Address): Promise<"v2" | "v1" | null> {
-  if (await supportsStandard(client, address, INTERFACE_ID)) return "v2";
+export async function standardOf(client: PublicClient, address: Address): Promise<"v3" | "v2" | "v1" | null> {
+  if (await supportsStandard(client, address, INTERFACE_ID)) return "v3";
+  if (await supportsStandard(client, address, INTERFACE_ID_V2)) return "v2";
   if (await supportsStandard(client, address, INTERFACE_ID_V1)) return "v1";
   return null;
 }
@@ -85,17 +88,18 @@ export async function readAccount(client: PublicClient, account: Address, regist
     standard = await standardOf(client, source);
     if (!standard) throw new Error(`${source} does not implement IPolicyEnforcedAccount`);
   }
-  const abi = standard === "v2" ? REGISTRY_ABI : REGISTRY_V1_ABI;
-  const r = (functionName: "policySigner" | "policyOf" | "pendingPolicyOf" | "mandateOf" | "isStopped" | "pendingSignersOf") =>
+  const abi = standard === "v3" ? REGISTRY_ABI : standard === "v2" ? REGISTRY_V2_ABI : REGISTRY_V1_ABI;
+  const r = (functionName: "policySigner" | "policyOf" | "pendingPolicyOf" | "mandateOf" | "isStopped" | "pendingSignersOf" | "stopHeldByAccount") =>
     client.readContract({ address: source, abi, functionName, args: [acct] } as never) as Promise<unknown>;
-  const [raw, policy, pending, mandate, stopped, pendingSigners] = (await Promise.all([
+  const [raw, policy, pending, mandate, stopped, pendingSigners, held] = (await Promise.all([
     r("policySigner"),
     r("policyOf"),
     r("pendingPolicyOf"),
     r("mandateOf"),
     r("isStopped"),
-    standard === "v2" ? r("pendingSignersOf") : Promise.resolve([false, null]),
-  ])) as [RawSigners, Commitment, [boolean, Commitment], [string, Hex], boolean, [boolean, RawSigners | null]];
+    standard === "v1" ? Promise.resolve([false, null]) : r("pendingSignersOf"),
+    standard === "v3" ? r("stopHeldByAccount") : Promise.resolve(false),
+  ])) as [RawSigners, Commitment, [boolean, Commitment], [string, Hex], boolean, [boolean, RawSigners | null], boolean];
   const signers = signerSet(raw);
   return {
     account: acct,
@@ -113,6 +117,7 @@ export async function readAccount(client: PublicClient, account: Address, regist
     pending: pending[0] ? pending[1] : null,
     mandate: mandate[0] ? { uri: mandate[0], configHash: mandate[1] } : null,
     stopped,
+    stopHeldByAccount: held,
   };
 }
 

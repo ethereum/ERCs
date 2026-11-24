@@ -70,4 +70,7 @@ interface IPolicyEnforcedAccount {
 
     /// @notice True while the account's emergency stop is engaged (the signer allows nothing).
     function isStopped(address account) external view returns (bool);
+
+    /// @notice True while the stop is held by the account itself: only the account can lift it.
+    function stopHeldByAccount(address account) external view returns (bool);
 }

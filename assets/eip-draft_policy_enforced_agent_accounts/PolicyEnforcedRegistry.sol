@@ -8,7 +8,7 @@ interface IERC165 {
 }
 
 /**
- * @title PolicyEnforcedRegistry (v2)
+ * @title PolicyEnforcedRegistry (v3)
  * @notice Reference registry for the draft ERC "Policy-Enforced Agent Accounts". Existing accounts
  *         (for example Safes) opt in by calling `declare` themselves; from then on only the publisher
  *         they named can post their policy commitments. Nobody can write another account's data.
@@ -22,6 +22,9 @@ interface IERC165 {
  *    except clearing to all zeros, which only removes the claim of enforcement. The account itself
  *    (its owners) may activate a policy at once, as it could change its signers anyway. The emergency
  *    stop only restricts, so the publisher or the account engages it at once.
+ *  - Stop hold. A stop the account engaged is held: only the account lifts it, never the publisher, so a
+ *    leaked publisher key cannot undo the account's own way out. A stop the publisher engaged can be
+ *    lifted by either, and the account can take it over (hold it) by engaging it too.
  */
 contract PolicyEnforcedRegistry is IPolicyEnforcedAccount, IERC165 {
     error NotPublisher();
@@ -33,6 +36,7 @@ contract PolicyEnforcedRegistry is IPolicyEnforcedAccount, IERC165 {
     error TooSoon();
     error NotDue();
     error NoPending();
+    error StopHeldByAccount();
 
     /// @notice Upper bound on `minDelay`, so an account can never lock its own signers away.
     uint32 public constant MAX_MIN_DELAY = 30 days;
@@ -41,7 +45,8 @@ contract PolicyEnforcedRegistry is IPolicyEnforcedAccount, IERC165 {
     mapping(address account => PolicyCommitment) private _active;
     mapping(address account => PolicyCommitment) private _pending;
     mapping(address account => bool) private _hasPending;
-    mapping(address account => bool) private _stopped;
+    /// @dev 0 not stopped, 1 engaged by the publisher, 2 engaged (held) by the account.
+    mapping(address account => uint8) private _stop;
     mapping(address account => string) private _mandateURI;
     mapping(address account => bytes32) private _mandateHash;
 
@@ -140,12 +145,24 @@ contract PolicyEnforcedRegistry is IPolicyEnforcedAccount, IERC165 {
         _cancelPending(account, reason);
     }
 
-    /// @notice Engage or lift the emergency stop (publisher or account, both at once).
+    /**
+     * @notice Engage or lift the emergency stop, at once. Engaging: publisher or account; when the account
+     *         engages it, the stop is held by the account (also if the publisher had engaged it first).
+     *         Lifting: the account always; the publisher only a stop it engaged (`StopHeldByAccount`).
+     */
     function setStopped(address account, bool stopped, string calldata reason) external onlyPublisherOrAccount(account) {
-        if (_stopped[account] == stopped) return;
-        _stopped[account] = stopped;
-        if (stopped) emit EmergencyStop(account, reason);
-        else emit EmergencyStopLifted(account);
+        uint8 cur = _stop[account];
+        if (stopped) {
+            uint8 next = msg.sender == account ? 2 : 1;
+            if (cur >= next) return;
+            _stop[account] = next;
+            emit EmergencyStop(account, reason);
+        } else {
+            if (cur == 0) return;
+            if (cur == 2 && msg.sender != account) revert StopHeldByAccount();
+            _stop[account] = 0;
+            emit EmergencyStopLifted(account);
+        }
     }
 
     function setMandate(address account, string calldata mandateURI, bytes32 configHash) external onlyPublisher(account) {
@@ -185,7 +202,11 @@ contract PolicyEnforcedRegistry is IPolicyEnforcedAccount, IERC165 {
     }
 
     function isStopped(address account) external view returns (bool) {
-        return _stopped[account];
+        return _stop[account] != 0;
+    }
+
+    function stopHeldByAccount(address account) external view returns (bool) {
+        return _stop[account] == 2;
     }
 
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
