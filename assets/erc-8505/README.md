@@ -10,7 +10,7 @@ each command's flags; flags take `--flag value` or `--flag=value`.
 | `cli.mjs` | The writer (`build`), the reader (`check`, `entries`) and the vector runner (`vectors`) |
 | `sources/` | The descriptors BrainChain publishes for its `TaskBoard` 3.5.0 on mainnet (chain id 274663) and testnet (chain id 274630) |
 | `example-record.json` | The record of BrainChain mainnet task 50, as the record bytes a writer posts |
-| `vectors.json` | Eight tasks read from those chains, with their logs and expected records, and eight cases a reader must fail |
+| `vectors.json` | Eight tasks read from those chains, with their logs and expected records, and nine cases a reader must fail |
 | `test.mjs` | Offline tests over the vectors, the rules the vectors do not reach, and the CLI's exit codes |
 
 Exit codes: 0 every check passed, 1 a check failed or an error, 2 usage, 3 nothing to post.
@@ -25,7 +25,8 @@ node cli.mjs vectors --verify 274663=https://rpc.usebrainchain.com --verify 2746
 `build` reads the task's logs up to the source's finalized block and prints the record, its hash and the
 `giveFeedback` calldata. `--calldata` prints the calldata alone, and `--out <path>` also writes the record bytes to a
 file for `check --file`. Posting the entry is left to the caller. A task that takes no entry, such as mainnet task 54
-(`unstarted`), exits 3 with the reason.
+(`unstarted`), exits 3 with the reason. Mainnet task 9, delivered and never graded, builds a `work.lapsed` entry with
+`tag2` `delivered`.
 
 ```sh
 node cli.mjs build --rpc https://rpc.usebrainchain.com --descriptor sources/brainchain-mainnet.json --task 50 \
@@ -67,13 +68,13 @@ node cli.mjs entries --registry-rpc https://rpc.mainnet.chain.robinhood.com \
   --rpc 274663=https://rpc.usebrainchain.com --descriptor sources/brainchain-mainnet.json
 ```
 
-No `work.outcome` entries exist on Robinhood Chain yet, so today this prints the line below on standard output and the
-reason on standard error, and exits 1. N counts BrainChain's earlier entries for agent 20424, under its own tags, and
-grows as entries are added.
+No entries under this profile's tags exist on Robinhood Chain yet, so today this prints the line below on standard
+output and the reason on standard error, and exits 1. N counts BrainChain's earlier entries for agent 20424, under its
+own tags, and grows as entries are added.
 
 ```text
-N entries, 0 under work.outcome, 0 unbound
-no work.outcome entries from 0x97D558417c3D61f1074422AD843e1Db1E565b952 about agent 20424
+N entries, 0 under work.outcome or work.lapsed, 0 unbound
+no work.outcome or work.lapsed entries from 0x97D558417c3D61f1074422AD843e1Db1E565b952 about agent 20424
 ```
 
 Entries that are only `unbound` pass and keep the exit at 0; the summary says that they rest on the writer's word.
@@ -97,7 +98,7 @@ MODEL=5f1c28741ee74be2a828fd337283ca47e477a0cd56bf5ad31c61e1ce3ce1d22f
 WORKERS=0x$(printf '%064x%064x%064x' 32 1 274663)000000000000000000000000$BOARD$MODEL
 cast send --unlocked --from $OWNER $I "setMetadata(uint256,string,bytes)" 20424 work.workers $WORKERS --rpc-url $A
 
-for t in 50 51; do
+for t in 50 51 9; do
   CD=$(node cli.mjs build --rpc https://rpc.usebrainchain.com --descriptor sources/brainchain-mainnet.json --task $t \
     --registry eip155:4663:$I --agent 20424 --writer $W --calldata) || continue
   cast send --unlocked --from $W $R "$CD" --rpc-url $A
@@ -107,20 +108,26 @@ node cli.mjs entries --registry-rpc $A --reputation eip155:4663:$R --agent 20424
   --rpc 274663=https://rpc.usebrainchain.com --descriptor sources/brainchain-mainnet.json --rebuild
 ```
 
-The reader's output has this shape. Entry numbers and counts grow as entries are added, the tasks listed under `wait`
-are those that settled since, and each wait is measured from the later of the source's finalized head and the fork's
-latest block (`cast rpc` also prints `null` for each impersonation call):
+The reader's output has this shape (`cast rpc` also prints `null` for each impersonation call):
 
 ```text
 ok      entry <n> (task 50), accepted, binding declared
 ok      entry <n+1> (task 51), rejected, binding declared
+ok      entry <n+2> (task 9), lapsed after delivery, binding declared
+FAIL    task <t> at 0x44b8464342Bbfb9B565FAE494DfDefa37D33A211 (accepted): no entry from the writer, <h> h <m> min past the terminal step
 wait    task <t> at 0x44b8464342Bbfb9B565FAE494DfDefa37D33A211 (rejected): terminal step <h> h <m> min ago; the entry is due in <h> h <m> min
-<N> entries, 2 under work.outcome, 0 unbound
+<N> entries, 3 under work.outcome or work.lapsed, 0 unbound
+<F> checks failed
 ```
 
-Without the `work.workers` declaration the two entries read `unbound`. A revoked entry prints a `FAIL` line that says it
+With `--rebuild`, coverage starts at the writer's earliest entry for the worker, task 9's settlement here. Every later
+task of that worker that takes an entry and has none prints `wait` until it is due, then `FAIL`, so this run, which
+posts three entries, exits 1. Each wait is measured from the later of the source's finalized head and the fork's latest
+block. Without `--rebuild` the three entries pass and the run exits 0.
+
+Without the `work.workers` declaration the three entries read `unbound`. A revoked entry prints a `FAIL` line that says it
 was revoked, and its task counts as having no entry. Without `--descriptor` every record fails, since the reader holds no descriptor for the
-source. If the writer also posted task 50 for another agent, entry 12 fails with
+source. If the writer also posted task 50 for another agent, the entry for task 50 fails with
 `the writer also posted task 50 for agent …`.
 
 ## Notes on the BrainChain source
@@ -130,6 +137,9 @@ source. If the writer also posted task 50 for another agent, entry 12 fails with
 - `Ruled` and `AppealRuled` report in their `paid` parameter the decision that settles the task: a ruling below the board's confidence
   threshold leaves the standing verdict in place, and `paid` repeats it.
 - `BountyPaid` reports the full bounty and the fee taken from it, hence `"feeIncluded": true`.
-- The board's events carry no act by the worker before delivery, so no BrainChain task produces an `undelivered` entry.
+- The board's events carry no act by the worker before delivery, so no BrainChain task lapses after `assigned`: a hire
+  the worker never delivered on is `unstarted` and takes no entry. A delivery the board never graded, as in mainnet task
+  9, lapses after `delivered`.
+- The board marks no event `actor: "worker"` and its descriptor names no `vault`: the board holds every bounty itself.
 - Robinhood Chain's public endpoint keeps no state older than about 10,000 blocks, so the reader reads `work.workers`
   from the Identity Registry's `MetadataSet` logs rather than from `getMetadata` at the entry's block.

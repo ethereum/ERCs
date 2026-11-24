@@ -103,14 +103,25 @@ export const STEPS = {
   refunded: { required: ["task", "to", "amount"], optional: [] },
 };
 const TERMINAL = new Set(["paid", "refunded"]);
+const MONEY = new Set(["funded", "paid", "refunded"]);
 const REQUIRED_STEPS = ["funded", "delivered", "verdict", "paid", "refunded"];
-export const ENTRY = { accepted: 100, rejected: 0, undelivered: 0 };
 export const TAG1 = "work.outcome";
+export const LAPSED = "work.lapsed";
+const LAPSED_AFTER = ["assigned", "delivered"];
 export const VERSION = "work-record/v1";
 export const URI_PREFIX = "data:application/json;base64,";
 export const MAX_FILE = 8192;
 export const DUE_SECONDS = 72 * 3600;
-const takesEntry = (outcome) => Object.hasOwn(ENTRY, outcome);
+
+/** The tags and value of a task's entry, or undefined when its outcome takes none. */
+export function entryOf({ outcome, lapsedAfter }) {
+  if (outcome === "accepted") return { tag1: TAG1, tag2: "accepted", value: 100 };
+  if (outcome === "rejected") return { tag1: TAG1, tag2: "rejected", value: 0 };
+  if (outcome === "lapsed" && LAPSED_AFTER.includes(lapsedAfter)) return { tag1: LAPSED, tag2: lapsedAfter, value: 0 };
+  return undefined;
+}
+const LAPSE_LABEL = { assigned: "lapsed after assignment", delivered: "lapsed after delivery" };
+export const outcomeLabel = ({ outcome, lapsedAfter }) => (outcome === "lapsed" ? LAPSE_LABEL[lapsedAfter] : outcome);
 const a = (word) => `${/^[aeiu]/.test(word) ? "an" : "a"} ${word}`;
 
 const SIZES = Array.from({ length: 32 }, (_, i) => String(8 * (i + 1)));
@@ -167,7 +178,7 @@ const exactKeys = (obj, keys, optional, what) => {
 
 /** Checks a source descriptor and compiles it for decoding. Throws on the first rule it breaks. */
 export function compileSource(source) {
-  exactKeys(source, ["chainId", "contract", "asset", "fromBlock", "finality", "events"], [], "source");
+  exactKeys(source, ["chainId", "contract", "asset", "fromBlock", "finality", "events"], ["vault"], "source");
   if (!Number.isSafeInteger(source.chainId) || source.chainId <= 0) throw new Error("the source's chainId must be a positive integer");
   if (!Number.isSafeInteger(source.fromBlock) || source.fromBlock < 0) throw new Error("the source's fromBlock must be a block number");
   if (source.finality !== "finalized" && !(Number.isSafeInteger(source.finality) && source.finality > 0)) {
@@ -176,6 +187,7 @@ export function compileSource(source) {
   if (checksum(source.contract) !== source.contract) throw new Error("the source's contract must be an ERC-55 checksummed address");
   const asset = /^eip155:(\d+)\/erc20:(0x[0-9a-fA-F]{40})$/.exec(source.asset);
   if (!asset || Number(asset[1]) !== source.chainId || checksum(asset[2]) !== asset[2]) throw new Error("the source's asset must be eip155:<chainId>/erc20:<ERC-55 address> on the source's chain");
+  const vault = compileVault(source);
   if (!Array.isArray(source.events)) throw new Error("the source's events must be an array");
   const byTopic = new Map();
   for (const entry of source.events) {
@@ -186,6 +198,7 @@ export function compileSource(source) {
     if (byTopic.has(event.topic)) throw new Error(`the topic of ${entry.event} is declared twice`);
     exactKeys(entry.fields, rule.required, rule.optional, `fields of ${event.name}`);
     if (Object.hasOwn(entry, "actor") && entry.actor !== "worker") throw new Error(`the actor of ${event.name} must be "worker"`);
+    if (entry.actor === "worker" && !Object.hasOwn(entry.fields, "worker")) throw new Error(`${event.name} is marked as the worker's act but maps no worker`);
     if (Object.hasOwn(entry, "feeIncluded") && (entry.step !== "paid" || !Object.hasOwn(entry.fields, "fee") || typeof entry.feeIncluded !== "boolean")) {
       throw new Error(`feeIncluded on ${event.name} must be a boolean on a paid event that maps fee`);
     }
@@ -209,7 +222,19 @@ export function compileSource(source) {
   for (const step of REQUIRED_STEPS) {
     if (![...byTopic.values()].some((e) => e.step === step)) throw new Error(`the descriptor declares no event for the ${step} step`);
   }
-  return { source, byTopic, contract: source.contract.toLowerCase() };
+  return { source, byTopic, contract: source.contract.toLowerCase(), vault };
+}
+
+/** The descriptor's vault: one address for every task, or a getter `name(uint256)` the source answers per task. */
+function compileVault(source) {
+  if (!Object.hasOwn(source, "vault")) return undefined;
+  const v = source.vault;
+  if (typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v)) {
+    if (checksum(v) !== v) throw new Error("the source's vault must be an ERC-55 checksummed address");
+    return { address: v.toLowerCase() };
+  }
+  if (typeof v === "string" && /^[A-Za-z_][A-Za-z0-9_]*\(uint256\)$/.test(v)) return { getter: v };
+  throw new Error('the source\'s vault must be an ERC-55 address or a getter of the form "name(uint256)"');
 }
 
 const word = (hex, i) => {
@@ -265,10 +290,9 @@ const lower = (s) => String(s).toLowerCase();
 
 /**
  * The steps of one task from the source's logs: every declared log of the task through the end of the transaction
- * holding its first terminal step, and the declared logs after that transaction. `senders` maps a transaction hash to
- * its sender; it is needed only for events the descriptor marks as sent by the worker.
+ * holding its first terminal step, and the declared logs after that transaction.
  */
-export function stepsOf(compiled, logs, taskId, senders = {}) {
+export function stepsOf(compiled, logs, taskId) {
   const task = BigInt(taskId);
   const mine = [];
   const malformed = [];
@@ -289,15 +313,7 @@ export function stepsOf(compiled, logs, taskId, senders = {}) {
     end = first + 1;
     while (end < mine.length && lower(mine[end].log.transactionHash) === lower(mine[first].log.transactionHash)) end++;
   }
-  const toStep = ({ log, d }) => {
-    const step = { step: d.entry.step, block: num(log.blockNumber), tx: lower(log.transactionHash), log: num(log.logIndex), ...d.fields };
-    if (d.entry.actor) {
-      const sender = senders[step.tx];
-      if (!sender) throw new Error(`the sender of ${step.tx} is needed, since ${d.entry.event.name} is marked as sent by the worker`);
-      step.sender = checksum(sender);
-    }
-    return step;
-  };
+  const toStep = ({ log, d }) => ({ step: d.entry.step, block: num(log.blockNumber), tx: lower(log.transactionHash), log: num(log.logIndex), ...d.fields });
   const kept = mine.slice(0, end);
   return { settled: first >= 0, steps: kept.map(toStep), entries: kept.map((x) => x.d.entry), after: mine.slice(end).map(toStep), malformed };
 }
@@ -305,19 +321,20 @@ export function stepsOf(compiled, logs, taskId, senders = {}) {
 /** Drops the logs after the terminal transaction that `isLate(block)` places after the entry: they are the source's problem. */
 export const dropLate = (found, isLate) => ({ ...found, after: found.after.filter((s) => !isLate(s.block)) });
 
-/** The task's worker, its outcome, and every consistency rule it breaks. */
+/** The task's worker, its outcome (with the step a lapsed task lapsed after), and every consistency rule it breaks. */
 export function judge({ settled, steps, entries, after, malformed = [] }) {
   const deliveredAt = steps.flatMap((s, i) => (s.step === "delivered" ? [i] : []));
   const assigned = steps.filter((s) => s.step === "assigned" && BigInt(s.worker) !== 0n);
   const worker = deliveredAt.length ? steps[deliveredAt[0]].worker : assigned.at(-1)?.worker;
   const lastDelivered = deliveredAt.at(-1) ?? -1;
   const verdicts = steps.filter((s, i) => s.step === "verdict" && lastDelivered >= 0 && i > lastDelivered);
-  const workerActed = worker !== undefined && steps.some((s) => s.step !== "delivered" && s.sender && BigInt(s.sender) === BigInt(worker));
+  const workerActed = worker !== undefined && steps.some((s, i) => s.step !== "delivered" && entries[i].actor && s.worker === worker);
   let outcome;
+  let lapsedAfter;
   if (!settled) outcome = "unsettled";
   else if (worker === undefined) outcome = "no worker";
-  else if (!deliveredAt.length) outcome = workerActed ? "undelivered" : "unstarted";
-  else if (!verdicts.length) outcome = "unevaluated";
+  else if (!deliveredAt.length) [outcome, lapsedAfter] = workerActed ? ["lapsed", "assigned"] : ["unstarted"];
+  else if (!verdicts.length) [outcome, lapsedAfter] = ["lapsed", "delivered"];
   else outcome = verdicts.at(-1).accepted ? "accepted" : "rejected";
 
   const problems = [];
@@ -342,7 +359,7 @@ export function judge({ settled, steps, entries, after, malformed = [] }) {
     if (after.length) problems.push(`the source emitted ${after.length} declared ${after.length === 1 ? "log" : "logs"} after the terminal transaction`);
     for (const m of malformed) problems.push(`the source emitted a log that does not match its declared event (${m})`);
   }
-  return { worker, outcome, problems };
+  return { worker, outcome, lapsedAfter, problems };
 }
 
 export function encodeFile(text) {
@@ -350,22 +367,24 @@ export function encodeFile(text) {
 }
 
 /** Builds the record of one task, or says why the task gets no entry. */
-export function buildRecord({ source, logs, task, head, senders, terminalTime, now }) {
+export function buildRecord({ source, logs, task, head, terminalTime, now }) {
   const compiled = compileSource(source);
-  const found = stepsOf(compiled, logs, task, senders);
+  const found = stepsOf(compiled, logs, task);
   if (found.steps.length === 0 && found.after.length === 0) throw new Error(`task ${task} has no logs at ${source.contract} on chain ${source.chainId}`);
-  const { worker, outcome, problems } = judge(found);
-  if (!takesEntry(outcome)) return { outcome, problems, entry: null, reason: `no entry for outcome "${outcome}"` };
-  if (problems.length) return { outcome, problems, entry: null, reason: `inconsistent: ${problems.join("; ")}` };
+  const judged = judge(found);
+  const { worker, outcome, lapsedAfter, problems } = judged;
+  const tags = entryOf(judged);
+  if (!tags) return { outcome, problems, entry: null, reason: `no entry for outcome "${outcome}"` };
+  if (problems.length) return { outcome, lapsedAfter, problems, entry: null, reason: `inconsistent: ${problems.join("; ")}` };
   const record = {
     agentRegistry: head.agentRegistry,
     agentId: head.agentId,
     clientAddress: head.clientAddress,
     createdAt: head.createdAt,
-    value: ENTRY[outcome],
+    value: tags.value,
     valueDecimals: 0,
-    tag1: TAG1,
-    tag2: outcome,
+    tag1: tags.tag1,
+    tag2: tags.tag2,
     work: { v: VERSION, source, task: BigInt(task).toString(), worker, outcome, steps: found.steps },
   };
   checkHead(record);
@@ -374,8 +393,8 @@ export function buildRecord({ source, logs, task, head, senders, terminalTime, n
   const file = canonical(record);
   const bytes = Buffer.byteLength(file);
   return {
-    outcome, problems, record, file, bytes,
-    entry: { tag1: TAG1, tag2: outcome, value: ENTRY[outcome], valueDecimals: 0, feedbackURI: bytes <= MAX_FILE ? encodeFile(file) : null, feedbackHash: keccak256(file) },
+    outcome, lapsedAfter, problems, record, file, bytes,
+    entry: { ...tags, valueDecimals: 0, feedbackURI: bytes <= MAX_FILE ? encodeFile(file) : null, feedbackHash: keccak256(file) },
   };
 }
 
@@ -401,14 +420,14 @@ function checkSteps(steps) {
   for (const s of steps) {
     if (!isPlain(s) || !Object.hasOwn(STEPS, s.step)) throw new Error("a step has a kind this profile does not define");
     const rule = STEPS[s.step];
-    exactKeys(s, ["step", "block", "tx", "log"], [...rule.required, ...rule.optional, "sender"].filter((k) => k !== "task"), `${s.step} step`);
+    exactKeys(s, ["step", "block", "tx", "log"], [...rule.required, ...rule.optional].filter((k) => k !== "task"), `${s.step} step`);
     if (!Number.isSafeInteger(s.block) || !Number.isSafeInteger(s.log)) throw new Error(`${s.step} step: block and log must be integers`);
     if (!HASH.test(s.tx)) throw new Error(`${s.step} step: tx must be a 32-byte hash in lowercase hex`);
     for (const [k, v] of Object.entries(s)) {
       const at = `${s.step}.${k}`;
       if (["amount", "fee", "bond"].includes(k) && !(typeof v === "string" && DECIMAL.test(v))) throw new Error(`${at} must be a decimal string without leading zeros`);
       if (["worker", "brief", "result", "ref"].includes(k) && !HASH.test(v)) throw new Error(`${at} must be 32 bytes in lowercase hex`);
-      if ([...ADDRESS_FIELDS, "sender"].includes(k) && !(typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v) && checksum(v) === v)) throw new Error(`${at} must be an ERC-55 checksummed address`);
+      if (ADDRESS_FIELDS.includes(k) && !(typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v) && checksum(v) === v)) throw new Error(`${at} must be an ERC-55 checksummed address`);
       if (k === "accepted" && typeof v !== "boolean") throw new Error(`${at} must be a JSON boolean`);
     }
   }
@@ -423,14 +442,14 @@ function checkHead(rec) {
   if (CAIP10.exec(rec.agentRegistry)[1] !== CAIP10.exec(rec.clientAddress)[1]) throw new Error("agentRegistry and clientAddress must be on the same chain");
   if (!Number.isSafeInteger(rec.agentId) || rec.agentId < 0) throw new Error("agentId must be a JSON integer no larger than 2^53 - 1");
   if (!validCreatedAt(rec.createdAt)) throw new Error("createdAt must be RFC 3339 in UTC to the second, as YYYY-MM-DDThh:mm:ssZ");
-  if (rec.tag1 !== TAG1 || !takesEntry(rec.tag2) || rec.value !== ENTRY[rec.tag2] || rec.valueDecimals !== 0) {
-    throw new Error("tag1, tag2, value and valueDecimals do not follow the profile");
-  }
   exactKeys(rec.work, ["v", "source", "task", "worker", "outcome", "steps"], [], "work");
+  const tags = entryOf({ outcome: rec.work.outcome, lapsedAfter: rec.tag2 });
+  if (!tags || rec.tag1 !== tags.tag1 || rec.tag2 !== tags.tag2 || rec.value !== tags.value || rec.valueDecimals !== 0) {
+    throw new Error("work.outcome, tag1, tag2, value and valueDecimals do not follow the profile");
+  }
   if (rec.work.v !== VERSION) throw new Error(`work.v must be ${VERSION}`);
   if (!DECIMAL.test(rec.work.task)) throw new Error("work.task must be a decimal string");
   if (!HASH.test(rec.work.worker)) throw new Error("work.worker must be 32 bytes in lowercase hex");
-  if (rec.work.outcome !== rec.tag2) throw new Error("work.outcome must equal tag2");
   checkSteps(rec.work.steps);
 }
 
@@ -489,37 +508,57 @@ export function diffSteps(recorded, rebuilt) {
  * Checks a record against the reader's pinned descriptor and the task's logs from the descriptor's fromBlock.
  * `isLate(block)` says whether a source block comes after the entry; such logs are not held against the writer.
  */
-export function checkRecord(rec, { pinned, logs, senders, isLate = () => false }) {
+export function checkRecord(rec, { pinned, logs, isLate = () => false }) {
   if (!pinned) return { errors: [`the reader holds no descriptor for ${rec.work.source.contract} on chain ${rec.work.source.chainId}`] };
   if (canonical(pinned) !== canonical(rec.work.source)) return { errors: ["the record's descriptor differs from the one the reader holds"] };
-  const found = dropLate(stepsOf(compileSource(pinned), logs, rec.work.task, senders), isLate);
-  const { worker, outcome, problems } = judge(found);
+  const found = dropLate(stepsOf(compileSource(pinned), logs, rec.work.task), isLate);
+  const { worker, outcome, lapsedAfter, problems } = judge(found);
   const errors = [];
   const diff = diffSteps(rec.work.steps, found.steps);
   if (diff) errors.push(diff);
   if (outcome !== rec.work.outcome) errors.push(`outcome is ${outcome}, the record says ${rec.work.outcome}`);
+  else if (outcome === "lapsed" && lapsedAfter !== rec.tag2) errors.push(`the task lapsed after ${lapsedAfter}, the record says ${rec.tag2}`);
   if (worker !== rec.work.worker) errors.push("worker differs from the source's logs");
   if (problems.length) errors.push(`inconsistent: ${problems.join("; ")}`);
   return { outcome, worker, errors, found };
 }
 
+/**
+ * The account that holds a task's payment: the descriptor's vault, or the source when it names none. For a getter
+ * vault, `called` maps each task id (a bigint) to the address the source returned for it.
+ */
+export function vaultOf(compiled, task, called = new Map()) {
+  if (!compiled.vault) return compiled.contract;
+  if (compiled.vault.address) return compiled.vault.address;
+  const v = called.get(BigInt(task));
+  if (!v) throw new Error(`the vault of task ${task} is needed: call ${compiled.vault.getter} on the source`);
+  return lower(v);
+}
+
 /** The transfer one step moves, or undefined for a step that moves no money. */
-function transferOf(source, step, feeIncluded) {
+function transferOf(source, step, feeIncluded, vault) {
   const asset = lower(source.asset.split(":").at(-1));
-  if (step.step === "funded") return { asset, from: step.client, to: source.contract, amount: BigInt(step.amount) };
-  if (step.step === "paid") return { asset, from: source.contract, to: step.to, amount: BigInt(step.amount) - (feeIncluded ? BigInt(step.fee ?? 0) : 0n) };
-  if (step.step === "refunded") return { asset, from: source.contract, to: step.to, amount: BigInt(step.amount) };
+  if (step.step === "funded") return { asset, from: step.client, to: vault, amount: BigInt(step.amount) };
+  if (step.step === "paid") return { asset, from: vault, to: step.to, amount: BigInt(step.amount) - (feeIncluded ? BigInt(step.fee ?? 0) : 0n) };
+  if (step.step === "refunded") return { asset, from: vault, to: step.to, amount: BigInt(step.amount) };
   return undefined;
 }
 
-/** The transfers a task's transactions must contain, from its steps and the descriptor entries they came from. */
-export function expectedTransfers(source, { steps, entries }) {
-  const funded = steps.find((s) => s.step === "funded");
-  const out = [{ tx: funded.tx, ...transferOf(source, funded, false) }];
-  for (const [i, s] of steps.entries()) {
-    if (s.step === "paid" || s.step === "refunded") out.push({ tx: s.tx, ...transferOf(source, s, entries[i].feeIncluded) });
+/** The transactions of a task that move money: its funded step's and its terminal step's. */
+export const moneyTxs = ({ steps }) => [...new Set(steps.filter((s) => MONEY.has(s.step)).map((s) => s.tx))];
+
+/** The tasks whose money steps a receipt holds, for looking up their vaults. */
+export function moneyTasks(compiled, receipt) {
+  const tasks = new Set();
+  for (const log of receipt.logs) {
+    try {
+      const d = decodeLog(compiled, log);
+      if (d && MONEY.has(d.entry.step)) tasks.add(d.task);
+    } catch {
+      continue; // the task's own checks fail a log that does not decode
+    }
   }
-  return out;
+  return [...tasks];
 }
 
 export const TRANSFER_TOPIC = keccak256("Transfer(address,address,uint256)");
@@ -529,9 +568,10 @@ const moves = (l, t) => lower(l.address) === t.asset && lower(l.topics[0]) === T
 
 /**
  * The transfers of the declared steps in one transaction, of every task, that its receipt does not hold. Each Transfer
- * log backs at most one step, so one log cannot stand for the same amount moved for two tasks.
+ * log backs at most one step, so one log cannot stand for the same amount moved for two tasks. `called` is as for
+ * vaultOf.
  */
-export function unbackedTransfers(compiled, receipt) {
+export function unbackedTransfers(compiled, receipt, called) {
   const used = new Set();
   const missing = [];
   for (const log of receipt.logs) {
@@ -541,8 +581,8 @@ export function unbackedTransfers(compiled, receipt) {
     } catch {
       continue; // the task's own checks fail a log that does not decode
     }
-    const t = d && transferOf(compiled.source, { step: d.entry.step, ...d.fields }, d.entry.feeIncluded);
-    if (!t) continue;
+    if (!d || !MONEY.has(d.entry.step)) continue;
+    const t = transferOf(compiled.source, { step: d.entry.step, ...d.fields }, d.entry.feeIncluded, vaultOf(compiled, d.task, called));
     const i = receipt.logs.findIndex((l, k) => !used.has(k) && moves(l, t));
     if (i < 0) missing.push({ task: d.task, ...t });
     else used.add(i);

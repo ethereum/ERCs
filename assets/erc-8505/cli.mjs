@@ -6,9 +6,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
   buildRecord, checkRecord, checksum, compileSource, createdAtProblem, dataUriBytes, decodeFeedback, decodeReadFeedback,
-  decodeWorkers, DUE_SECONDS, encodeCall, expectedTransfers, findDuplicates, giveFeedbackCalldata, hexToBytes,
-  indexGaps, isDue, judge, keccak256, MAX_FILE, METADATA_SET, metadataValue, NEW_FEEDBACK, otherAgents, parseAddress,
-  readFile, stepsOf, TAG1, taskKey, ENTRY, unbackedTransfers, validCreatedAt,
+  decodeWorkers, DUE_SECONDS, encodeCall, entryOf, findDuplicates, giveFeedbackCalldata, hexToBytes, indexGaps, isDue,
+  judge, keccak256, LAPSED, MAX_FILE, METADATA_SET, metadataValue, moneyTasks, moneyTxs, NEW_FEEDBACK, otherAgents,
+  outcomeLabel, parseAddress, readFile, stepsOf, TAG1, taskKey, unbackedTransfers, validCreatedAt,
 } from "./work-records.mjs";
 
 const HERE = new URL(".", import.meta.url);
@@ -233,26 +233,40 @@ async function taskLogs(url, compiled, task, to, span) {
   return getLogs(url, { address: compiled.source.contract, topics: [[...compiled.byTopic.keys()], topicOf(task)] }, compiled.source.fromBlock, to, span);
 }
 
-async function sendersOf(url, compiled, logs) {
-  const senders = {};
-  for (const l of logs) {
-    if (!compiled.byTopic.get(lower(l.topics[0]))?.actor) continue;
-    const tx = lower(l.transactionHash);
-    senders[tx] ??= (await rpc(url, "eth_getTransactionByHash", [tx])).from;
+/**
+ * What the descriptor's vault getter returns for each task with money moving in the receipt. A descriptor names a
+ * getter only when the account never changes, so the head answers for every past task.
+ */
+async function vaultsOf(url, compiled, receipt, at) {
+  const called = new Map();
+  if (!compiled.vault?.getter) return called;
+  for (const task of moneyTasks(compiled, receipt)) {
+    const what = `${compiled.vault.getter} for task ${task} at ${compiled.source.contract}`;
+    let returned;
+    try {
+      returned = await call(url, compiled.source.contract, encodeCall(compiled.vault.getter, [task]), at);
+    } catch (e) {
+      if (isRevert(e)) throw new Error(`${what} reverted`);
+      throw e;
+    }
+    if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(returned)) throw new Error(`${what} returned no address`);
+    called.set(task, "0x" + returned.slice(26));
   }
-  return senders;
+  return called;
 }
 
 async function fundsErrors(url, source, found) {
   const errors = [];
   const compiled = compileSource(source);
-  for (const tx of new Set(expectedTransfers(source, found).map((t) => t.tx))) {
+  const at = await head(url);
+  for (const tx of moneyTxs(found)) {
     const receipt = await rpc(url, "eth_getTransactionReceipt", [tx]);
     if (!receipt) {
       errors.push(`no receipt for ${tx}`);
       continue;
     }
-    for (const m of unbackedTransfers(compiled, receipt)) errors.push(`no transfer of ${m.amount} from ${m.from} to ${m.to} in ${tx} for task ${m.task}`);
+    const called = await vaultsOf(url, compiled, receipt, at);
+    for (const m of unbackedTransfers(compiled, receipt, called)) errors.push(`no transfer of ${m.amount} from ${m.from} to ${m.to} in ${tx} for task ${m.task}`);
   }
   return errors;
 }
@@ -300,6 +314,8 @@ const loadDescriptors = (files = []) => new Map(files.map((f) => {
 }));
 const pinnedFor = (pins, source) => pins.get(`${source.chainId}:${lower(source.contract)}`);
 const keyOf = (rec) => taskKey(rec.work.source, rec.work.task);
+const labelOf = (rec) => outcomeLabel({ outcome: rec.work.outcome, lapsedAfter: rec.tag2 });
+const PROFILE_TAGS = [TAG1, LAPSED];
 const iso = (t) => new Date(t * 1000).toISOString().replace(".000Z", "Z");
 const duration = (s) => `${Math.floor(Math.abs(s) / 3600)} h ${Math.floor((Math.abs(s) % 3600) / 60)} min`;
 
@@ -323,13 +339,12 @@ async function build(o) {
     }
     throw new Error(`task ${o.task} has no logs at ${source.contract} on chain ${source.chainId}`);
   }
-  const senders = await sendersOf(o.rpc, compiled, logs);
-  const found = stepsOf(compiled, logs, o.task, senders);
+  const found = stepsOf(compiled, logs, o.task);
   const terminalTime = found.settled ? await blockTime(o.rpc, found.steps.at(-1).block) : undefined;
   const registryChain = o.registry.split(":")[1];
   const now = Math.floor(Date.now() / 1000);
   const out = buildRecord({
-    source, logs, task: o.task, senders, terminalTime, now,
+    source, logs, task: o.task, terminalTime, now,
     head: { agentRegistry: o.registry, agentId: Number(o.agent), clientAddress: `eip155:${registryChain}:${o.writer}`, createdAt: o.created ?? iso(fin.time) },
   });
   if (!out.entry) {
@@ -343,7 +358,7 @@ async function build(o) {
   if (o.calldata && calldata) console.log(calldata);
   else console.log(JSON.stringify({
     task: o.task, outcome: out.outcome, bytes: out.bytes, feedbackHash: out.entry.feedbackHash,
-    giveFeedback: { agentId: Number(o.agent), value: out.entry.value, valueDecimals: 0, tag1: TAG1, tag2: out.entry.tag2, endpoint: "", feedbackURI: uri ?? null, feedbackHash: out.entry.feedbackHash },
+    giveFeedback: { agentId: Number(o.agent), value: out.entry.value, valueDecimals: 0, tag1: out.entry.tag1, tag2: out.entry.tag2, endpoint: "", feedbackURI: uri ?? null, feedbackHash: out.entry.feedbackHash },
     calldata, file: out.file,
   }, null, 2));
   if (!uri) {
@@ -367,7 +382,7 @@ async function verifyRecord(rec, { pins, rpcs, latest, span }) {
     const b = Number(BigInt(l.blockNumber));
     if ((await blockTime(url, b)) > latest) lateBlocks.add(b);
   }
-  const result = checkRecord(rec, { pinned, logs, senders: await sendersOf(url, compiled, logs), isLate: (b) => lateBlocks.has(b) });
+  const result = checkRecord(rec, { pinned, logs, isLate: (b) => lateBlocks.has(b) });
   if (result.errors.length) return result;
   const late = createdAtProblem(rec.createdAt, await blockTime(url, result.found.steps.at(-1).block), latest);
   if (late) result.errors.push(late);
@@ -392,7 +407,7 @@ async function check(o) {
   const result = await verifyRecord(rec, { pins, rpcs: new Map([[rec.work.source.chainId, o.rpc]]), latest: Math.floor(Date.now() / 1000) });
   const subject = `task ${rec.work.task} at ${rec.work.source.contract}`;
   if (result.errors.length) line("FAIL", subject, result.errors);
-  else line("ok", `${subject} (${rec.work.outcome})`, [], [`feedbackHash ${hash}`, `agent ${rec.agentId} and the binding are checked only against an entry, by the entries command`]);
+  else line("ok", `${subject} (${labelOf(rec)})`, [], [`feedbackHash ${hash}`, `agent ${rec.agentId} and the binding are checked only against an entry, by the entries command`]);
   return result.errors.length ? 1 : 0;
 }
 
@@ -483,11 +498,13 @@ async function entries(o) {
     failures++;
     line("FAIL", `entries of agent ${agent} from ${o.writer}`, [`feedbackIndex ${gaps.join(", ")} missing (last is ${last}); start --from-block at the registry's deployment block`]);
   }
-  const work = all.filter((f) => f.tag1 === TAG1);
+  const work = all.filter((f) => PROFILE_TAGS.includes(f.tag1));
   const elsewhere = [];
   let unmatched = 0;
   if (work.length) {
-    const theirs = await getLogs(url, { address: reg.address, topics: [NEW_FEEDBACK.topic, null, writerTopic, keccak256(TAG1)] }, o["from-block"], reg.at, span);
+    const theirs = [];
+    // One value per topic position: endpoints allow far narrower ranges for queries that list several.
+    for (const tag of PROFILE_TAGS) theirs.push(...(await getLogs(url, { address: reg.address, topics: [NEW_FEEDBACK.topic, null, writerTopic, keccak256(tag)] }, o["from-block"], reg.at, span)));
     for (const f of theirs.map(decodeFeedback).filter((x) => x.agentId !== agent)) {
       let other;
       try {
@@ -537,8 +554,8 @@ async function entries(o) {
     checked.push({ rec, feedbackIndex: f.feedbackIndex });
     if (binding === "writer") {
       unbound++;
-      line("unbound", `${label}, ${rec.work.outcome}`, ["bound only by the writer's word; the agent declares no such worker"], note ? [note] : []);
-    } else line("ok", `${label}, ${rec.work.outcome}, binding ${binding}`);
+      line("unbound", `${label}, ${labelOf(rec)}`, ["bound only by the writer's word; the agent declares no such worker"], note ? [note] : []);
+    } else line("ok", `${label}, ${labelOf(rec)}, binding ${binding}`);
   }
   for (const d of findDuplicates(checked.map((c) => c.rec))) {
     failures++;
@@ -546,8 +563,8 @@ async function entries(o) {
   }
   if (o.rebuild) failures += await coverage(checked, { pins, rpcs, span, registryTime: await blockTime(url, reg.at) });
   if (unmatched) console.log(`note    ${unmatched} ${unmatched === 1 ? "entry" : "entries"} of this writer about other agents could not be read, so duplicates with them were not checked`);
-  console.log(`${all.length} entries, ${work.length} under ${TAG1}, ${unbound} unbound${unbound ? " (unbound entries pass, but rest on the writer's word alone)" : ""}`);
-  if (!work.length) console.error(`no ${TAG1} entries from ${o.writer} about agent ${agent}`);
+  console.log(`${all.length} entries, ${work.length} under ${TAG1} or ${LAPSED}, ${unbound} unbound${unbound ? " (unbound entries pass, but rest on the writer's word alone)" : ""}`);
+  if (!work.length) console.error(`no ${TAG1} or ${LAPSED} entries from ${o.writer} about agent ${agent}`);
   else if (failures) console.error(`${failures} ${failures === 1 ? "check" : "checks"} failed`);
   return failures || !work.length ? 1 : 0;
 }
@@ -572,15 +589,15 @@ async function coverage(checked, { pins, rpcs, span, registryTime }) {
     for (const task of new Set(settledLogs.map((l) => BigInt(l.topics[1])))) {
       if (covered.has(taskKey(pinned, task))) continue;
       const logs = await taskLogs(url, compiled, task, fin.number, span);
-      const found = stepsOf(compiled, logs, task, await sendersOf(url, compiled, logs));
-      const { worker, outcome, problems } = judge(found);
-      if (worker !== rec.work.worker || !Object.hasOwn(ENTRY, outcome) || problems.length) continue;
+      const found = stepsOf(compiled, logs, task);
+      const judged = judge(found);
+      if (judged.worker !== rec.work.worker || !entryOf(judged) || judged.problems.length) continue;
       const settledAt = await blockTime(url, found.steps.at(-1).block);
       const age = Math.max(fin.time, registryTime) - settledAt;
       if (isDue(settledAt, fin.time, registryTime)) {
         failures++;
-        line("FAIL", `task ${task} at ${pinned.contract} (${outcome})`, [`no entry from the writer, ${duration(age)} past the terminal step`]);
-      } else line("wait", `task ${task} at ${pinned.contract} (${outcome})`, [`terminal step ${duration(age)} ago; the entry is due in ${duration(DUE_SECONDS - age)}`]);
+        line("FAIL", `task ${task} at ${pinned.contract} (${outcomeLabel(judged)})`, [`no entry from the writer, ${duration(age)} past the terminal step`]);
+      } else line("wait", `task ${task} at ${pinned.contract} (${outcomeLabel(judged)})`, [`terminal step ${duration(age)} ago; the entry is due in ${duration(DUE_SECONDS - age)}`]);
     }
   }
   return failures;
@@ -615,7 +632,7 @@ async function vectors(o) {
       if (found.settled && found.steps.some((s) => s.step === "funded")) errors.push(...(await fundsErrors(url, source, found)));
     }
     if (errors.length) failures++;
-    line(errors.length ? "FAIL" : "ok", `${v.name}${url ? " (verified on chain)" : ""}`, errors.length ? errors : [out.outcome]);
+    line(errors.length ? "FAIL" : "ok", `${v.name}${url ? " (verified on chain)" : ""}`, errors.length ? errors : [outcomeLabel(out)]);
   }
   if (failures) console.error(`${failures} ${failures === 1 ? "vector" : "vectors"} failed`);
   else console.log(`all ${file.valid.length} vectors pass; the ${file.invalid.length} invalid cases run in test.mjs`);

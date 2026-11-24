@@ -8,7 +8,8 @@ import test from "node:test";
 import {
   buildRecord, canonical, checkRecord, checksum, compileSource, createdAtProblem, dataUriBytes, decodeWorkers,
   diffSteps, dropLate, encodeCall, findDuplicates, giveFeedbackCalldata, hexToBytes, indexGaps, isDue, judge, keccak256,
-  otherAgents, parseAddress, parseEvent, readFile, stepsOf, taskKey, TRANSFER_TOPIC, unbackedTransfers, validCreatedAt,
+  moneyTasks, otherAgents, parseAddress, parseEvent, readFile, stepsOf, taskKey, TRANSFER_TOPIC, unbackedTransfers,
+  validCreatedAt,
 } from "./work-records.mjs";
 
 const vectors = JSON.parse(readFileSync(new URL("vectors.json", import.meta.url), "utf8"));
@@ -62,9 +63,15 @@ test("descriptors compile; broken ones are refused", () => {
   assert.throws(mutate((d) => d.events.push(structuredClone(d.events[0]))), /declared twice/);
   assert.throws(mutate((d) => delete d.fromBlock), /fromBlock/);
   assert.throws(mutate((d) => (d.events[1].actor = "client")), /actor/);
+  assert.throws(mutate((d) => (d.events[4].actor = "worker")), /maps no worker/);
+  assert.throws(mutate((d) => (d.vault = d.contract.toLowerCase())), /vault must be an ERC-55 checksummed address/);
+  assert.throws(mutate((d) => (d.vault = "vaultOf(address)")), /vault must be/);
+  assert.throws(mutate((d) => (d.vault = 1)), /vault must be/);
   assert.throws(mutate((d) => (d.events[0].feeIncluded = true)), /feeIncluded/);
   assert.throws(mutate((d) => (d.finality = 0)), /finality/);
   compileSource({ ...structuredClone(mainnet), finality: 12 });
+  compileSource({ ...structuredClone(mainnet), vault: "vaultOf(uint256)" });
+  compileSource({ ...structuredClone(mainnet), vault: checksum("0x000000000000000000000000000000000000fa17") });
 });
 
 for (const v of vectors.valid) {
@@ -121,12 +128,14 @@ test("a file that is not canonical, or whose hash or URI is wrong, is refused", 
 
 // A minimal source whose worker accepts tasks on chain, for the rules the BrainChain board does not exercise.
 const W = "0x00000000000000000000000000000000000000aa";
+const X = "0x00000000000000000000000000000000000000bb";
 const C = "0x00000000000000000000000000000000000000cc";
 const toy = {
   chainId: 1, contract: checksum("0x000000000000000000000000000000000000beef"), asset: `eip155:1/erc20:${checksum("0x000000000000000000000000000000000000c0de")}`, fromBlock: 1, finality: "finalized",
   events: [
     { step: "funded", event: "Funded(uint256 indexed task, address indexed client, uint256 amount)", fields: { task: "task", client: "client", amount: "amount" } },
     { step: "assigned", event: "Accepted(uint256 indexed task, address indexed worker)", fields: { task: "task", worker: "worker" }, actor: "worker" },
+    { step: "assigned", event: "Hired(uint256 indexed task, address indexed worker)", fields: { task: "task", worker: "worker" } },
     { step: "delivered", event: "Delivered(uint256 indexed task, address indexed worker, bytes32 result)", fields: { task: "task", worker: "worker", result: "result" }, actor: "worker" },
     { step: "verdict", event: "Verdict(uint256 indexed task, address indexed evaluator, bool accepted, bytes32 ref)", fields: { task: "task", accepted: "accepted", evaluator: "evaluator", ref: "ref" } },
     { step: "verdict", event: "Approved(uint256 indexed task, uint256 ref)", fields: { task: "task", accepted: true, ref: "ref" } },
@@ -143,23 +152,67 @@ function log(step, extra, data, tx = `t${++n}`) {
   return { address: toy.contract, blockNumber: n, logIndex: 0, transactionHash: t32(BigInt(keccak256(tx))), topics: [topicOf(step), t32(7), ...extra.map(t32)], data: "0x" + data.map(w32).join("") };
 }
 const funded = () => log("funded", [C], [1000]);
-const taken = () => log("assigned", [W], []);
+const taken = (who = W) => log("assigned", [who], []);
+const hired = (who = W) => log("Hired", [who], []);
 const delivered = () => log("delivered", [W], [1]);
 const verdict = (ok) => log("verdict", [C], [ok ? 1 : 0, 0]);
 const paid = (amount = 1000) => log("paid", [W], [amount]);
 const refunded = () => log("refunded", [C], [1000]);
 const approved = () => log("Approved", [], [0xea]);
 const disputed = () => log("challenge", [C], []);
-const sendersAll = (logs, from) => Object.fromEntries(logs.map((l) => [l.transactionHash, from]));
-const outcomeOf = (logs, from = W) => judge(stepsOf(compileSource(toy), logs, 7, sendersAll(logs, from)));
+const outcomeOf = (logs) => judge(stepsOf(compileSource(toy), logs, 7));
+const lapse = (logs) => {
+  const { outcome, lapsedAfter } = outcomeOf(logs);
+  return [outcome, lapsedAfter];
+};
 
-test("no forced zeros: undelivered needs an act the worker sent", () => {
-  const logs = [funded(), taken(), refunded()];
-  assert.equal(outcomeOf(logs, W).outcome, "undelivered");
-  assert.equal(outcomeOf(logs, C).outcome, "unstarted");
-  assert.equal(buildRecord({ source: toy, logs, task: 7, senders: sendersAll(logs, C), head: {} }).entry, null);
-  assert.equal(outcomeOf([funded(), taken(), verdict(false), refunded()], C).outcome, "unstarted");
-  assert.throws(() => stepsOf(compileSource(toy), logs, 7, {}), /sender/);
+test("no forced entries: a lapse before delivery needs the worker's own act, read from the event's worker field", () => {
+  assert.deepEqual(lapse([funded(), taken(), refunded()]), ["lapsed", "assigned"]);
+  assert.equal(outcomeOf([funded(), hired(), refunded()]).outcome, "unstarted");
+  assert.equal(outcomeOf([funded(), hired(), verdict(false), refunded()]).outcome, "unstarted");
+  assert.equal(outcomeOf([funded(), taken(X), hired(W), refunded()]).outcome, "unstarted", "the act must be the task's worker's");
+  assert.equal(buildRecord({ source: toy, logs: [funded(), hired(), refunded()], task: 7, head: {} }).entry, null);
+  const steps = stepsOf(compileSource(toy), [funded(), taken(), refunded()], 7).steps;
+  assert.ok(steps.every((step) => !("sender" in step)), "no transaction sender is read or recorded");
+});
+
+test("a lapsed task takes a work.lapsed entry, named by the step it lapsed after", () => {
+  const logs = [funded(), taken(), delivered(), refunded()];
+  const out = buildRecord({ source: toy, logs, task: 7, head: vectors.valid[0].head });
+  assert.deepEqual({ tag1: out.entry.tag1, tag2: out.entry.tag2, value: out.entry.value }, { tag1: "work.lapsed", tag2: "delivered", value: 0 });
+  assert.equal(out.record.work.outcome, "lapsed");
+  assert.equal(buildRecord({ source: toy, logs: [funded(), taken(), refunded()], task: 7, head: vectors.valid[0].head }).entry.tag2, "assigned");
+  const rec = readFile(dataUriBytes(out.entry.feedbackURI), out.entry.feedbackHash);
+  assert.deepEqual(checkRecord(rec, { pinned: toy, logs }).errors, []);
+  assert.match(checkRecord({ ...rec, tag2: "assigned" }, { pinned: toy, logs }).errors.join(), /lapsed after delivered, the record says assigned/);
+  const asRejection = canonical({ ...rec, tag1: "work.outcome", tag2: "rejected" });
+  assert.throws(() => readFile(new TextEncoder().encode(asRejection), keccak256(asRejection)), /do not follow the profile/);
+  assert.equal(outcomeOf([funded(), taken(), delivered(), verdict(false), refunded()]).outcome, "rejected");
+});
+
+test("a step carries no sender field", () => {
+  const rec = JSON.parse(vectors.valid[0].expect.file);
+  rec.work.steps[2].sender = checksum("0x" + "11".repeat(20));
+  const text = canonical(rec);
+  assert.throws(() => readFile(new TextEncoder().encode(text), keccak256(text)), /delivered step has a field this profile does not define: sender/);
+});
+
+test("a vault the descriptor names holds the money: transfers are checked to and from it", () => {
+  const V = checksum("0x000000000000000000000000000000000000fa17");
+  const asset = toy.asset.split(":").at(-1);
+  const transfer = (from, to) => ({ address: asset, logIndex: 0, topics: [TRANSFER_TOPIC, t32(from), t32(to)], data: "0x" + w32(1000) });
+  const fund = { ...funded(), logIndex: 1 };
+  const refund = { ...refunded(), logIndex: 1 };
+  const fixed = compileSource({ ...toy, vault: V });
+  assert.deepEqual(unbackedTransfers(fixed, { logs: [transfer(C, V), fund] }), []);
+  assert.deepEqual(unbackedTransfers(fixed, { logs: [transfer(V, C), refund] }), []);
+  assert.equal(unbackedTransfers(fixed, { logs: [transfer(C, toy.contract), fund] }).length, 1);
+  assert.deepEqual(unbackedTransfers(compileSource(toy), { logs: [transfer(C, toy.contract), fund] }), [], "without a vault, the source");
+  const getter = compileSource({ ...toy, vault: "vaultOf(uint256)" });
+  assert.deepEqual(moneyTasks(getter, { logs: [transfer(C, V), fund, { ...taken(), logIndex: 2 }] }), [7n]);
+  assert.deepEqual(unbackedTransfers(getter, { logs: [transfer(C, V), fund] }, new Map([[7n, V]])), []);
+  assert.equal(unbackedTransfers(getter, { logs: [transfer(C, toy.contract), fund] }, new Map([[7n, V]])).length, 1);
+  assert.throws(() => unbackedTransfers(getter, { logs: [fund] }), /vault of task 7 is needed/);
 });
 
 test("each Transfer log backs one step, across every task in the transaction", () => {
@@ -176,7 +229,7 @@ test("each Transfer log backs one step, across every task in the transaction", (
 
 test("resubmission: the last verdict after the last delivery decides", () => {
   assert.equal(outcomeOf([funded(), taken(), delivered(), verdict(false), delivered(), verdict(true), paid()]).outcome, "accepted");
-  assert.equal(outcomeOf([funded(), taken(), delivered(), verdict(true), delivered(), refunded()]).outcome, "unevaluated");
+  assert.deepEqual(lapse([funded(), taken(), delivered(), verdict(true), delivered(), refunded()]), ["lapsed", "delivered"]);
 });
 
 test("amounts and terminal steps", () => {
@@ -188,7 +241,7 @@ test("amounts and terminal steps", () => {
 
 test("a literal accepted is written into the step, and ref is the 32-byte word", () => {
   const logs = [funded(), delivered(), approved(), paid()];
-  const found = stepsOf(compileSource(toy), logs, 7, sendersAll(logs, W));
+  const found = stepsOf(compileSource(toy), logs, 7);
   const step = found.steps.find((x) => x.step === "verdict");
   assert.equal(step.accepted, true);
   assert.equal(step.ref, "0x" + "ea".padStart(64, "0"));
@@ -205,7 +258,7 @@ test("a challenge with no later verdict leaves the challenged verdict standing",
 test("a log that does not match its declared event makes the task inconsistent", () => {
   const extra = { ...verdict(true), topics: [...verdict(true).topics, t32(1)] };
   const logs = [funded(), delivered(), extra, paid()];
-  assert.match(judge(stepsOf(compileSource(toy), logs, 7, sendersAll(logs, W))).problems.join(), /does not match its declared event/);
+  assert.match(judge(stepsOf(compileSource(toy), logs, 7)).problems.join(), /does not match its declared event/);
 });
 
 test("a source that stops producing blocks still lets tasks fall due", () => {
@@ -215,7 +268,7 @@ test("a source that stops producing blocks still lets tasks fall due", () => {
 
 test("late logs: a declared log after the entry does not count against the writer", () => {
   const logs = [funded(), delivered(), verdict(true), paid(), verdict(false)];
-  const found = stepsOf(compileSource(toy), logs, 7, sendersAll(logs, W));
+  const found = stepsOf(compileSource(toy), logs, 7);
   assert.match(judge(found).problems.join(), /after the terminal transaction/);
   const late = logs.at(-1).blockNumber;
   assert.deepEqual(judge(dropLate(found, (b) => b >= late)).problems, []);
