@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Independent read test for the draft ERC "Policy-Enforced Agent Accounts". Uses only this library, a
+// Independent read test for ERC-8511 "Policy-Enforced Agent Accounts" (draft). Uses only this library, a
 // public RPC and the chain: no Palisec API, no API key, no private key. The policy document is fetched
 // from the policyURI the chain points to, and must hash to the committed policyHash.
 //
