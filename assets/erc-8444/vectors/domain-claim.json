@@ -1,0 +1,18 @@
+{
+  "description": "EIP-712 DomainClaim(string domain,address controller,uint256 nonce,uint256 deadline) under domain {name:\"ARD Onchain Registry\",version:\"1\"}. The Solidity test deploys the registry at verifyingContract on chainId and submits the signature through claimDomainBySig.",
+  "chainId": 11155111,
+  "verifyingContract": "0x1111111111111111111111111111111111111111",
+  "privateKey": "0x00000000000000000000000000000000000000000000000000000000000a11ce",
+  "claim": {
+    "domain": "alice.example",
+    "controller": "0xe05fcC23807536bEe418f142D19fa0d21BB0cfF7",
+    "nonce": 0,
+    "deadline": 1800000000
+  },
+  "domainHash": "0xd94dcba65ee46b0c774ec85ff2be239f8804d9baabc4179270b1bd4ce2b0f7a7",
+  "domainSeparator": "0xec5831d04515ab1995eebc8bbec08d8148a53409f71b9ecf675314f4984a77f3",
+  "typeHash": "0x71105fff4878e24d184c15b1ff52740495db3e91040fe5acf0f667c43b3b7859",
+  "structHash": "0xd5fc7c7976d4c81c60f792a00d8b43a9c1ffa3d7eda855af2bab488b6d8f8ba0",
+  "digest": "0x238311c40bc07599d7364142ccc7591b5a8d00af5da9575d2260595a6ef385a4",
+  "signature": "0x24e212617b31874c2cd8cc233f3fafbec367c7c0f88c9de5312ec7e78f0287181035daf9fd426a0b7dbf82d0b8ccec72c06329e70ede835e54e4f8aba640870a1c"
+}

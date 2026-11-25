@@ -29,13 +29,22 @@ pub global DOMAIN_LEAF_VALUE: Field = 0x4d4b4c5f56414c; // ASCII "MKL_VAL"
 /// pass 0 when tree privacy is not required (e.g. published sanctions lists).
 pub global DOMAIN_LEAF_SUBJECT: Field = 0x4d4b4c5f535542; // ASCII "MKL_SUB"
 
-/// Domain tag for the provider-signed-signals payload hash:
-/// H(tag, provider_set_hash, signals[..], weights[..], timestamp, submitter).
-/// Used by the COMPLIANCE_SIGNED / RISK_SCORE_SIGNED circuits (audit finding I-1).
+/// Domain tag for the COMPLIANCE_SIGNED (0x07) provider-signed-signals payload hash:
+/// H(tag, chain_id, oracle_address, provider_set_hash, signals[..], weights[..], timestamp, submitter).
 /// The hash is the message that the provider's authorized signer signs over via
 /// secp256k1 ECDSA; the circuit verifies the signature in-circuit so the signals
-/// the prover discloses privately are anchored to a real provider attestation.
+/// the prover discloses privately are anchored to a real provider attestation
+/// (audit finding I-1).
+///
+/// Every signed proof type MUST use its own tag (see `sig::compute_signed_payload_hash`):
+/// the tag is what binds a signature to one proof type, so a bundle signed for one
+/// type cannot satisfy another.
 pub global DOMAIN_SIGNED_SIGNALS: Field = 0x5349475f53494753; // ASCII "SIG_SIGS"
+
+/// Domain tag for the RISK_SCORE_SIGNED (0x08) payload hash. Same layout as
+/// DOMAIN_SIGNED_SIGNALS; distinct so a 0x07 signature cannot satisfy 0x08 (or the
+/// reverse).
+pub global DOMAIN_RISK_SIGNED_SIGNALS: Field = 0x52534b5f53494753; // ASCII "RSK_SIGS"
 
 /// Hash two siblings under the internal-node domain.
 pub fn internal_hash(left: Field, right: Field) -> Field {
