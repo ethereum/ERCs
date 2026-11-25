@@ -1,4 +1,5 @@
 ---
+eip: 8517
 title: Post-Quantum Validator Key Derivation
 description: Hierarchical derivation of the leanXMSS and VRF seeds of Ethereum validators from a mnemonic
 author: Manu Nalepa (@nalepae)
