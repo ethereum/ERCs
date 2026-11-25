@@ -1,0 +1,22 @@
+{
+  "chainId": 11155111,
+  "account": "0x000000000000000000000000000000000000a6e7",
+  "accountRef": "eip155:11155111:0x000000000000000000000000000000000000a6e7",
+  "subjectKey": "0x6b2705e9928112a88838b860ee655bb520ce8daaddfc13a7c86b3dce9d1f0aa5",
+  "refScope": {
+    "object": {
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000a11ce"
+    },
+    "jcs": "{\"ref\":\"eip155:11155111:0x00000000000000000000000000000000000a11ce\"}",
+    "scopeKey": "0xec1e6882a693a6002b29959105b68efe6dcb7e8e25b8568874054c0f0294b01b"
+  },
+  "richScope": {
+    "object": {
+      "task": "x:task-tender:eip155:11155111:0x0000000000000000000000000000000000007a5c:17",
+      "phase": "execution"
+    },
+    "jcs": "{\"phase\":\"execution\",\"task\":\"x:task-tender:eip155:11155111:0x0000000000000000000000000000000000007a5c:17\"}",
+    "scopeKey": "0x045b0f249b8616b9027a0d0589d5b84c2b6d16127853a2db940d1e6c1c264e18"
+  },
+  "note": "subjectKey = keccak256(UTF-8(ref)); scopeKey = keccak256(UTF-8(JCS(scope object))). The one-member {\"ref\": ...} form is derivable on chain by ASFKeys.refScopeKey."
+}

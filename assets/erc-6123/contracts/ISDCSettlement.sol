@@ -33,7 +33,7 @@ interface ISDCSettlement {
      * @param lastSettlementData holding the settlementData from the previous settlement (next settlement will be the increment of next valuation compared to former valuation).
      *     May also hold additional specification for the settlement (e.g., updated margin buffer values)
      */
-    event SettlementRequested(address initiator, string tradeData, string lastSettlementData);
+    event SettlementRequested(address indexed initiator, string tradeData, string lastSettlementData);
 
     /**
      * @dev Emitted when Settlement has been valued and settlement phase is initiated.
@@ -45,21 +45,21 @@ interface ISDCSettlement {
      *     May also hold additional specification of the next settlement phase (e.g. updates to the margin buffers).
      *     Determines the value of lastSettlementData in the next emittance of {SettlementRequested}.
      */
-    event SettlementDetermined(address initiator, int256 settlementAmount, string settlementData);
+    event SettlementDetermined(address indexed initiator, int256 settlementAmount, string settlementData);
 
     /**
      * @dev Emitted when settlement process has been finished
      * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event SettlementTransferred(uint256 transactionID, string transactionData);
+    event SettlementTransferred(uint256 indexed transactionID, string transactionData);
 
     /**
      * @dev Emitted when settlement process has been finished
      * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event SettlementFailed(uint256 transactionID, string transactionData);
+    event SettlementFailed(uint256 indexed transactionID, string transactionData);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 

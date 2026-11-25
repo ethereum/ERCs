@@ -1,0 +1,148 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.sealed-bid-tender",
+  "version": "1.0.0",
+  "title": "Sealed-bid tender: demand-side broadcast plus commit-reveal intake",
+  "labels": [
+    "aifp:paradigm/source/v1",
+    "aifp:paradigm/intake/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "fan-out",
+    "fan-in"
+  ],
+  "cardinality": {
+    "contributors": "single",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "collector-only",
+      "submissionVisibility": "collector-only",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish",
+        "submit"
+      ],
+      "acquisition": "predicate",
+      "transferable": false,
+      "expiry": "fixed"
+    },
+    "management": {
+      "admission": [
+        "protocol"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "none"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "protocol"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": false,
+      "derive": false,
+      "publishElsewhere": false
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "request-response",
+      "delivery": [
+        "push",
+        "pull"
+      ],
+      "batching": "epoch",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "commit-reveal",
+    "contributorVisibility": "per-audience",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "observe": {
+      "open": true
+    },
+    "submit": {
+      "allOf": [
+        {
+          "credential": {
+            "verifier": "0x0000000000000000000000000000000000000001",
+            "scheme": "0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764",
+            "minLevel": 2,
+            "proofMode": "proved",
+            "freshnessSeconds": 86400
+          }
+        },
+        {
+          "stake": {
+            "verifier": "0x0000000000000000000000000000000000000005",
+            "chain": "eip155:11155111",
+            "contract": "0x0000000000000000000000000000000000000005",
+            "asset": "native",
+            "minAmount": "1000000000000000",
+            "period": "lockup"
+          }
+        }
+      ]
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association",
+      "push",
+      "pull",
+      "delivery-records",
+      "total-order"
+    ]
+  },
+  "extensions": {
+    "economic": {
+      "profile": "bounty",
+      "chain": "eip155:11155111",
+      "contract": "0x0000000000000000000000000000000000000005",
+      "asset": "native",
+      "subject": "channel",
+      "amountOrThreshold": "1000000000000000",
+      "period": "until-settlement",
+      "verifier": "0x0000000000000000000000000000000000000005"
+    }
+  }
+}

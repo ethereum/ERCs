@@ -1,0 +1,22 @@
+{
+  "schema": "amm.layer.cognition/1",
+  "layer": 3,
+  "revision": "2026-10-20",
+  "selfModel": {
+    "capabilities": ["fulfil tenders bound to tender-worker 1.x", "publish rpc observations every 10 minutes"],
+    "limits": ["no access to private endpoints", "single model backend"],
+    "resources": ["sepolia rpc", "tooling.example/mcp"],
+    "applicability": ["tasks whose acceptance is machine-verifiable"]
+  },
+  "assumptions": [
+    {"id": "timeout-means-failure", "statement": "a request timeout means the operation failed", "status": "held", "evidence": []},
+    {"id": "rpc-finality", "statement": "an rpc receipt after 2 confirmations is final for observation purposes", "status": "held", "evidence": ["case-2026-10-22-a"]}
+  ],
+  "judgmentStrategies": [
+    {"id": "retry-on-timeout", "rule": "on timeout, resubmit the request up to 3 times", "status": "adopted"}
+  ],
+  "reflectionMethods": [
+    {"id": "case-replay", "description": "replay recorded failures against a candidate strategy and count improved outcomes", "version": 1}
+  ],
+  "policyRef": {"policyHash": "0x5e1f0d0c0b0a09080706050403020100f1e2d3c4b5a697887968594a3b2c1d0e", "version": 1}
+}

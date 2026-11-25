@@ -1,0 +1,102 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.blind-review",
+  "version": "1.0.0",
+  "title": "Blind review: reviewers submit opinions that only the collector reads",
+  "labels": [
+    "aifp:paradigm/intake/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "fan-in"
+  ],
+  "cardinality": {
+    "contributors": "roster",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "directed",
+    "observation": {
+      "readScope": "collector-only",
+      "submissionVisibility": "collector-only",
+      "payloadProtection": "e2ee",
+      "metadataProtection": "partial"
+    },
+    "contribution": {
+      "actions": [
+        "submit"
+      ],
+      "acquisition": "manager",
+      "transferable": false,
+      "expiry": "fixed"
+    },
+    "management": {
+      "admission": [
+        "moderator"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "none"
+      ],
+      "rules": [
+        "moderator"
+      ],
+      "disclosure": [
+        "moderator"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": false,
+      "derive": true,
+      "publishElsewhere": false
+    },
+    "history": {
+      "lateJoiner": "none",
+      "retention": "bounded",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "none",
+      "delivery": [
+        "push"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "scheduled",
+    "contributorVisibility": "anonymous-qualified",
+    "admissionBasis": [
+      "referral"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "payload-protection",
+      "membership-privacy",
+      "delivery-records"
+    ]
+  }
+}

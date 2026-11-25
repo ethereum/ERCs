@@ -29,8 +29,8 @@ pragma solidity ^0.8.19;
 interface IXMLRepresentableState {
     /**
      * @notice Returns the XML template string, using a dedicated namespace for bindings.
-     * @dev must return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
-     *      Implementations should make this string independent of mutable contract state
+     * @dev MUST return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
+     *      Implementations SHOULD make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      */
     function stateXmlTemplate() external view returns (string memory);
@@ -39,7 +39,8 @@ interface IXMLRepresentableState {
 /**
  * @title XML Representable State (partial) interface
  * @notice Optional extension exposing partial XML templates for selected views of the state.
- * @dev The meaning of partId is contract-specific or defined by higher-level standards.
+ * @dev The meaning of partId is contract-specific or defined by higher-level standards
+ *      (e.g. “settlement context” for ERC-6123).
  *
  *      Implementations of this interface alone are NOT required to be XML-complete:
  *      a contract may expose only partial views of its state without providing a
@@ -48,8 +49,8 @@ interface IXMLRepresentableState {
 interface IXMLRepresentableStatePart {
     /**
      * @notice Returns the XML template string for a particular partial state view.
-     * @dev must return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
-     *      Implementations should make this string independent of mutable contract state
+     * @dev MUST return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
+     *      Implementations SHOULD make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      *
      * @param partId Contract-specific identifier of the partial view.
@@ -68,11 +69,11 @@ interface IXMLRepresentableStatePart {
  *      analogous to the XML case.
  *
  *      In the context of this ERC, a contract that implements this interface and claims
- *      compliance as a "JSON-complete" contract must ensure that the JSON obtained from
+ *      compliance as a "JSON-complete" contract MUST ensure that the JSON obtained from
  *      this template (together with its bindings) is sufficient to reconstruct the full
  *      contract state that is relevant for off-chain decisions at a given block.
  *
- *      Contracts that cannot make a JSON-completeness guarantee should implement only
+ *      Contracts that cannot make a JSON-completeness guarantee SHOULD implement only
  *      IJSONRepresentableStatePart (and not this interface) if they wish to expose
  *      partial JSON views of their state.
  * @author Christian Fries
@@ -80,7 +81,7 @@ interface IXMLRepresentableStatePart {
 interface IJSONRepresentableState {
     /**
      * @notice Returns the JSON template string.
-     * @dev must return a well-formed JSON document in UTF-8 encoding.
+     * @dev MUST return a well-formed JSON document in UTF-8 encoding.
      *      Implementations should make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      */
@@ -99,7 +100,7 @@ interface IJSONRepresentableState {
 interface IJSONRepresentableStatePart {
     /**
      * @notice Returns the JSON template string for a particular partial state view.
-     * @dev must return a well-formed JSON document in UTF-8 encoding.
+     * @dev MUST return a well-formed JSON document in UTF-8 encoding.
      *      Implementations should make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      *
@@ -121,9 +122,9 @@ interface IRepresentableStateVersioned {
     /**
      * @notice Monotonically increasing version of the representable state.
      * @dev Implementations should increment this whenever any mutable state that participates
-     *      in the representation changes. It may start at 0.
+     *      in the representation changes. It MAY start at 0.
      *
-     *      Off-chain tools may use this to:
+     *      Off-chain tools MAY use this to:
      *        - cache rendered XML/JSON and skip recomputation if the version is unchanged;
      *        - provide a simple ordering of state changes.
      */
