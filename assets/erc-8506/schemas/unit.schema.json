@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8506/schemas/unit.schema.json",
+  "title": "AITO Unit",
+  "description": "What is counted, and how.",
+  "type": "object",
+  "required": [
+    "aito",
+    "kind",
+    "quantityKind",
+    "basis",
+    "denomination",
+    "components",
+    "boundary",
+    "precision",
+    "rounding"
+  ],
+  "properties": {
+    "aito": {
+      "const": "1",
+      "description": "Record format version."
+    },
+    "kind": {
+      "const": "unit"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/bytes32",
+      "description": "Identifier of the record this one replaces."
+    },
+    "quantityKind": {
+      "type": "string",
+      "description": "Nature of the quantity: inference-usage, compute-time, energy, outcome-count, or another declared kind."
+    },
+    "modality": {
+      "type": "string",
+      "description": "For inference usage: text, image, audio, video, action, multimodal, or another declared modality."
+    },
+    "basis": {
+      "type": "string",
+      "description": "What is counted, in which system and under which counting rule."
+    },
+    "denomination": {
+      "type": "string",
+      "description": "What one denomination unit stands for."
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{1,31}$"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "relations": {
+      "type": "array",
+      "description": "Required when there is more than one component.",
+      "items": {
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "relation"
+        ],
+        "properties": {
+          "a": {
+            "type": "string"
+          },
+          "b": {
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "includes",
+              "disjoint",
+              "additive"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "scope"
+      ],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "description": "request, session, or another declared scope."
+        },
+        "counted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notCounted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "precision": {
+      "$ref": "#/$defs/decimal",
+      "description": "Smallest counted amount of a component."
+    },
+    "rounding": {
+      "enum": [
+        "up",
+        "down"
+      ]
+    },
+    "counterRef": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "digest": {
+          "$ref": "#/$defs/bytes32"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Tokenizer or counting program. Required for text inference."
+    }
+  },
+  "allOf": [
+    {
+      "description": "A Unit of inference usage states its modality.",
+      "if": {
+        "properties": {
+          "quantityKind": {
+            "const": "inference-usage"
+          }
+        },
+        "required": [
+          "quantityKind"
+        ]
+      },
+      "then": {
+        "required": [
+          "modality"
+        ]
+      }
+    },
+    {
+      "description": "A Unit of text inference names its tokenizer or counting program.",
+      "if": {
+        "properties": {
+          "modality": {
+            "const": "text"
+          }
+        },
+        "required": [
+          "modality"
+        ]
+      },
+      "then": {
+        "required": [
+          "counterRef"
+        ]
+      }
+    },
+    {
+      "description": "With more than one component, every pair that could overlap has a stated relation.",
+      "if": {
+        "properties": {
+          "components": {
+            "minItems": 2
+          }
+        },
+        "required": [
+          "components"
+        ]
+      },
+      "then": {
+        "required": [
+          "relations"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "account": {
+      "type": "string",
+      "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$",
+      "description": "CAIP-10 account identifier."
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+      "description": "A non-negative decimal written as a string. Records carry no floating-point numbers."
+    },
+    "integer": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "undeclared": {
+      "const": "undeclared"
+    }
+  }
+}

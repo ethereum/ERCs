@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finchip.ai/schemas/aifp/predicate.schema.json",
+  "title": "AIFP Predicate v1",
+  "description": "A role acquisition predicate. Exactly one key. Composites take non-empty lists. The ABI form is abi.encode(Node[]) with breadth-first allocation of child blocks; predicateHash = keccak256 of that encoding.",
+  "type": "object",
+  "minProperties": 1,
+  "maxProperties": 1,
+  "additionalProperties": false,
+  "properties": {
+    "open": { "const": true },
+    "allowlist": {
+      "type": "object", "additionalProperties": false, "required": ["set"],
+      "properties": { "set": { "$ref": "#/$defs/address" } }
+    },
+    "external": {
+      "type": "object", "additionalProperties": false, "required": ["verifier"],
+      "properties": {
+        "verifier": { "$ref": "#/$defs/address" },
+        "ref": { "$ref": "#/$defs/bytes32" },
+        "params": { "$ref": "#/$defs/hex" }
+      }
+    },
+    "credential": {
+      "type": "object", "additionalProperties": false, "required": ["verifier", "scheme", "minLevel", "proofMode"],
+      "properties": {
+        "verifier": { "$ref": "#/$defs/address" },
+        "scheme": { "$ref": "#/$defs/bytes32", "description": "Scheme identifier of the credential system (for example a KYA scheme id); becomes the node ref." },
+        "minLevel": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "proofMode": { "enum": ["attested", "proved"] },
+        "freshnessSeconds": { "type": "integer", "minimum": 0 },
+        "issuers": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/address" } }
+      }
+    },
+    "stake": {
+      "type": "object", "additionalProperties": false, "required": ["verifier", "chain", "contract", "asset", "minAmount", "period"],
+      "properties": {
+        "verifier": { "$ref": "#/$defs/address" },
+        "chain": { "type": "string", "pattern": "^eip155:[0-9]+$" },
+        "contract": { "$ref": "#/$defs/address" },
+        "asset": { "type": "string", "pattern": "^(native|0x[0-9a-f]{40})$" },
+        "minAmount": { "type": "string", "pattern": "^[0-9]+$" },
+        "period": { "enum": ["active", "epoch", "lockup"] }
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["verifier", "registry", "requiredState"],
+      "properties": {
+        "verifier": { "$ref": "#/$defs/address" },
+        "registry": { "$ref": "#/$defs/address" },
+        "requiredState": { "enum": ["registered", "active", "bound"] }
+      }
+    },
+    "member": {
+      "type": "object", "additionalProperties": false, "required": ["verifier", "group"],
+      "properties": {
+        "verifier": { "$ref": "#/$defs/address" },
+        "group": { "$ref": "#/$defs/bytes32" }
+      }
+    },
+    "decision": {
+      "type": "object", "additionalProperties": false, "required": ["verifier", "decision"],
+      "properties": {
+        "verifier": { "$ref": "#/$defs/address" },
+        "decision": { "$ref": "#/$defs/bytes32" }
+      }
+    },
+    "allOf": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#" } },
+    "anyOf": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#" } }
+  },
+  "$defs": {
+    "address": { "type": "string", "pattern": "^0x[0-9a-f]{40}$" },
+    "bytes32": { "type": "string", "pattern": "^0x[0-9a-f]{64}$" },
+    "hex": { "type": "string", "pattern": "^0x([0-9a-f]{2})*$" }
+  }
+}

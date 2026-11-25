@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8506/schemas/terms.schema.json",
+  "title": "AITO Terms",
+  "description": "The terms of a series that its home ledger does not enforce by itself.",
+  "type": "object",
+  "required": [
+    "aito",
+    "kind",
+    "profile",
+    "denomination",
+    "quantity",
+    "time",
+    "transferRule",
+    "issuanceRule",
+    "consumptionRule",
+    "outcomeCharging",
+    "substitutionPolicy",
+    "remedies",
+    "extensions"
+  ],
+  "properties": {
+    "aito": {
+      "const": "1",
+      "description": "Record format version."
+    },
+    "kind": {
+      "const": "terms"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/bytes32",
+      "description": "Identifier of the record this one replaces."
+    },
+    "profile": {
+      "type": "string",
+      "description": "stock-quota, periodic-allowance, reserved-capacity, or another declared profile."
+    },
+    "denomination": {
+      "type": "string"
+    },
+    "quantity": {
+      "type": "object",
+      "required": [
+        "form"
+      ]
+    },
+    "time": {
+      "type": "object",
+      "required": [
+        "validFrom",
+        "validUntil",
+        "period",
+        "reservation"
+      ]
+    },
+    "transferRule": {
+      "type": "object",
+      "required": [
+        "transferable"
+      ]
+    },
+    "issuanceRule": {
+      "type": "object",
+      "required": [
+        "mechanisms"
+      ]
+    },
+    "consumptionRule": {
+      "type": "object",
+      "required": [
+        "authorizedBy",
+        "heldBy",
+        "metering",
+        "acceptance"
+      ]
+    },
+    "outcomeCharging": {
+      "type": "object",
+      "required": [
+        "completed",
+        "partial",
+        "refused",
+        "timedOut",
+        "cancelledByConsumer",
+        "providerError"
+      ]
+    },
+    "substitutionPolicy": {
+      "type": "object",
+      "required": [
+        "allowed"
+      ]
+    },
+    "remedies": {
+      "type": "object",
+      "required": [
+        "onExpiry",
+        "onSupplyFailure"
+      ]
+    },
+    "extensions": {
+      "type": "array",
+      "description": "Extensions of the terms, in the order they appear on chain. May be empty, but must be present.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "critical"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/bytes32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "critical": {
+            "type": "boolean",
+            "description": "True when a party that does not understand the extension must not operate on the series."
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "uri": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "account": {
+      "type": "string",
+      "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$",
+      "description": "CAIP-10 account identifier."
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+      "description": "A non-negative decimal written as a string. Records carry no floating-point numbers."
+    },
+    "integer": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "undeclared": {
+      "const": "undeclared"
+    }
+  }
+}

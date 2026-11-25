@@ -1,0 +1,31 @@
+{
+  "kind": "adrf-finding",
+  "adrf": "0.1",
+  "caseId": "0x4f1690c036082cbbb0ee9dc1c4f7a5fb954c2d832cfd30103cf66baacaea13c8",
+  "subQuestion": 0,
+  "round": 1,
+  "proposition": "0xfd722fd37302b6cb9257f5d2c9905ba4285366459d2d892ddbe450d1ca3b9bcf",
+  "statement": "Settlement 2 of call 17 in the escrow exceeds the limit of one charge.",
+  "value": "TRUE",
+  "method": {
+    "address": "0x0000000000000000000000000000000000000f01",
+    "qType": "FORMAL",
+    "version": "DuplicateSettlementVerifier v0.2 (one proposition per settlement)",
+    "params": "0x00000000000000000000000000000000000000000000000000000000000e5c20"
+  },
+  "inputs": {
+    "description": "abi.encode(uint256(17), uint32(2))",
+    "inputsHash": "0xa4e0f4432e44d027a7b3f953940f096bca7a9bd910297cad2ba7c703c2b799d3",
+    "resultHash": "0x7d5476a895f80ec0c85711cd0a9ba9f6fc28d224fb0c0548ae516394ad7f3708"
+  },
+  "dependsOn": [],
+  "externalPremises": [
+    "the ledger records every settlement of call 17"
+  ],
+  "acceptedBy": "0x0000000000000000000000000000000000000f01",
+  "supportKinds": [
+    "computed"
+  ],
+  "reason": "NONE",
+  "at": 1770010800
+}

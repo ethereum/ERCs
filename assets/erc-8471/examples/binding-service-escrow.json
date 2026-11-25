@@ -1,0 +1,93 @@
+{
+  "kind": "adrf-binding",
+  "adrf": "0.1",
+  "source": "0x00000000000000000000000000000000000e5c20",
+  "sourceDescription": "ADRFServiceEscrow: obligation source and executor for its service calls",
+  "policyId": "0x076505a99575bf1006c28609b6391f465246b7ded55d7a0d4eace05767a1b1b4",
+  "scope": {
+    "kind": "any-object-of-source"
+  },
+  "mode": "PRE_COMMIT",
+  "authorizedEffects": [
+    {
+      "id": "0xe074020771795b0306209d2eb94e35a28bef8f823d7e65825aa3c0757e4626a9",
+      "label": "refund",
+      "authorityBasis": "the escrow holds the balances it moves"
+    },
+    {
+      "id": "0x227ba5e1bfc45ac9adbe773aa1a71a3937453a1ff3a6bb1660ed7138f9936edc",
+      "label": "fee-split",
+      "authorityBasis": "the escrow holds the fee balance"
+    }
+  ],
+  "executors": [
+    {
+      "account": "0x00000000000000000000000000000000000e5c20",
+      "role": "source and executor"
+    }
+  ],
+  "beneficiaries": [],
+  "openChallenge": false,
+  "downgradeOnClock": false,
+  "validUntil": 0,
+  "fundAuthorizations": [
+    {
+      "instrument": "escrow balances",
+      "limit": "the amount of the call",
+      "executor": "0x00000000000000000000000000000000000e5c20"
+    }
+  ],
+  "identitiesNote": "the client and the provider are plain accounts; no agent identity, task token or swarm is required to open, deliver, charge or dispute a call",
+  "clockRules": {
+    "clock": "mode=timestamp (the registry clock)",
+    "triggerEvents": [
+      {
+        "eventRef": "0x9828b053839bbaeed1683f291fc6c99a48b8408fcc960f74f269d0092c0b6b69",
+        "label": "settlement n of the call, n >= 2, eventRef = keccak256(abi.encode(keccak256(\"settlement\"), n)) (obligation: payment, kind limit; each charge beyond the first is its own event); shown for n = 2",
+        "obligationKind": 3
+      },
+      {
+        "eventRef": "0xbc06ebe2b69400cc4d7163a14266e22c11bda70a17e5b6e491931df471c7c597",
+        "label": "delivery of the call (obligation: delivery, kind result)",
+        "obligationKind": 1
+      }
+    ],
+    "adoptionDeadlineRule": "eventAt + the call dispute period; each settlement is held by the escrow until then and only released funds can be withdrawn; a case is admitted only if that deadline is at least maxTotalDuration + enactmentMargin away"
+  },
+  "noDecisionDisposition": {
+    "ref": "0x59908be9e0c8081b785a87a2710908bb7da46e4e05ccc715447f3e81156b386e",
+    "description": "balances stay where the call left them"
+  },
+  "recognizedBreaches": [
+    {
+      "event": "settlement n (n >= 2)",
+      "obligationKind": 3,
+      "proposition": "the duplicate-settlement verifier's proposition for (this escrow, the call, n)",
+      "breachWhen": "TRUE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the deliverable conforms to the acceptance criteria",
+      "breachWhen": "FALSE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the service was actually performed",
+      "breachWhen": "FALSE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the version actually used for the call matches the committed version",
+      "breachWhen": "FALSE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the declared-version verifier's proposition for (this escrow, the call)",
+      "breachWhen": "TRUE"
+    }
+  ]
+}
