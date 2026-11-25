@@ -1,0 +1,60 @@
+{
+  "description": "ERC-8342 invoice hash test vector. All uint256 values are decimal strings.",
+  "domain": {
+    "name": "VerifiableInvoiceCommitment",
+    "version": "1",
+    "chainId": 11155111,
+    "verifyingContract": "0xa8C5b7D5B413297343ca6CeCe3931F9770D7A2FD"
+  },
+  "encodeType": "Invoice(string invoiceId,uint256 issueDate,uint256 dueDate,string paymentTerms,string purchaseOrderRef,address issuer,TaxIdentity issuerTaxId,address recipient,TaxIdentity recipientTaxId,address paymentToken,uint256 paymentAmount,string fiatCurrency,uint256 fiatAmountMilliUnits,uint256 fxRateScaled,address fxOracle,uint256 fxTimestamp,TaxEntry[] taxes,LineItem[] lineItems,string jurisdiction,bytes regulatoryData,uint256 nonce)LineItem(string description,uint256 quantityScaled,string unit,uint256 unitPriceMilliUnits,uint256 lineTotalMilliUnits,uint256 taxRefIndex)TaxEntry(string taxType,string taxScheme,uint256 rateBps,uint256 baseAmountMilliUnits,uint256 taxAmountMilliUnits)TaxIdentity(string scheme,string id)",
+  "invoice": {
+    "invoiceId": "FC-A-0001-00000001",
+    "issueDate": "1781967600",
+    "dueDate": "1784559600",
+    "paymentTerms": "Net 30",
+    "purchaseOrderRef": "",
+    "issuer": "0xD096D1326Cd60bd322ce8A2F7d462735Bf65Ba13",
+    "issuerTaxId": {
+      "scheme": "AR-CUIT",
+      "id": "30-12345678-9"
+    },
+    "recipient": "0xef58a240401d47de0CbeCCAFf814f90d65b30Ea0",
+    "recipientTaxId": {
+      "scheme": "MX-RFC",
+      "id": "CLIX850101AB1"
+    },
+    "paymentToken": "0x3Af7F644A147F75004E022a8623bf14FEb9AFf6d",
+    "paymentAmount": "1210000000",
+    "fiatCurrency": "USD",
+    "fiatAmountMilliUnits": "1210000",
+    "fxRateScaled": "100000000",
+    "fxOracle": "0x0000000000000000000000000000000000000000",
+    "fxTimestamp": "1781967600",
+    "taxes": [
+      {
+        "taxType": "IVA",
+        "taxScheme": "AR-IVA-21",
+        "rateBps": "2100",
+        "baseAmountMilliUnits": "1000000",
+        "taxAmountMilliUnits": "210000"
+      }
+    ],
+    "lineItems": [
+      {
+        "description": "Consulting services",
+        "quantityScaled": "1000",
+        "unit": "EA",
+        "unitPriceMilliUnits": "1000000",
+        "lineTotalMilliUnits": "1000000",
+        "taxRefIndex": "0"
+      }
+    ],
+    "jurisdiction": "AR",
+    "regulatoryData": "0x",
+    "nonce": "1"
+  },
+  "typeHash": "0x9f807503c28d7e2aca336a6a1a70e5ce8512b7f3314da29f812957e2b3997574",
+  "domainSeparator": "0x7d92991a7c2365e9c68a0cef52d2edf5eef6ff82355c08df61ee340630c89761",
+  "structHash": "0x8b5b2d1626d799b1be68f651a41cfc8e1210e577ec302a0f376c161a683e6961",
+  "invoiceHash": "0x39b7fedd202c012cb1a08293839b6a85cfc4ec86bc2edf359630af1b0cfd3ba1"
+}
