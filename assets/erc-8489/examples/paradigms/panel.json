@@ -1,0 +1,109 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.panel",
+  "version": "1.0.0",
+  "title": "Panel: named contributors, open observation",
+  "labels": [
+    "aifp:paradigm/panel/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "n-party",
+    "fan-out"
+  ],
+  "cardinality": {
+    "contributors": "roster",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "open",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish",
+        "respond"
+      ],
+      "acquisition": "manager",
+      "transferable": false,
+      "expiry": "fixed"
+    },
+    "management": {
+      "admission": [
+        "moderator"
+      ],
+      "ordering": [
+        "moderator"
+      ],
+      "removal": [
+        "moderator"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": true,
+      "correlation": "none",
+      "delivery": [
+        "stream",
+        "pull"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "moderator",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "observe": {
+      "open": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "rule-association",
+      "stream",
+      "history-retention"
+    ]
+  }
+}

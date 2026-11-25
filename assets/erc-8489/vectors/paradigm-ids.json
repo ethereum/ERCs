@@ -1,0 +1,444 @@
+{
+  "description": "paradigmId = keccak256(utf8(JCS canonical descriptor)); familyId = keccak256(utf8(family)); labelId = keccak256(utf8(label)); predicateHash = keccak256(abi.encode(Node[])).",
+  "count": 17,
+  "vectors": [
+    {
+      "file": "examples/paradigms/archive.json",
+      "family": "aifp.examples.archive",
+      "familyId": "0x4d914704092aa84713dbc61e3bba9743cddc63be509e5eabc0cf0ab39df3322d",
+      "labels": [
+        "aifp:paradigm/archive/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/archive/v1",
+          "id": "0x03b4c4d1e690d8537fa57e9eb0dfa778127ff7b45a43bf43d2f6bc128b97c48b"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":false},\"carriers\":[\"shared-object\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"manager\",\"actions\":[\"publish\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"source\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"source\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"request-response\",\"delivery\":[\"pull\"],\"realtime\":false}},\"family\":\"aifp.examples.archive\",\"labels\":[\"aifp:paradigm/archive/v1\"],\"operators\":[\"fan-out\"],\"predicates\":{\"observe\":{\"open\":true}},\"requiredBindings\":{\"capabilities\":[\"pull\",\"history-retention\",\"late-join-history\"]},\"title\":\"Archive: published objects read later by pull\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x320721e668552eca9ef845b078f932a1650f4ede5441ba401d68ec5da7e479d0",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/blackboard.json",
+      "family": "aifp.examples.blackboard",
+      "familyId": "0x3bfa6db321839561b515d81580987e31bfcfc2a106cb633ce436aa3553180bf3",
+      "labels": [
+        "aifp:paradigm/blackboard/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/blackboard/v1",
+          "id": "0x98a648c3a8411ceabd8038b9f6c9e3b7ecca6996c30fc644998c625a682ce739"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":false},\"carriers\":[\"shared-object\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"manager\",\"actions\":[\"modify\",\"respond\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":true,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"moderator\"],\"disclosure\":[\"moderator\"],\"ordering\":[\"protocol\"],\"removal\":[\"moderator\"],\"rules\":[\"moderator\"]},\"objectRelations\":[\"supersedes\",\"references\",\"derivesFrom\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"members\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"pull\",\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.blackboard\",\"labels\":[\"aifp:paradigm/blackboard/v1\"],\"operators\":[\"n-party\"],\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"pull\",\"push\",\"total-order\"]},\"title\":\"Blackboard: shared object updated by several contributors\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x1a4da67556be4c71967131eb983d083e9f2f3930f3587b76e99de2d528a0bf19",
+      "rolePredicates": []
+    },
+    {
+      "file": "examples/paradigms/club.json",
+      "family": "aifp.examples.club",
+      "familyId": "0x6daa451b6efaf428cc2d11dc525e588275bb7903d6d8f8fa4f0d7588c5d201dd",
+      "labels": [
+        "aifp:paradigm/club/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/club/v1",
+          "id": "0x7c63f1d412f6d75b0da046548e0e35a192e5225440f93d60ad319aa801ceefc0"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"qualified\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"publish\",\"respond\"],\"expiry\":\"renewable\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"decision-body\"],\"rules\":[\"decision-body\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\",\"pull\"],\"realtime\":false}},\"family\":\"aifp.examples.club\",\"labels\":[\"aifp:paradigm/club/v1\"],\"operators\":[\"n-party\"],\"predicates\":{\"observe\":{\"open\":true},\"respond\":{\"credential\":{\"minLevel\":1,\"proofMode\":\"attested\",\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\",\"verifier\":\"0x0000000000000000000000000000000000000001\"}},\"submit\":{\"allOf\":[{\"credential\":{\"minLevel\":1,\"proofMode\":\"attested\",\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\",\"verifier\":\"0x0000000000000000000000000000000000000001\"}},{\"identity\":{\"registry\":\"0x0000000000000000000000000000000000000003\",\"requiredState\":\"active\",\"verifier\":\"0x0000000000000000000000000000000000000002\"}}]}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"push\",\"pull\",\"total-order\"]},\"title\":\"Club: contribution acquired by a common rule, open observation\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x0a88feca81ef7365bf30b3457ea225e8e10d139bdb5e21efd126f39b8f2d7420",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        },
+        {
+          "role": "submit",
+          "roleBit": 4,
+          "nodeCount": 3,
+          "predicateHex": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d472676400000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001",
+          "predicateHash": "0x28b6f9620d46b8c2a90d9d0478093e46389160cee5efa63671f26daf04aa6ffc"
+        },
+        {
+          "role": "respond",
+          "roleBit": 8,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d472676400000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0x0e3f733f8033e477a11b94379c4d37b6410a6241d6fd9daedc791fc6cffadc66"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/derive.json",
+      "family": "aifp.examples.derive",
+      "familyId": "0x8a97024290b83faa8fe1d3bc2bb0ca17a272a4652c3390e06a653d51b80219e4",
+      "labels": [
+        "aifp:paradigm/derive/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/derive/v1",
+          "id": "0xe21a890588d58fc2ffbbfbd1a45eec5e686f973678855759ac010b4f256a413c"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"qualified\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"publish\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"source\"]},\"objectRelations\":[\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":false,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.derive\",\"labels\":[\"aifp:paradigm/derive/v1\"],\"operators\":[\"derive\",\"merge\"],\"predicates\":{\"redistribute\":{\"identity\":{\"registry\":\"0x0000000000000000000000000000000000000003\",\"requiredState\":\"active\",\"verifier\":\"0x0000000000000000000000000000000000000002\"}}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\"]},\"title\":\"Derive: a new object with a new responsible contributor, linked to its sources\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0xa301009086c28b9518aee0558379f35844d22c265cf71a581d5a0b7ff9023c6f",
+      "rolePredicates": [
+        {
+          "role": "redistribute",
+          "roleBit": 512,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001",
+          "predicateHash": "0xeb6cc3c0057658a9400bf8aaa67f49b472665f2e41ac3b0d00168c8334367709"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/direct.json",
+      "family": "aifp.examples.direct",
+      "familyId": "0x763426499dc79e4be1438a7b3f12ad8c27ac01bb6b1e4095a37c5ada56221c19",
+      "labels": [
+        "aifp:paradigm/direct/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/direct/v1",
+          "id": "0x9a6ccbd42f16c1fd79dc9da3ad5ddb607f217ef97d651763ab5134c9843ff8d7"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":true},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"prior-link\"],\"contribution\":{\"acquisition\":\"closed\",\"actions\":[\"publish\",\"respond\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"directed\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"none\"],\"disclosure\":[\"none\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"decision-body\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"partial\",\"payloadProtection\":\"e2ee\",\"readScope\":\"members\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":false,\"publishElsewhere\":false,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"request-response\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.direct\",\"labels\":[\"aifp:paradigm/direct/v1\"],\"operators\":[\"feedback\"],\"requiredBindings\":{\"capabilities\":[\"identity\",\"payload-protection\",\"delivery-records\"]},\"title\":\"Direct: two parties address each other exclusively\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x32b31b56721d2f12f1c77909f08e61b6f135597941e4f59a15f0f577c596222d",
+      "rolePredicates": []
+    },
+    {
+      "file": "examples/paradigms/dispatch.json",
+      "family": "aifp.examples.dispatch",
+      "familyId": "0xb973128ca67d6e48404e5971fbecb75712131cd9823a6e0387241e71c944ccbc",
+      "labels": [
+        "aifp:paradigm/dispatch/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/dispatch/v1",
+          "id": "0xa04ce9aaf625be287ec300d61e04432893f981378c6ca3113889447297e7d520"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"qualified\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"submit\",\"respond\"],\"expiry\":\"fixed\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"directed\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"protocol\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"predicate\",\"submissionVisibility\":\"collector-only\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"epoch\",\"clock\":\"registry\",\"correlation\":\"request-response\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.dispatch\",\"labels\":[\"aifp:paradigm/dispatch/v1\"],\"operators\":[\"select\",\"feedback\"],\"predicates\":{\"respond\":{\"member\":{\"group\":\"0x1111111111111111111111111111111111111111111111111111111111111111\",\"verifier\":\"0x0000000000000000000000000000000000000004\"}}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"push\",\"delivery-records\"]},\"title\":\"Dispatch: a rule selects the actual recipients from a candidate set\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x1d426c174fe4eecddb2c20bd357353b8ba4e4f6dec4d94a8189a037435dd7ff3",
+      "rolePredicates": [
+        {
+          "role": "respond",
+          "roleBit": 8,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004111111111111111111111111111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xcd84bbd491498d8c4c82cc77871a0918318c89e029e16d4b554ef5b6f0d74ed7"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/forward.json",
+      "family": "aifp.examples.forward",
+      "familyId": "0x7ef914b19fae90aa5859af1b5c9a9a1581ad4b151b3c813031f3dc1e81215aaa",
+      "labels": [
+        "aifp:paradigm/forward/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/forward/v1",
+          "id": "0xbfa8c07c059b15be07b5788145c6c6b67159bd2c4c36944ae41e068981f0d041"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"open\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"open\",\"actions\":[\"publish\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"none\"],\"disclosure\":[\"none\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"source\"]},\"objectRelations\":[\"forwards\",\"references\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":false,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.forward\",\"labels\":[\"aifp:paradigm/forward/v1\"],\"operators\":[\"forward\",\"fan-out\"],\"predicates\":{\"redistribute\":{\"open\":true}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\"]},\"title\":\"Forward: the same object enters another context with its provenance\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x98b02a2487566f45dbcfb5ae9bbcbd7cb750a17bce2e1f6023de3a1cd0dc9bfd",
+      "rolePredicates": [
+        {
+          "role": "redistribute",
+          "roleBit": 512,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/intake.json",
+      "family": "aifp.examples.intake",
+      "familyId": "0x026c78df9e14e85e2cb3641cf8d2ea2de6335e333bad26588219935bc134fd55",
+      "labels": [
+        "aifp:paradigm/intake/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/intake/v1",
+          "id": "0xd5d0201f9248735d30feeb90aa611c9238da7173e8bd67026f2ae8d108a7acb4"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"qualified\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"submit\"],\"expiry\":\"fixed\",\"transferable\":false},\"contributorVisibility\":\"per-audience\",\"disclosureTiming\":\"conditional\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"none\",\"mutable\":false,\"retention\":\"bounded\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"partial\",\"payloadProtection\":\"e2ee\",\"readScope\":\"collector-only\",\"submissionVisibility\":\"collector-only\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":false,\"publishElsewhere\":false,\"quote\":false},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.intake\",\"labels\":[\"aifp:paradigm/intake/v1\"],\"operators\":[\"fan-in\"],\"predicates\":{\"submit\":{\"credential\":{\"minLevel\":2,\"proofMode\":\"attested\",\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\",\"verifier\":\"0x0000000000000000000000000000000000000001\"}}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"push\",\"payload-protection\"]},\"title\":\"Intake: many submitters, one collector, submissions not mutually visible\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x9ab153e21196d42fabe497ca76c0bfa82f2bfc0f001d6af2caee172243aa7694",
+      "rolePredicates": [
+        {
+          "role": "submit",
+          "roleBit": 4,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d472676400000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0x0492a986c6ff0f10ed839315ca19d86c32f4234578c29f142000da0729646e25"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/meeting.json",
+      "family": "aifp.examples.meeting",
+      "familyId": "0xb4b70b96e8962ba55a41a24c154250fd017ca56da8c5df7f0f8f2436ea91d068",
+      "labels": [
+        "aifp:paradigm/meeting/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/meeting/v1",
+          "id": "0xc0b35140bc9895d6e7e118d2d963f0ce39c932112d7221ae5e1117232de801f5"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":false},\"carriers\":[\"delivery\",\"shared-object\"],\"dimensions\":{\"admissionBasis\":[\"prior-link\",\"referral\"],\"contribution\":{\"acquisition\":\"manager\",\"actions\":[\"publish\",\"respond\",\"modify\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"undiscoverable\",\"history\":{\"lateJoiner\":\"since-join\",\"mutable\":false,\"retention\":\"bounded\"},\"management\":{\"admission\":[\"moderator\"],\"disclosure\":[\"decision-body\"],\"ordering\":[\"protocol\"],\"removal\":[\"moderator\"],\"rules\":[\"moderator\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"partial\",\"payloadProtection\":\"e2ee\",\"readScope\":\"members\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":false,\"forward\":false,\"publishElsewhere\":false,\"quote\":false},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"stream\",\"pull\"],\"realtime\":true}},\"family\":\"aifp.examples.meeting\",\"labels\":[\"aifp:paradigm/meeting/v1\"],\"operators\":[\"n-party\"],\"requiredBindings\":{\"capabilities\":[\"identity\",\"payload-protection\",\"metadata-protection\",\"membership-privacy\",\"history-retention\"]},\"title\":\"Meeting: observation and contribution closed on the same roster\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x56cf71139ebbbbb0148164f327d917485da389c91815279a19739752f4929c1c",
+      "rolePredicates": []
+    },
+    {
+      "file": "examples/paradigms/panel.json",
+      "family": "aifp.examples.panel",
+      "familyId": "0x2524876b05e33d5cac3b1d53dfb630768f0c4b1913efe2a57ba2390419251f19",
+      "labels": [
+        "aifp:paradigm/panel/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/panel/v1",
+          "id": "0xa44b7305bec038b876a06e1f316060431e7f8e751f85aa7d3f105c98a0424643"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"manager\",\"actions\":[\"publish\",\"respond\"],\"expiry\":\"fixed\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"moderator\"],\"disclosure\":[\"source\"],\"ordering\":[\"moderator\"],\"removal\":[\"moderator\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"moderator\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"stream\",\"pull\"],\"realtime\":true}},\"family\":\"aifp.examples.panel\",\"labels\":[\"aifp:paradigm/panel/v1\"],\"operators\":[\"n-party\",\"fan-out\"],\"predicates\":{\"observe\":{\"open\":true}},\"requiredBindings\":{\"capabilities\":[\"rule-association\",\"stream\",\"history-retention\"]},\"title\":\"Panel: named contributors, open observation\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x05e65109a6abf73cdec4422cc754a69b1aec753041df036a9fd3c7099775bf66",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        }
+      ]
+    },
+    {
+      "file": "examples/paradigms/source.json",
+      "family": "aifp.examples.source",
+      "familyId": "0xb559f40ce7b8af6f1acbb18dbe63b38048d48205a690dff224b6add32ceba11d",
+      "labels": [
+        "aifp:paradigm/source/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/source/v1",
+          "id": "0x3d2396ab1e402258b6f10bdd0e08cfc3d387324f831b03ea2031c4df3f6582a5"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"single\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"closed\",\"actions\":[\"publish\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"source\"],\"disclosure\":[\"source\"],\"ordering\":[\"source\"],\"removal\":[\"source\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\",\"stream\"],\"realtime\":true}},\"family\":\"aifp.examples.source\",\"labels\":[\"aifp:paradigm/source/v1\"],\"operators\":[\"fan-out\"],\"predicates\":{\"observe\":{\"open\":true}},\"requiredBindings\":{\"capabilities\":[\"rule-association\",\"push\"]},\"title\":\"Source: one logical publisher, open observation\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0xea944ef3ca51ac0aa41ddb93ea4b1f940c1637633bb116d20a9f896bb8c5d3f8",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        }
+      ]
+    },
+    {
+      "file": "examples/composites/blind-review.json",
+      "family": "aifp.examples.blind-review",
+      "familyId": "0xc7f35738aefe758a5bb4bbd476916acf211a17d97ea02af4e4595f5eb75edc7a",
+      "labels": [
+        "aifp:paradigm/intake/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/intake/v1",
+          "id": "0xd5d0201f9248735d30feeb90aa611c9238da7173e8bd67026f2ae8d108a7acb4"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"referral\"],\"contribution\":{\"acquisition\":\"manager\",\"actions\":[\"submit\"],\"expiry\":\"fixed\",\"transferable\":false},\"contributorVisibility\":\"anonymous-qualified\",\"disclosureTiming\":\"scheduled\",\"discovery\":\"directed\",\"history\":{\"lateJoiner\":\"none\",\"mutable\":false,\"retention\":\"bounded\"},\"management\":{\"admission\":[\"moderator\"],\"disclosure\":[\"moderator\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"moderator\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"partial\",\"payloadProtection\":\"e2ee\",\"readScope\":\"collector-only\",\"submissionVisibility\":\"collector-only\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":false,\"publishElsewhere\":false,\"quote\":false},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.blind-review\",\"labels\":[\"aifp:paradigm/intake/v1\"],\"operators\":[\"fan-in\"],\"requiredBindings\":{\"capabilities\":[\"identity\",\"payload-protection\",\"membership-privacy\",\"delivery-records\"]},\"title\":\"Blind review: reviewers submit opinions that only the collector reads\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x0e456045a324ea27a4862e334abc8541fd4d177f15bae1de083e5ac73b1be9c6",
+      "rolePredicates": []
+    },
+    {
+      "file": "examples/composites/embargoed-announcement.json",
+      "family": "aifp.examples.embargoed-announcement",
+      "familyId": "0x81977ae9f3bc09d570ae2616939fe7cfdf9e1d5075bc3c9400473a4ee542ebff",
+      "labels": [
+        "aifp:paradigm/source/v1",
+        "aifp:paradigm/archive/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/source/v1",
+          "id": "0x3d2396ab1e402258b6f10bdd0e08cfc3d387324f831b03ea2031c4df3f6582a5"
+        },
+        {
+          "label": "aifp:paradigm/archive/v1",
+          "id": "0x03b4c4d1e690d8537fa57e9eb0dfa778127ff7b45a43bf43d2f6bc128b97c48b"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"single\",\"pairwise\":false},\"carriers\":[\"delivery\",\"shared-object\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"closed\",\"actions\":[\"publish\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"scheduled\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"source\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"source\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\",\"pull\"],\"realtime\":false}},\"family\":\"aifp.examples.embargoed-announcement\",\"labels\":[\"aifp:paradigm/source/v1\",\"aifp:paradigm/archive/v1\"],\"operators\":[\"fan-out\"],\"predicates\":{\"observe\":{\"open\":true}},\"requiredBindings\":{\"capabilities\":[\"rule-association\",\"push\",\"pull\",\"history-retention\"]},\"title\":\"Embargoed announcement: discoverable now, readable at a scheduled time\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x204fb748c6c23a8e16c4f079d438ef3987e456c4404ddb372c0d3a824d3c124f",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        }
+      ]
+    },
+    {
+      "file": "examples/composites/foga-handshake.json",
+      "family": "aifp.examples.foga-handshake",
+      "familyId": "0x8b78676979fed4b308e648b6549b0e22b2412b8c5e1748e836582374ab6301ce",
+      "labels": [
+        "aifp:paradigm/direct/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/direct/v1",
+          "id": "0x9a6ccbd42f16c1fd79dc9da3ad5ddb607f217ef97d651763ab5134c9843ff8d7"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"roster\",\"pairwise\":true},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"publish\",\"respond\"],\"expiry\":\"renewable\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"none\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"decision-body\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"e2ee\",\"readScope\":\"members\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":false,\"forward\":false,\"publishElsewhere\":false,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"request-response\",\"delivery\":[\"push\"],\"realtime\":false}},\"family\":\"aifp.examples.foga-handshake\",\"labels\":[\"aifp:paradigm/direct/v1\"],\"operators\":[\"feedback\"],\"predicates\":{\"respond\":{\"anyOf\":[{\"identity\":{\"registry\":\"0x0000000000000000000000000000000000000003\",\"requiredState\":\"active\",\"verifier\":\"0x0000000000000000000000000000000000000002\"}},{\"credential\":{\"minLevel\":1,\"proofMode\":\"proved\",\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\",\"verifier\":\"0x0000000000000000000000000000000000000001\"}}]}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"push\",\"payload-protection\"]},\"title\":\"FOGA handshake: two strangers establish a scoped, verifiable link\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0xdffad3f01595b658202ac60c7e20a872e8545c0fd609818f40859f9eb9fe4e8b",
+      "rolePredicates": [
+        {
+          "role": "respond",
+          "roleBit": 8,
+          "nodeCount": 3,
+          "predicateHex": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000002400000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d472676400000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0x67d27dbaa57ab8e8a4b2a66d9b754a27c4f7b395649a477bc8a11a79b525567c"
+        }
+      ]
+    },
+    {
+      "file": "examples/composites/heartbeat-liveness.json",
+      "family": "aifp.examples.heartbeat-liveness",
+      "familyId": "0x28cc88fa8d9a319e653141f5fcc6e06db9a99354327b5f1c7e6960ccfbcd27e6",
+      "labels": [
+        "aifp:paradigm/source/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/source/v1",
+          "id": "0x3d2396ab1e402258b6f10bdd0e08cfc3d387324f831b03ea2031c4df3f6582a5"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"single\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"closed\",\"actions\":[\"publish\"],\"expiry\":\"none\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"since-join\",\"mutable\":false,\"retention\":\"bounded\"},\"management\":{\"admission\":[\"source\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"source\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"rule-defined\",\"batching\":\"epoch\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\"],\"realtime\":true}},\"extensions\":{\"absence\":{\"defaultOutcome\":\"mark-inactive\",\"objectionRole\":\"observe\",\"rule\":\"liveness\",\"windowSeconds\":3600}},\"family\":\"aifp.examples.heartbeat-liveness\",\"labels\":[\"aifp:paradigm/source/v1\"],\"operators\":[\"fan-out\"],\"predicates\":{\"observe\":{\"open\":true}},\"requiredBindings\":{\"capabilities\":[\"rule-association\",\"push\",\"absence-detection\"]},\"title\":\"Heartbeat: absence within an agreed window marks the source inactive\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0xe6d8e1b28a9f1fdb70b17aec2c5899522adb7f1e861e1a38cc701156383ef2eb",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        }
+      ]
+    },
+    {
+      "file": "examples/composites/sealed-bid-tender.json",
+      "family": "aifp.examples.sealed-bid-tender",
+      "familyId": "0x65fb04b51d470e3269f3908a280860cd0b1d493d1f80b776dbc6fdb928d1924f",
+      "labels": [
+        "aifp:paradigm/source/v1",
+        "aifp:paradigm/intake/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/source/v1",
+          "id": "0x3d2396ab1e402258b6f10bdd0e08cfc3d387324f831b03ea2031c4df3f6582a5"
+        },
+        {
+          "label": "aifp:paradigm/intake/v1",
+          "id": "0xd5d0201f9248735d30feeb90aa611c9238da7173e8bd67026f2ae8d108a7acb4"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"single\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"publish\",\"submit\"],\"expiry\":\"fixed\",\"transferable\":false},\"contributorVisibility\":\"per-audience\",\"disclosureTiming\":\"commit-reveal\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"protocol\"],\"ordering\":[\"protocol\"],\"removal\":[\"none\"],\"rules\":[\"source\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"collector-only\",\"submissionVisibility\":\"collector-only\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":false,\"forward\":false,\"publishElsewhere\":false,\"quote\":false},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"epoch\",\"clock\":\"registry\",\"correlation\":\"request-response\",\"delivery\":[\"push\",\"pull\"],\"realtime\":false}},\"extensions\":{\"economic\":{\"amountOrThreshold\":\"1000000000000000\",\"asset\":\"native\",\"chain\":\"eip155:11155111\",\"contract\":\"0x0000000000000000000000000000000000000005\",\"period\":\"until-settlement\",\"profile\":\"bounty\",\"subject\":\"channel\",\"verifier\":\"0x0000000000000000000000000000000000000005\"}},\"family\":\"aifp.examples.sealed-bid-tender\",\"labels\":[\"aifp:paradigm/source/v1\",\"aifp:paradigm/intake/v1\"],\"operators\":[\"fan-out\",\"fan-in\"],\"predicates\":{\"observe\":{\"open\":true},\"submit\":{\"allOf\":[{\"credential\":{\"freshnessSeconds\":86400,\"minLevel\":2,\"proofMode\":\"proved\",\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\",\"verifier\":\"0x0000000000000000000000000000000000000001\"}},{\"stake\":{\"asset\":\"native\",\"chain\":\"eip155:11155111\",\"contract\":\"0x0000000000000000000000000000000000000005\",\"minAmount\":\"1000000000000000\",\"period\":\"lockup\",\"verifier\":\"0x0000000000000000000000000000000000000005\"}}]}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"push\",\"pull\",\"delivery-records\",\"total-order\"]},\"title\":\"Sealed-bid tender: demand-side broadcast plus commit-reveal intake\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0x109443d63be8878c6421d0c88e2bcefd37c69c16e0d84c5e77dade0636da7d47",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        },
+        {
+          "role": "submit",
+          "roleBit": 4,
+          "nodeCount": 3,
+          "predicateHex": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d472676400000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000015180000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000aa36a70000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038d7ea4c680000000000000000000000000000000000000000000000000000000000000000002",
+          "predicateHash": "0xffc8188cc7a06f832f1ddef172d4c009b2ecee747d8c8a56162ec8ef1e507fde"
+        }
+      ]
+    },
+    {
+      "file": "examples/composites/staked-agora.json",
+      "family": "aifp.examples.staked-agora",
+      "familyId": "0xaaee2f5bb0b860bdd6b39cde7d609aadc22326c384db22e6d3bfc0292131035b",
+      "labels": [
+        "aifp:paradigm/club/v1"
+      ],
+      "labelIds": [
+        {
+          "label": "aifp:paradigm/club/v1",
+          "id": "0x7c63f1d412f6d75b0da046548e0e35a192e5225440f93d60ad319aa801ceefc0"
+        }
+      ],
+      "canonical": "{\"aifp\":\"1\",\"cardinality\":{\"contributors\":\"qualified\",\"pairwise\":false},\"carriers\":[\"delivery\"],\"dimensions\":{\"admissionBasis\":[\"open-discovery\"],\"contribution\":{\"acquisition\":\"predicate\",\"actions\":[\"publish\",\"respond\"],\"expiry\":\"renewable\",\"transferable\":false},\"contributorVisibility\":\"identified\",\"disclosureTiming\":\"immediate\",\"discovery\":\"public-directory\",\"history\":{\"lateJoiner\":\"all\",\"mutable\":false,\"retention\":\"indefinite\"},\"management\":{\"admission\":[\"protocol\"],\"disclosure\":[\"source\"],\"ordering\":[\"protocol\"],\"removal\":[\"decision-body\"],\"rules\":[\"decision-body\"]},\"objectRelations\":[\"replyTo\",\"forwards\",\"derivesFrom\",\"synthesizes\",\"references\",\"supersedes\",\"retracts\"],\"observation\":{\"metadataProtection\":\"none\",\"payloadProtection\":\"none\",\"readScope\":\"open\",\"submissionVisibility\":\"all\"},\"ordering\":{\"observable\":true,\"order\":\"total\",\"sequencer\":\"protocol\"},\"redistribution\":{\"derive\":true,\"forward\":true,\"publishElsewhere\":true,\"quote\":true},\"representation\":\"allowed\",\"time\":{\"absence\":\"none\",\"batching\":\"none\",\"clock\":\"registry\",\"correlation\":\"none\",\"delivery\":[\"push\",\"pull\"],\"realtime\":false}},\"extensions\":{\"economic\":{\"amountOrThreshold\":\"10000000000000000\",\"asset\":\"native\",\"chain\":\"eip155:11155111\",\"contract\":\"0x0000000000000000000000000000000000000005\",\"period\":\"active\",\"profile\":\"stake\",\"subject\":\"contributor\",\"verifier\":\"0x0000000000000000000000000000000000000005\"}},\"family\":\"aifp.examples.staked-agora\",\"labels\":[\"aifp:paradigm/club/v1\"],\"operators\":[\"n-party\"],\"predicates\":{\"observe\":{\"open\":true},\"respond\":{\"stake\":{\"asset\":\"native\",\"chain\":\"eip155:11155111\",\"contract\":\"0x0000000000000000000000000000000000000005\",\"minAmount\":\"10000000000000000\",\"period\":\"active\",\"verifier\":\"0x0000000000000000000000000000000000000005\"}},\"submit\":{\"stake\":{\"asset\":\"native\",\"chain\":\"eip155:11155111\",\"contract\":\"0x0000000000000000000000000000000000000005\",\"minAmount\":\"10000000000000000\",\"period\":\"active\",\"verifier\":\"0x0000000000000000000000000000000000000005\"}}},\"requiredBindings\":{\"capabilities\":[\"identity\",\"rule-association\",\"push\",\"pull\",\"total-order\"]},\"title\":\"Staked agora: open contribution gated by stake and attribution\",\"version\":\"1.0.0\"}",
+      "paradigmId": "0xebfba75de84487a5a9abdbf6702e1b237b77516c3cc0ff21a02a57b99986f52f",
+      "rolePredicates": [
+        {
+          "role": "observe",
+          "roleBit": 2,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xd9748b88542c28c751ee2cfb24a3b2ab8d9ce5e6f55c9df01f4a1a4bbf53a91e"
+        },
+        {
+          "role": "submit",
+          "roleBit": 4,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000aa36a700000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002386f26fc100000000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xf184d9c832277fa183ad10c86bd51cd168d0f153ef43350b8d7a4e92dcbe1e37"
+        },
+        {
+          "role": "respond",
+          "roleBit": 8,
+          "nodeCount": 1,
+          "predicateHex": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000aa36a700000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002386f26fc100000000000000000000000000000000000000000000000000000000000000000000",
+          "predicateHash": "0xf184d9c832277fa183ad10c86bd51cd168d0f153ef43350b8d7a4e92dcbe1e37"
+        }
+      ]
+    }
+  ]
+}
