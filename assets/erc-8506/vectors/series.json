@@ -1,0 +1,87 @@
+{
+  "note": "seriesId is keccak256(abi.encode(terms)) read as an unsigned integer.",
+  "caseA": {
+    "terms": {
+      "issuer": "0xe05fcC23807536bEe418f142D19fa0d21BB0cfF7",
+      "responsibleParty": "0xe05fcC23807536bEe418f142D19fa0d21BB0cfF7",
+      "unit": "0xa96f1bc7480d72951dd26dd0e30c1b6edbc4cc237397beb5418c4e176190dfcc",
+      "grade": "0x93dcf8df52a1e7c400907a278ac86d809a07052115f14dea5d39c530f0bec2e3",
+      "source": "0x511d54b9924ae081d3a4ba7265529acffed48ce33633cd8645477b145a112ad7",
+      "termsHash": "0xc0a04a39d02537010cfd2bee0971c89861c98d042b40e7e62cf56b27b04a3ab7",
+      "cap": "10000000",
+      "validFrom": "1800000000",
+      "validUntil": "1807776000",
+      "transferable": true,
+      "scheduleMutable": false,
+      "roundUp": true,
+      "acceptanceRule": 1,
+      "objectionWindow": 600,
+      "resolutionWindow": 0,
+      "maxHoldDuration": 900,
+      "resolver": "0x0000000000000000000000000000000000000000",
+      "components": [
+        "0x696e707574000000000000000000000000000000000000000000000000000000",
+        "0x6f75747075740000000000000000000000000000000000000000000000000000",
+        "0x63616368655f7265616400000000000000000000000000000000000000000000"
+      ],
+      "weights": [
+        "250000",
+        "1000000",
+        "25000"
+      ],
+      "outcomeMasks": [
+        "7",
+        "7",
+        "1",
+        "0",
+        "7",
+        "0"
+      ],
+      "extensions": []
+    },
+    "seriesId": "0xc95f68de4f9d50f5fa3160a51406339115be8c0f97606800b92702763e9a2723",
+    "seriesIdDecimal": "91083456811503104095183549656917940296504129656371678720832986821209911600931",
+    "basisRef": "0x8b3fb30434dab7de1745951b402fd3a79f51a49a0752bb8dc8b5404cd0abb1a9"
+  },
+  "caseB": {
+    "terms": {
+      "issuer": "0x0bf0222F7ea374852Bf8012f900E72bcc2C93ABf",
+      "responsibleParty": "0x0bf0222F7ea374852Bf8012f900E72bcc2C93ABf",
+      "unit": "0x79fbb79521870a1df8ea1d15a36523fb9546b98740b9a21ef0bb41e80c69aa24",
+      "grade": "0x9b78361122276000d5dd5604d926a380bde72d1a2d7baf79081dc6e34561a111",
+      "source": "0xe32fc48438a94c3e1bbfa128345370ba4fc1e7e655a24c36592e6d4ca878053f",
+      "termsHash": "0xa5b28a04a108484698cc5273ddb650bfc359207e6ac3dbeca198f222945825e8",
+      "cap": "5000000",
+      "validFrom": "1800000000",
+      "validUntil": "1802592000",
+      "transferable": true,
+      "scheduleMutable": false,
+      "roundUp": true,
+      "acceptanceRule": 1,
+      "objectionWindow": 600,
+      "resolutionWindow": 0,
+      "maxHoldDuration": 600,
+      "resolver": "0x0000000000000000000000000000000000000000",
+      "components": [
+        "0x696e707574000000000000000000000000000000000000000000000000000000",
+        "0x6f75747075740000000000000000000000000000000000000000000000000000"
+      ],
+      "weights": [
+        "200000",
+        "1000000"
+      ],
+      "outcomeMasks": [
+        "3",
+        "3",
+        "1",
+        "0",
+        "3",
+        "0"
+      ],
+      "extensions": []
+    },
+    "seriesId": "0xaaafe0f8f93480be88cbe971a05d3f350934bde5ccd811cec1316cfe53372a8e",
+    "seriesIdDecimal": "77203935198984316889578389974062710827730631418551991500317084303770483370638",
+    "basisRef": "0xa9401b691d2e2c144fdbb158752d8f19b7a3294cfd0359047eb340c3eaef2640"
+  }
+}
