@@ -65,3 +65,20 @@ python3 canonicalization_check.py pq-key-binding-v1.canonicalization.json pq-key
 
 An on-chain anchor that enforces the size bound at admission and proves canonical-form violations by a one-segment fraud proof: [babyblueviper1/erc8373-optimistic-jcs](https://github.com/babyblueviper1/erc8373-optimistic-jcs) (`PinpointJcsAnchor`).
 
+
+## Which files are normative
+
+There is one conformance target per facet:
+
+| Facet | Normative file | Notes |
+|---|---|---|
+| Binding statement | `pq-key-binding-v0.vectors.json` | No v1 exists. The v0 prefix is the profile it was published under, not a superseded set |
+| Cutoff enforcement | `pq-key-binding-v1.cutoff-vectors.json` | Supersedes `pq-key-binding-v0.cutoff-vectors.json`, which is kept unchanged as the frozen base the v1 profile refines and is not a second target |
+| Rotation | `pq-key-binding-v0.rotation-vectors.json` (+ `.rotation.json`) | Current |
+| Revocation | `pq-key-binding-v0.revocation-vectors.json` (+ `.revocation.json`) | Current |
+| Canonicalization | `pq-key-binding-v1.canonicalization-vectors.json` (+ `.canonicalization.json`) | Current |
+| Recovery classes | `recovery-classes-vectors.json` | Current |
+
+`pq-key-binding-v0.per-agent-anchor.json` is an informative snapshot of one deployment's batch
+anchor, not a conformance target. `pq-key-binding-v0.spec.md` is the working spec of the v0 profile.
+It is informative only. Where it and the ERC text differ, the ERC text governs.
