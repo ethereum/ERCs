@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ERC-8495 test vectors",
+  "description": "Format of test-vectors.json. Each test applies one operation to its input. 'expected' gives the result for each class of client, and a class that is missing means ERC-8495 does not specify that case.",
+  "type": "object",
+  "required": ["erc", "tests"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "erc": { "const": 8495 },
+    "description": { "type": "string" },
+    "tests": { "type": "array", "items": { "$ref": "#/$defs/test" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "test": {
+      "type": "object",
+      "required": ["id", "section", "description", "operation", "input", "expected"],
+      "properties": {
+        "id": {
+          "description": "Stable identifier of the test.",
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+        },
+        "section": {
+          "description": "Anchor of the ERC-8495 section whose rule the test checks.",
+          "type": "string"
+        },
+        "description": { "type": "string" },
+        "operation": {
+          "description": "processMetadataUri: a metadata URI to the metadata document, by the steps in Processing a metadata URI. readUri: a URI to the URI clients fetch. substituteId: ERC-1155 {id} substitution. readDocument: a metadata document to the fields clients read. readAttribute: one attribute to the trait clients read. groupTraits: an attributes array to its traits.",
+          "enum": ["processMetadataUri", "readUri", "substituteId", "readDocument", "readAttribute", "groupTraits"]
+        },
+        "input": {
+          "description": "A string for processMetadataUri and readUri, { uri, tokenId } for substituteId, an object for readDocument and readAttribute, and an array for groupTraits."
+        },
+        "producer": {
+          "description": "Whether a producer may write the input. Missing when ERC-8495 does not say.",
+          "enum": ["conforms", "not-conformant", "deployed-form"]
+        },
+        "expected": {
+          "description": "The result for each class of client. 'all' is every client, and 'otherwise' is every client not in another class.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "enum": [
+              "all",
+              "acceptsNonConformingDataUri",
+              "acceptsDeployedForm",
+              "readsGatewayUrls",
+              "removesLeadingHash",
+              "otherwise"
+            ]
+          },
+          "additionalProperties": { "$ref": "#/$defs/result" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "oneOf": [
+        {
+          "description": "processMetadataUri gives no document, or readAttribute ignores the attribute.",
+          "enum": ["absent", "ignored"]
+        },
+        {
+          "description": "The metadata document.",
+          "type": "object",
+          "required": ["document"],
+          "properties": { "document": { "type": "object" } },
+          "additionalProperties": false
+        },
+        {
+          "description": "The URI clients fetch.",
+          "type": "object",
+          "required": ["uri"],
+          "properties": { "uri": { "type": "string" } },
+          "additionalProperties": false
+        },
+        {
+          "description": "The fields clients read, without ignored and absent fields.",
+          "type": "object",
+          "required": ["fields"],
+          "properties": { "fields": { "type": "object" } },
+          "additionalProperties": false
+        },
+        {
+          "description": "The trait clients read: strings trimmed, and a display_type that reads as absent left out. 'date' is the time a date value represents.",
+          "type": "object",
+          "required": ["trait"],
+          "properties": {
+            "trait": { "type": "object" },
+            "date": {
+              "description": "A UTC time in ISO 8601 form. The year can have more than four digits, so this is not an RFC 3339 date-time.",
+              "type": "string",
+              "pattern": "^[0-9]{4,}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The traits clients form, each with its values in order.",
+          "type": "object",
+          "required": ["traits"],
+          "properties": {
+            "traits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["values"],
+                "properties": {
+                  "trait_type": { "type": "string" },
+                  "values": { "type": "array" }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
