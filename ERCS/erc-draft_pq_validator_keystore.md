@@ -1,4 +1,5 @@
 ---
+eip: 8519
 title: Post-Quantum Validator Keystore
 description: Keystore for the post-quantum validator seeds of Ethereum validators and builders
 author: Manu Nalepa (@nalepae)
