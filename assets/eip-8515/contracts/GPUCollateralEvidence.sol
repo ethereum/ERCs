@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {IGPUCollateralEvidence} from "./IGPUCollateralEvidence.sol";
 
 /// @title GPUCollateralEvidence
-/// @notice Minimal, permissionless, non-upgradeable ERC-8512 pledge index and report registry.
+/// @notice Minimal, permissionless, non-upgradeable ERC-8515 pledge index and report registry.
 contract GPUCollateralEvidence is IGPUCollateralEvidence {
     error AlreadyPledged(bytes32 deviceKey);
     error NotPledged(bytes32 deviceKey);

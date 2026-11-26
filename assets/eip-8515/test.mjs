@@ -1,4 +1,4 @@
-// Node built-in test runner suite for ERC-8512 off-chain library and test vectors.
+// Node built-in test runner suite for ERC-8515 off-chain library and test vectors.
 // Run with: node --test test.mjs
 // SPDX-License-Identifier: CC0-1.0
 
@@ -58,7 +58,7 @@ test('crypto primitives self-check', () => {
   );
 
   // RFC 6979 determinism + round-trip recovery + high-s rejection
-  const digest = keccak256('ERC-8512 signing self-check');
+  const digest = keccak256('ERC-8515 signing self-check');
   const pk = '0x0000000000000000000000000000000000000000000000000000000000000001';
   const sig1 = signDigest(digest, pk);
   const sig2 = signDigest(digest, pk);
@@ -209,7 +209,7 @@ test('statementProblem enforces encoding and statement rules 1-4', () => {
   assert.match(statementProblem({ ...valid, extra: 'x' }), /unexpected member: extra/);
 
   // Wrong kind
-  assert.match(statementProblem({ ...valid, kind: 'ERC8512/statement/2' }), /kind must be/);
+  assert.match(statementProblem({ ...valid, kind: 'ERC8515/statement/2' }), /kind must be/);
 
   // Mismatched chainId
   assert.match(

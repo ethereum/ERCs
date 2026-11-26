@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-/// @title ERC8512Lib
-/// @notice Pure helpers for ERC-8512 device keys, statement Merkle roots, and EIP-712 digests.
-library ERC8512Lib {
+/// @title ERC8515Lib
+/// @notice Pure helpers for ERC-8515 device keys, statement Merkle roots, and EIP-712 digests.
+library ERC8515Lib {
     bytes32 internal constant EIP712_DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 internal constant STATEMENT_TYPEHASH = keccak256("Statement(bytes32 statementId)");
@@ -12,9 +12,9 @@ library ERC8512Lib {
 
     error UnsortedOrDuplicateStatementIds();
 
-    /// @notice Derive an ERC-8512 device key.
+    /// @notice Derive an ERC-8515 device key.
     function deviceKey(uint16 pciVendorId, uint8 idType, bytes memory idBytes) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("ERC8512.device", pciVendorId, idType, idBytes));
+        return keccak256(abi.encodePacked("ERC8515.device", pciVendorId, idType, idBytes));
     }
 
     /// @notice Hash a statement identifier into a Merkle leaf.
@@ -27,7 +27,7 @@ library ERC8512Lib {
         return keccak256(abi.encodePacked(bytes1(0x01), left, right));
     }
 
-    /// @notice Compute the ERC-8512 statement Merkle root over strictly ascending statement identifiers.
+    /// @notice Compute the ERC-8515 statement Merkle root over strictly ascending statement identifiers.
     /// @dev Returns bytes32(0) for an empty array; reverts if not strictly ascending.
     function statementRoot(bytes32[] memory sortedIds) internal pure returns (bytes32) {
         uint256 len = sortedIds.length;
@@ -57,12 +57,12 @@ library ERC8512Lib {
         return level[0];
     }
 
-    /// @notice Compute the ERC-8512 EIP-712 domain separator.
+    /// @notice Compute the ERC-8515 EIP-712 domain separator.
     function domainSeparator(uint256 chainId, address registry) internal pure returns (bytes32) {
         return keccak256(abi.encode(EIP712_DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, chainId, registry));
     }
 
-    /// @notice Compute the ERC-8512 EIP-712 digest for Statement(bytes32 statementId).
+    /// @notice Compute the ERC-8515 EIP-712 digest for Statement(bytes32 statementId).
     function statementDigest(uint256 chainId, address registry, bytes32 statementId) internal pure returns (bytes32) {
         bytes32 structHash = keccak256(abi.encode(STATEMENT_TYPEHASH, statementId));
         return keccak256(abi.encodePacked(bytes2(0x1901), domainSeparator(chainId, registry), structHash));

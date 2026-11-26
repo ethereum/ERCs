@@ -1,10 +1,10 @@
-# ERC-8512 Reference Implementation & Test Vectors
+# ERC-8515 Reference Implementation & Test Vectors
 
-Reference Solidity contracts, zero-dependency Node.js off-chain library, deterministic test vectors, tests, and offline walkthrough for **ERC-8512: GPU Collateral Evidence**.
+Reference Solidity contracts, zero-dependency Node.js off-chain library, deterministic test vectors, tests, and offline walkthrough for **ERC-8515: GPU Collateral Evidence**.
 
 ## How to Run
 
-From `assets/eip-8512/`:
+From `assets/eip-8515/`:
 
 ```bash
 # 0. Once: fetch forge-std (not vendored here)
@@ -28,9 +28,9 @@ node gen-vectors.mjs
 
 ## Files
 
-- `contracts/IGPUCollateralEvidence.sol` — Exact Solidity interface defined in ERC-8512.
+- `contracts/IGPUCollateralEvidence.sol` — Exact Solidity interface defined in ERC-8515.
 - `contracts/GPUCollateralEvidence.sol` — Minimal, ownerless, non-upgradeable registry implementing the pledge index (O(1) swap-and-pop removal) and period report assertions.
-- `contracts/ERC8512Lib.sol` — Pure Solidity helpers for `deviceKey`, statement leaf/Merkle root, and EIP-712 domain separator / digest.
+- `contracts/ERC8515Lib.sol` — Pure Solidity helpers for `deviceKey`, statement leaf/Merkle root, and EIP-712 domain separator / digest.
 - `test/GPUCollateralEvidence.t.sol` — Foundry test suite covering every revert condition, double-pledge visibility, period replacement, overflow-safe `uint256` rule 3 arithmetic, and `vectors.json` parity with `evidence.mjs` (including `ecrecover`).
 - `foundry.toml` — Foundry configuration (with read permission for `./vectors.json`).
 - `evidence.mjs` — Zero-dependency Node 20+ module implementing Keccak-256, secp256k1 RFC 6979 low-`s` signing and recovery, duplicate-rejecting JSON parsing, RFC 8785 canonical JSON, EIP-712 digests, Merkle roots, statement validation, envelope verification, deterministic aggregation, and `reportProblem`.

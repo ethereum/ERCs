@@ -1,4 +1,4 @@
-// Generate deterministic ERC-8512 test vectors (vectors.json).
+// Generate deterministic ERC-8515 test vectors (vectors.json).
 // SPDX-License-Identifier: CC0-1.0
 
 import { writeFileSync } from 'node:fs';
@@ -106,7 +106,7 @@ function baseStatement({
   evidence,
 }) {
   return {
-    kind: 'ERC8512/statement/1',
+    kind: 'ERC8515/statement/1',
     registry: registryAccount,
     servicer: servicerAccount,
     collateralId: COLLATERAL_ID,
@@ -398,7 +398,7 @@ if (duplicateMemberProblem === null) {
 }
 
 const vectors = {
-  description: 'ERC-8512 deterministic test vectors for device keys, statements, EIP-712 digests, Merkle roots, and reports.',
+  description: 'ERC-8515 deterministic test vectors for device keys, statements, EIP-712 digests, Merkle roots, and reports.',
   keys: {
     servicer: { privateKey: SERVICER_PK, address: servicerAddress },
     lesseeMeter: { privateKey: LESSEE_PK, address: lesseeAddress },

@@ -1,4 +1,4 @@
-// ERC-8512 reference off-chain library (Node 20+, zero external dependencies).
+// ERC-8515 reference off-chain library (Node 20+, zero external dependencies).
 // SPDX-License-Identifier: CC0-1.0
 
 import { createHmac } from 'node:crypto';
@@ -9,7 +9,7 @@ export const ZERO_BYTES32 = '0x' + '00'.repeat(32);
 export const MAX_UINT64 = (1n << 64n) - 1n;
 export const MAX_UINT256 = (1n << 256n) - 1n;
 
-export const STATEMENT_KIND = 'ERC8512/statement/1';
+export const STATEMENT_KIND = 'ERC8515/statement/1';
 export const EIP712_NAME = 'GPU Collateral Evidence';
 export const EIP712_VERSION = '1';
 
@@ -725,10 +725,10 @@ export function canonicalizeJson(value) {
 }
 
 // ---------------------------------------------------------------------------
-// ERC-8512 device keys, EIP-712, Merkle root
+// ERC-8515 device keys, EIP-712, Merkle root
 // ---------------------------------------------------------------------------
 
-const DEVICE_PREFIX = utf8ToBytes('ERC8512.device');
+const DEVICE_PREFIX = utf8ToBytes('ERC8515.device');
 
 const EIP712_DOMAIN_TYPEHASH = keccak256Bytes(
   'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
@@ -1045,7 +1045,7 @@ function toBigIntField(val, name) {
 }
 
 /**
- * Validate envelopes against optional `expected` constraints and compute ERC-8512 report aggregates.
+ * Validate envelopes against optional `expected` constraints and compute ERC-8515 report aggregates.
  */
 export function aggregate(envelopes, expected = null) {
   if (!Array.isArray(envelopes)) {
@@ -1153,7 +1153,7 @@ export function aggregate(envelopes, expected = null) {
 }
 
 /**
- * Check whether `report` is a correct ERC-8512 report for `envelopes` (array or raw JSON text)
+ * Check whether `report` is a correct ERC-8515 report for `envelopes` (array or raw JSON text)
  * under `context` ({ registry, servicer, collateralId, pledgedDeviceKeys }).
  * Returns null if correct, or a string describing the first problem found.
  */

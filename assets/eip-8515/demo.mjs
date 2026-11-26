@@ -1,4 +1,4 @@
-// Offline narrated ERC-8512 walkthrough using vectors.json (no RPC required).
+// Offline narrated ERC-8515 walkthrough using vectors.json (no RPC required).
 // Run with: node demo.mjs
 // SPDX-License-Identifier: CC0-1.0
 
@@ -82,7 +82,7 @@ const collateralB = '0x000000000000000000000000000000000000000000000000000000000
 const gpu1 = vectors.devices[0];
 const allKeys = vectors.devices.map((d) => d.deviceKey);
 
-console.log('=== ERC-8512 Offline Walkthrough ===\n');
+console.log('=== ERC-8515 Offline Walkthrough ===\n');
 
 // Step 1: Double-pledge visibility
 console.log('1. Exclusivity check: Lender A and Lender B both pledge GPU #1');
@@ -103,7 +103,7 @@ console.log('');
 console.log('2. Servicer publishes a period report for [1735689600, 1735776000)');
 const report = vectors.report;
 const envelopes = vectors.statements.map((s) => s.envelope);
-const uri = 'ipfs://bafybeierc8512period1statements';
+const uri = 'ipfs://bafybeierc8515period1statements';
 registry.report(lenderA, collateralA, report, uri, 1735779600);
 console.log(`   On-chain registry accepted report (uri=${uri}):`);
 console.log(`     devicesReported=${report.devicesReported}, devicesAttested=${report.devicesAttested}`);

@@ -5,23 +5,23 @@ import {Test} from "forge-std/Test.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 import {IGPUCollateralEvidence} from "../contracts/IGPUCollateralEvidence.sol";
 import {GPUCollateralEvidence} from "../contracts/GPUCollateralEvidence.sol";
-import {ERC8512Lib} from "../contracts/ERC8512Lib.sol";
+import {ERC8515Lib} from "../contracts/ERC8515Lib.sol";
 
-contract ERC8512LibHarness {
+contract ERC8515LibHarness {
     function deviceKey(uint16 pciVendorId, uint8 idType, bytes memory idBytes) external pure returns (bytes32) {
-        return ERC8512Lib.deviceKey(pciVendorId, idType, idBytes);
+        return ERC8515Lib.deviceKey(pciVendorId, idType, idBytes);
     }
 
     function statementRoot(bytes32[] memory sortedIds) external pure returns (bytes32) {
-        return ERC8512Lib.statementRoot(sortedIds);
+        return ERC8515Lib.statementRoot(sortedIds);
     }
 
     function domainSeparator(uint256 chainId, address registry) external pure returns (bytes32) {
-        return ERC8512Lib.domainSeparator(chainId, registry);
+        return ERC8515Lib.domainSeparator(chainId, registry);
     }
 
     function statementDigest(uint256 chainId, address registry, bytes32 statementId) external pure returns (bytes32) {
-        return ERC8512Lib.statementDigest(chainId, registry, statementId);
+        return ERC8515Lib.statementDigest(chainId, registry, statementId);
     }
 }
 
@@ -29,7 +29,7 @@ contract GPUCollateralEvidenceTest is Test {
     using stdJson for string;
 
     GPUCollateralEvidence internal registry;
-    ERC8512LibHarness internal lib;
+    ERC8515LibHarness internal lib;
 
     address internal servicerA = address(0xA11CE);
     address internal servicerB = address(0xB0B);
@@ -42,7 +42,7 @@ contract GPUCollateralEvidenceTest is Test {
 
     function setUp() public {
         registry = new GPUCollateralEvidence();
-        lib = new ERC8512LibHarness();
+        lib = new ERC8515LibHarness();
         vm.warp(1_735_800_000);
     }
 
@@ -557,17 +557,17 @@ contract GPUCollateralEvidenceTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // ERC8512Lib unit & vectors.json cross-check tests
+    // ERC8515Lib unit & vectors.json cross-check tests
     // -------------------------------------------------------------------------
 
     function test_libStatementRootRejectsUnsortedOrDuplicate() public {
         bytes32 a = bytes32(uint256(10));
         bytes32 b = bytes32(uint256(5));
 
-        vm.expectRevert(ERC8512Lib.UnsortedOrDuplicateStatementIds.selector);
+        vm.expectRevert(ERC8515Lib.UnsortedOrDuplicateStatementIds.selector);
         lib.statementRoot(_arr(a, b));
 
-        vm.expectRevert(ERC8512Lib.UnsortedOrDuplicateStatementIds.selector);
+        vm.expectRevert(ERC8515Lib.UnsortedOrDuplicateStatementIds.selector);
         lib.statementRoot(_arr(a, a));
     }
 
