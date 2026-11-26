@@ -271,7 +271,7 @@
         "image": 42
       },
       "expected": {
-        "all": {
+        "recommended": {
           "fields": {
             "name": "Example"
           }
@@ -312,7 +312,7 @@
             "background_color": "E0F2FE"
           }
         },
-        "otherwise": {
+        "recommended": {
           "fields": {
             "name": "Example"
           }
@@ -349,7 +349,7 @@
         "value": "Big "
       },
       "expected": {
-        "all": {
+        "recommended": {
           "trait": {
             "trait_type": "Eyes",
             "value": "Big"
@@ -502,7 +502,7 @@
         "value": null
       },
       "expected": {
-        "all": "ignored"
+        "recommended": "ignored"
       }
     },
     {
@@ -521,7 +521,7 @@
         }
       ],
       "expected": {
-        "all": {
+        "recommended": {
           "traits": [
             {
               "trait_type": "Accessory",

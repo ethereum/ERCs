@@ -38,12 +38,13 @@
           "enum": ["conforms", "not-conformant", "deployed-form"]
         },
         "expected": {
-          "description": "The result for each class of client. 'all' is every client, and 'otherwise' is every client not in another class.",
+          "description": "The result for each class of client. 'all' is every client, where the result follows from a MUST or a definition. 'recommended' is a client that follows this proposal's SHOULDs. 'acceptsNonConformingDataUri', 'acceptsDeployedForm', 'readsGatewayUrls' and 'removesLeadingHash' are clients that take that SHOULD or MAY. 'otherwise' is every client not in another class. A client takes the result of the first class that describes it, in the order removesLeadingHash, readsGatewayUrls, acceptsDeployedForm, acceptsNonConformingDataUri, recommended, all, otherwise.",
           "type": "object",
           "minProperties": 1,
           "propertyNames": {
             "enum": [
               "all",
+              "recommended",
               "acceptsNonConformingDataUri",
               "acceptsDeployedForm",
               "readsGatewayUrls",
