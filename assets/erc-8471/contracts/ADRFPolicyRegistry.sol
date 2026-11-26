@@ -93,7 +93,7 @@ contract ADRFPolicyRegistry is IADRFPolicyRegistry {
         T.Track calldata t = spec.track;
         if (t.filingWindow == 0) revert E.ADRF_InvalidPolicy("zero filing window");
         if (t.decisionWindow == 0) revert E.ADRF_InvalidPolicy("zero decision window");
-        if (t.evidenceWindow > t.decisionWindow) revert E.ADRF_InvalidPolicy("evidence window exceeds decision window");
+        if (t.evidenceWindow >= t.decisionWindow) revert E.ADRF_InvalidPolicy("evidence window not shorter than decision window");
         if (t.maxReviews > 0) {
             if (t.reviewWindow == 0) revert E.ADRF_InvalidPolicy("zero review window");
             if (t.reviewTypes == 0 || t.reviewTypes > 31) revert E.ADRF_InvalidPolicy("review types");

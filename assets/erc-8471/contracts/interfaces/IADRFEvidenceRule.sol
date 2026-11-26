@@ -11,7 +11,12 @@ import {ADRFTypes as T} from "../ADRFTypes.sol";
 ///         material it would still accept could change it. UNDETERMINED is recorded only once the current round's
 ///         evidence window has closed: before that the registry reverts the attempt, rolling back any change the
 ///         rule made in it, and a later call may resolve. A rule that cannot answer yet may return UNDETERMINED
-///         or revert.
+///         or revert. If nobody resolves an evidenced decisive question by the decision deadline, the registry
+///         reads the rule once itself, with an empty bundle and a fixed gas allowance (the reference registry:
+///         1,000,000): a rule SHOULD answer from the material it already holds; its UNDETERMINED is recorded with
+///         METHOD_UNDETERMINED, and a revert, an exhausted allowance or a malformed answer with TIMEOUT. At
+///         resolution and at expiry alike, a rule that calls back into the registry and changes the case it was
+///         asked about (its state, its round or the sub-question's finding) has the call refused.
 interface IADRFEvidenceRule {
     /// ERC-165: implementers MUST report `type(IADRFEvidenceRule).interfaceId`.
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
