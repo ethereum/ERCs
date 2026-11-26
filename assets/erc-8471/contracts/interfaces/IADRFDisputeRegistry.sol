@@ -62,6 +62,11 @@ interface IADRFDisputeRegistry {
 
     // ------------------------------------------------------------------ decision, review and finality
     function decide(bytes32 caseId) external;
+    /// After the decision deadline, while the decisive finding is missing: records it as a resolution at the
+    /// deadline would have where the registry can establish it without a party's input (premises; an evidence
+    /// rule read once), TIMEOUT otherwise, then decides the round. enforceDeadline records a missing decisive
+    /// finding the same way. Refused when the evidence rule's gas allowance cannot be forwarded, and when the rule
+    /// changed the case through a call back into the registry.
     function expireDecision(bytes32 caseId) external;
     function requestReview(bytes32 caseId, uint8 reviewType, uint32[] calldata subQuestions) external;
     function finalize(bytes32 caseId) external;
