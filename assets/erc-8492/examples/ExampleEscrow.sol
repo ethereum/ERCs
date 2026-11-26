@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-import {ISettlementDeductions, ISettlementCredit} from "../interfaces/ISettlementDeductions.sol";
+import {ISettlementDeductions, ISettlementCredit, ISettlementVault} from "../interfaces/ISettlementDeductions.sol";
 
 /// @title  ExampleEscrow — the smallest escrow that meets the settlement-deduction
 ///         obligations. Illustration only: the creator pays the task out, in one or
@@ -15,8 +15,10 @@ import {ISettlementDeductions, ISettlementCredit} from "../interfaces/ISettlemen
 ///         4. credit what it takes to the policy and let the policy withdraw it;
 ///         5. never ask on a refund;
 ///         6. fix each payout's payee before the payout; a payout never takes it as input;
-///         7. log every payout, credit and withdrawal, so a reader can account for every unit.
-contract ExampleEscrow is ISettlementCredit {
+///         7. log every payout, credit and withdrawal, so a reader can account for every unit;
+///         8. log each payout before its transfer, and finish it before another one starts,
+///            so a reader can pair each event with its transfer.
+contract ExampleEscrow is ISettlementCredit, ISettlementVault {
     uint256 public constant DEDUCTION_GAS = 300_000;
     /// Gas for pushing native currency to a payee. A payee that refuses, or needs more,
     /// is credited instead (since EIP-7702 any address can refuse).
@@ -34,6 +36,7 @@ contract ExampleEscrow is ISettlementCredit {
 
     Task[] private _tasks;
     mapping(uint256 => mapping(address => uint256)) private _credit;
+    uint256 private _lock = 1; // 2 while a payout, refund or withdrawal is under way
 
     event TaskCreated(uint256 indexed taskId, address indexed creator, address indexed payee,
                       address asset, uint256 amount);
@@ -48,6 +51,15 @@ contract ExampleEscrow is ISettlementCredit {
         require(p == address(0) || p.code.length != 0, "Escrow: policy without code");
         require(!_delegated(p), "Escrow: delegated policy");
         policy = policy_;
+    }
+
+    /// A token that calls back during a transfer could otherwise start a second payout
+    /// inside the first, and its transfer would be logged before the first one's.
+    modifier nonReentrant() {
+        require(_lock == 1, "Escrow: re-entered");
+        _lock = 2;
+        _;
+        _lock = 1;
     }
 
     function _delegated(address a) private view returns (bool) {
@@ -80,7 +92,7 @@ contract ExampleEscrow is ISettlementCredit {
     }
 
     /// Pays the task's payee part of what is escrowed: one payout, one settlement id.
-    function payPart(uint256 taskId, uint256 amount) public {
+    function payPart(uint256 taskId, uint256 amount) public nonReentrant {
         Task storage t = _tasks[taskId];
         address payee = t.payee;
         require(msg.sender == t.creator, "Escrow: not creator");
@@ -98,7 +110,7 @@ contract ExampleEscrow is ISettlementCredit {
     }
 
     /// Returns what is left to the creator. Never asks the policy.
-    function refund(uint256 taskId) external {
+    function refund(uint256 taskId) external nonReentrant {
         Task storage t = _tasks[taskId];
         require(msg.sender == t.creator, "Escrow: not creator");
         uint256 amount = t.remaining;
@@ -153,10 +165,24 @@ contract ExampleEscrow is ISettlementCredit {
 
     /// ERC-165.
     function supportsInterface(bytes4 id) external pure returns (bool) {
-        return id == 0x01ffc9a7 || id == type(ISettlementCredit).interfaceId;
+        return id == 0x01ffc9a7 || id == type(ISettlementCredit).interfaceId
+            || id == type(ISettlementVault).interfaceId;
     }
 
-    function withdrawCredit(uint256 taskId, address account) external {
+    // ---------------------------------------------- where a reader finds the transfers
+    /// This escrow holds every task's funds itself.
+    function vaultOf(uint256 taskId) external view returns (address) {
+        require(taskId < _tasks.length, "Escrow: no such task");
+        return address(this);
+    }
+
+    /// The asset a task pays in: the token whose transfers match the task's events, or
+    /// zero for native currency.
+    function assetOf(uint256 taskId) external view returns (address) {
+        return _tasks[taskId].asset;
+    }
+
+    function withdrawCredit(uint256 taskId, address account) external nonReentrant {
         uint256 a = _credit[taskId][account];
         require(a > 0, "Escrow: nothing credited");
         _credit[taskId][account] = 0;

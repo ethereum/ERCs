@@ -60,3 +60,12 @@ interface ISettlementCredit {
     /// @notice The fixed gas budget G with which the escrow calls the policy.
     function deductionGas() external view returns (uint256);
 }
+
+/// @title  ISettlementVault — where a task's funds are held (optional).
+/// @notice For an escrow that holds a task's funds at another address, such as a vault per
+///         task: the transfers that match its events are made from that address. The same
+///         function as `vaultOf` in the token-bound task tender draft.
+interface ISettlementVault {
+    /// @notice The address that holds the funds of `taskId` and pays them out. Fixed.
+    function vaultOf(uint256 taskId) external view returns (address);
+}
