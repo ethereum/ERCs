@@ -1,0 +1,390 @@
+{
+  "version": "1",
+  "read_at": "2026-11-21T07:54:05Z",
+  "block": "119724621",
+  "block_hash": "0xecf09779b64f279fdbc1f83f950f8fec72a9deba8c2a7f275f94a637dc21b917",
+  "source": {
+    "name": "Toll",
+    "url": "https://t0ll.xyz/api/agent-privacy/20030",
+    "agentId": "20030"
+  },
+  "agent": {
+    "chainId": "4663",
+    "identityRegistry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+    "agentId": "20030",
+    "owner": {
+      "status": "read",
+      "value": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+      "evidence": [
+        {
+          "type": "call",
+          "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+          "block": "119724621"
+        }
+      ]
+    },
+    "agentWallet": {
+      "status": "read",
+      "value": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+      "evidence": [
+        {
+          "type": "call",
+          "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "data": "0x003395090000000000000000000000000000000000000000000000000000000000004e3e",
+          "block": "119724621"
+        }
+      ]
+    },
+    "payTo": {
+      "status": "read",
+      "value": [
+        "0xdc36d51963d08862c525045ccfd39fae6a0c7f40"
+      ],
+      "evidence": [
+        {
+          "type": "block",
+          "block": "119724621"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "payment_lands_on_owner": {
+      "entries": [
+        {
+          "role": "agentWallet",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": true,
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x003395090000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            },
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            }
+          ]
+        },
+        {
+          "role": "payTo",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": true,
+          "evidence": [
+            {
+              "type": "block",
+              "block": "119724621"
+            },
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            }
+          ]
+        }
+      ]
+    },
+    "owner_funded_payment_address": {
+      "entries": [
+        {
+          "role": "agentWallet",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": "same-address",
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            }
+          ]
+        },
+        {
+          "role": "payTo",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": "same-address",
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            }
+          ]
+        }
+      ]
+    },
+    "owner_payment_direct_link": {
+      "entries": [
+        {
+          "role": "agentWallet",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": "same-address",
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            }
+          ]
+        },
+        {
+          "role": "payTo",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": "same-address",
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "data": "0x6352211e0000000000000000000000000000000000000000000000000000000000004e3e",
+              "block": "119724621"
+            }
+          ]
+        }
+      ]
+    },
+    "owner_agent_count": {
+      "status": "read",
+      "value": 1,
+      "evidence": [
+        {
+          "type": "call",
+          "to": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+          "data": "0x70a08231000000000000000000000000dc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "block": "119724622"
+        }
+      ]
+    },
+    "shared_payment_address": {
+      "entries": [
+        {
+          "role": "agentWallet",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": {
+            "agent_ids": [],
+            "compared": [
+              "agentWallet",
+              "payTo"
+            ]
+          },
+          "evidence": [
+            {
+              "type": "address",
+              "address": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "to_block": "119724621"
+            }
+          ]
+        },
+        {
+          "role": "payTo",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": {
+            "agent_ids": [],
+            "compared": [
+              "agentWallet",
+              "payTo"
+            ]
+          },
+          "evidence": [
+            {
+              "type": "address",
+              "address": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+              "to_block": "119724621"
+            }
+          ]
+        }
+      ]
+    },
+    "payers_visible": {
+      "status": "read",
+      "value": {
+        "addresses": [
+          "0xdc36d51963d08862c525045ccfd39fae6a0c7f40"
+        ],
+        "assets": [
+          "USDG"
+        ],
+        "window_seconds": 2592000,
+        "payers": 9,
+        "payments": 12
+      },
+      "evidence": [
+        {
+          "type": "address",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "to_block": "119724621"
+        }
+      ]
+    }
+  },
+  "helps": {
+    "stealth_meta_address": {
+      "entries": [
+        {
+          "role": "owner",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": {
+            "registry": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+            "checked": [
+              "1"
+            ],
+            "scheme_ids": []
+          },
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+              "data": "0x7aa8b5ad000000000000000000000000dc36d51963d08862c525045ccfd39fae6a0c7f400000000000000000000000000000000000000000000000000000000000000001",
+              "block": "119724621"
+            }
+          ]
+        },
+        {
+          "role": "agentWallet",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": {
+            "registry": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+            "checked": [
+              "1"
+            ],
+            "scheme_ids": []
+          },
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+              "data": "0x7aa8b5ad000000000000000000000000dc36d51963d08862c525045ccfd39fae6a0c7f400000000000000000000000000000000000000000000000000000000000000001",
+              "block": "119724621"
+            }
+          ]
+        },
+        {
+          "role": "payTo",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "status": "read",
+          "value": {
+            "registry": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+            "checked": [
+              "1"
+            ],
+            "scheme_ids": []
+          },
+          "evidence": [
+            {
+              "type": "call",
+              "to": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+              "data": "0x7aa8b5ad000000000000000000000000dc36d51963d08862c525045ccfd39fae6a0c7f400000000000000000000000000000000000000000000000000000000000000001",
+              "block": "119724621"
+            }
+          ]
+        }
+      ]
+    },
+    "shielded_pool_receipts": {
+      "status": "read",
+      "value": {
+        "addresses": [
+          "0xdc36d51963d08862c525045ccfd39fae6a0c7f40"
+        ],
+        "pool_list": "Toll's named shielded pools (https://t0ll.xyz/agents/privacy)",
+        "pools": [
+          "0x39e28cde55cab798874746ac52cb4b5cc99a0194"
+        ],
+        "received_from": []
+      },
+      "evidence": [
+        {
+          "type": "address",
+          "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+          "to_block": "119724621"
+        }
+      ]
+    }
+  },
+  "extensions": {
+    "payment_wallet_leaks": {
+      "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+      "funding_sibling": {
+        "status": "read",
+        "value": {
+          "first_funder": "0x7fbd3debae61b2ae3950bd4d68cc57effe8ba37d",
+          "other_funded": 1
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0x7fbd3debae61b2ae3950bd4d68cc57effe8ba37d",
+            "to_block": "119724621"
+          }
+        ]
+      },
+      "linked_counterparties": {
+        "status": "read",
+        "value": {
+          "sent_to": 5,
+          "received_from": 7,
+          "lower_bound": false,
+          "assets": [
+            "ETH",
+            "WETH",
+            "USDG"
+          ],
+          "sample": [
+            "0x5388872a6bbb5fd94533a4dab2a7a1cab02fa5bc",
+            "0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a",
+            "0x7fbd3debae61b2ae3950bd4d68cc57effe8ba37d",
+            "0xf5858d7ea59b4fb176925df77d332a43e786bb65",
+            "0xb240fbfadedd77ab8300bee42e4942cd18efb6ca"
+          ]
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+            "to_block": "119724621"
+          }
+        ]
+      },
+      "holdings_visibility": {
+        "status": "read",
+        "value": {
+          "tokens": 8,
+          "unpriced": 6,
+          "usd_value": "6.99"
+        },
+        "evidence": [
+          {
+            "type": "address",
+            "address": "0xdc36d51963d08862c525045ccfd39fae6a0c7f40",
+            "to_block": "119724621"
+          }
+        ]
+      }
+    }
+  },
+  "partial": false,
+  "partial_reasons": [],
+  "score": {
+    "value": 40,
+    "max": 100,
+    "label": "D",
+    "method": "https://t0ll.xyz/agents/privacy"
+  }
+}

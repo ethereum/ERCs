@@ -1,0 +1,16 @@
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Node
+node_modules/
+server/dist/
+server/coverage/
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Foundry libraries (installed per reference/README.md, not vendored)
+contracts/lib/

@@ -1,0 +1,143 @@
+{
+  "id": 7622,
+  "score": 40,
+  "grade": "D",
+  "leaks": [
+    {
+      "id": "wallet_is_owner",
+      "title": "Payments land on the owner",
+      "text": "The payment address is the owner's own address, so every payment lands on the owner wallet.",
+      "points": 25,
+      "tip": "Register a separate payment address that the owner never sends to; fund it from a bridge or a shielded pool.",
+      "proof": [
+        {
+          "label": "Owner on the explorer",
+          "href": "https://robinhoodchain.blockscout.com/address/0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a"
+        }
+      ]
+    },
+    {
+      "id": "payers",
+      "title": "Payers are visible",
+      "text": "44 payments from 24 payers in 30 days: each payer is linked to this agent in public.",
+      "points": 5,
+      "tip": "Payments to a public address link every payer to the agent; use a shielded route where the payer wants that hidden.",
+      "proof": [
+        {
+          "label": "Owner on the explorer",
+          "href": "https://robinhoodchain.blockscout.com/address/0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a"
+        }
+      ]
+    },
+    {
+      "id": "funding",
+      "title": "Funding trail",
+      "text": "First funded by 0x6668…096c; that wallet also funded 7 others, so they can be linked to you.",
+      "points": 20,
+      "tip": "Fund new wallets from a bridge or exchange, not from your main wallet.",
+      "proof": [
+        {
+          "label": "Trace 0x6668…096c",
+          "href": "/trace?addr=0x6668afd165142f95bcfb6986b14153b7ca31096c"
+        },
+        {
+          "label": "Explorer",
+          "href": "https://robinhoodchain.blockscout.com/address/0x6668afd165142f95bcfb6986b14153b7ca31096c"
+        }
+      ]
+    },
+    {
+      "id": "linked",
+      "title": "Linked wallets",
+      "text": "You sent ETH, WETH or USDG to at least 6 wallets and received from at least 11 wallets. Each transfer links them to you on-chain.",
+      "points": 10,
+      "tip": "Don't send money directly between wallets you want kept apart; go through a bridge or exchange.",
+      "proof": [
+        {
+          "label": "0xe568…ab17",
+          "href": "/trace?addr=0xe568f7b17c02fb65929f1fc8ad50b2f6c7d5ab17"
+        },
+        {
+          "label": "0xa991…4c9e",
+          "href": "/trace?addr=0xa9913be6f09f49a2fe6dc4b800c78fe208604c9e"
+        },
+        {
+          "label": "0x5a66…2d01",
+          "href": "/trace?addr=0x5a66be34a09e8d9d6eb569f635b2b900b18c2d01"
+        },
+        {
+          "label": "0x6668…096c",
+          "href": "/trace?addr=0x6668afd165142f95bcfb6986b14153b7ca31096c"
+        },
+        {
+          "label": "0x0314…5d6d",
+          "href": "/trace?addr=0x03149b53af9c7fcaa409970fb95f5f12ec055d6d"
+        }
+      ]
+    },
+    {
+      "id": "holdings",
+      "title": "Holdings",
+      "text": "Anyone can see you hold $70 across 31 coins (we cannot price 28 of them).",
+      "points": 0,
+      "tip": "Keep long-term holdings in a wallet you never trade or launch from.",
+      "proof": [
+        {
+          "label": "Explorer",
+          "href": "https://robinhoodchain.blockscout.com/address/0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a"
+        }
+      ]
+    }
+  ],
+  "facts": [],
+  "unread": [],
+  "partial": false,
+  "partial_why": [],
+  "payment_wallet": "0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a",
+  "wallet_grade": "B",
+  "read": {
+    "read_at": "2026-11-21T07:56:02.479Z",
+    "block": "119725624",
+    "chain_id": "4663",
+    "identity_registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+    "owner": "0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a",
+    "agent_wallet": "0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a",
+    "pay_to": "0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a",
+    "owner_agents": 1,
+    "shared_payment_address": {
+      "agent_ids": [],
+      "compared": [
+        "agentWallet",
+        "payTo"
+      ],
+      "at_most": 50
+    },
+    "first_funder": {
+      "payment_wallet": {
+        "address": "0x33d6112f2f3bcd2a476bd9c13208e4c632be2d0a",
+        "funder": "0x6668afd165142f95bcfb6986b14153b7ca31096c",
+        "read": true
+      },
+      "pay_to": null
+    },
+    "direct_link": null,
+    "payers_30d": {
+      "payments": 44,
+      "payers": 24,
+      "window_days": 30
+    },
+    "stealth": {
+      "registry": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+      "owner": false,
+      "agent_wallet": false
+    },
+    "shielded_pools": {
+      "list": "toll",
+      "pools": [
+        "0x39e28cde55cab798874746ac52cb4b5cc99a0194"
+      ],
+      "received_from": [],
+      "complete": false
+    }
+  }
+}

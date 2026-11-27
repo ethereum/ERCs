@@ -1,0 +1,31 @@
+{
+  "aito": "1",
+  "kind": "assessment",
+  "name": "Pass rate of the Case A execution object on the reference workload",
+  "subject": {
+    "grade": "0x93dcf8df52a1e7c400907a278ac86d809a07052115f14dea5d39c530f0bec2e3",
+    "executionObject": "fixed-model"
+  },
+  "assessor": "eip155:11155111:0x94AC5F7A2A7163f6748134C4C2521752c03F470f",
+  "standing": "third-party",
+  "metric": {
+    "family": "capability",
+    "name": "reference-workload-pass-rate",
+    "version": "1"
+  },
+  "value": "0.93",
+  "state": "measured",
+  "conditions": {
+    "taskDomain": "software maintenance tasks of the pinned workload",
+    "inputConditions": "inputs up to 20000 tokens",
+    "computeBudget": "medium reasoning budget",
+    "executionConfig": "as stated in the Grade",
+    "runConditions": "three runs per task"
+  },
+  "method": "0xab2b2801ca8dfac575ae948f9c06f349b2b7896276f1f0daa044e9fb545a00df",
+  "scope": "1200 tasks, three runs each",
+  "uncertainty": "0.012",
+  "asOf": "2027-01-10T00:00:00Z",
+  "validUntil": "2027-04-10T00:00:00Z",
+  "evidence": "0xb77866c0134830de807ee87a442dfc81cab829a382dca64767a40caeeb7a52ae"
+}

@@ -1,0 +1,282 @@
+{
+  "asf": "1.0",
+  "kind": "safety-specification",
+  "name": "Personal Assistant Safety",
+  "summary": "Safety arrangement for an assistant that reads a person's mail and documents and operates a wallet on their behalf: bounded spending enforced by the account, untrusted input treated as data, pinned skills, protected monitoring, and a guardian who can pause.",
+  "publisher": {
+    "ref": "eip155:11155111:0x00000000000000000000000000000000000009b1",
+    "name": "Example publisher"
+  },
+  "version": 1,
+  "protects": [
+    {
+      "domain": "assets-economic",
+      "description": "funds held by the principal's account",
+      "roles": [
+        "principal"
+      ]
+    },
+    {
+      "domain": "information-privacy",
+      "description": "mail, documents and contacts the assistant reads",
+      "roles": [
+        "principal",
+        "counterparty"
+      ]
+    },
+    {
+      "domain": "control-rules",
+      "description": "the account's permissions and the monitoring that watches the assistant",
+      "roles": [
+        "principal"
+      ]
+    },
+    {
+      "domain": "human-public",
+      "description": "recipients of messages the assistant sends and persons it transacts with",
+      "roles": [
+        "counterparty",
+        "bystander"
+      ]
+    }
+  ],
+  "applicability": {
+    "subjects": [
+      "an assistant agent operating under a session permission of the principal's account"
+    ],
+    "tasks": [
+      "mail triage",
+      "document handling",
+      "payments and purchases on the principal's behalf"
+    ],
+    "resources": [
+      "one account of the principal",
+      "the principal's mail and document stores"
+    ],
+    "environments": [
+      "an isolated runtime whose configuration the assistant cannot change"
+    ],
+    "notes": "One binding per account; a second account needs its own binding.",
+    "permittedUses": [
+      "mail triage and replies the principal would send",
+      "purchases and payments the principal asked for",
+      "calendar and document handling for the principal"
+    ],
+    "prohibitedUses": [
+      "sending messages that deceive or pressure a recipient",
+      "moving funds to accounts the principal did not name",
+      "using the principal's data for any purpose other than the current task"
+    ]
+  },
+  "constraints": [
+    {
+      "id": "spend",
+      "profile": "asf:profile:authority/bounded-spend@1",
+      "family": "identity-authority",
+      "statement": "Autonomous spending is capped per action and per rolling day; anything above the cap requires the principal's confirmation.",
+      "parameters": {
+        "aboveCapRequires": "principal-confirmation"
+      },
+      "scope": "trajectory",
+      "enforcedBy": [
+        "account-permission",
+        "guard-contract"
+      ]
+    },
+    {
+      "id": "input",
+      "profile": "asf:profile:information/untrusted-input@1",
+      "family": "information-privacy",
+      "statement": "Mail bodies, attachments, web pages and tool outputs are data; only the principal's authorization records confer authority. Data read under this binding is disclosed only to listed recipients.",
+      "scope": "relation",
+      "enforcedBy": [
+        "runtime-labels"
+      ]
+    },
+    {
+      "id": "deps",
+      "profile": "asf:profile:supply-chain/pinned-dependencies@1",
+      "family": "execution-supply-chain",
+      "statement": "Only pinned skills and tools load; the runtime is a container with listed egress.",
+      "scope": "state",
+      "enforcedBy": [
+        "runtime-labels"
+      ]
+    },
+    {
+      "id": "monitor",
+      "profile": "asf:profile:behavior/monitoring-integrity@1",
+      "family": "behavior-goals",
+      "statement": "The assistant cannot change the monitors or alert routes that watch it; a task instruction never extends to them.",
+      "scope": "action",
+      "enforcedBy": [
+        "monitoring-plane"
+      ]
+    },
+    {
+      "id": "pause",
+      "profile": "asf:profile:governance/intervention@1",
+      "family": "governance-accountability",
+      "statement": "The principal may suspend, resume and terminate; a guardian may suspend under derisk-only or full-stop; contested interventions go to the named decision mechanism.",
+      "scope": "state",
+      "enforcedBy": [
+        "guard-contract"
+      ]
+    }
+  ],
+  "authority": {
+    "whoMayAdopt": [
+      "the account holder (principal) for an assistant acting on that account"
+    ],
+    "whoMayEnforce": [
+      "the account's permission module",
+      "the guard contract",
+      "the runtime operator"
+    ],
+    "authorityBasis": [
+      "wallet permission grant",
+      "session key grant",
+      "operator agreement"
+    ]
+  },
+  "evidence": [
+    {
+      "id": "runtime-attestation",
+      "kind": "attestation",
+      "source": "runtime operator",
+      "binds": [
+        "instance",
+        "version",
+        "state"
+      ],
+      "validity": "per runtime image"
+    },
+    {
+      "id": "guard-deployment",
+      "kind": "declaration",
+      "source": "principal",
+      "binds": [
+        "subject",
+        "version"
+      ],
+      "validity": "while the guard is the account's only operator path"
+    },
+    {
+      "id": "incident-review",
+      "kind": "decision",
+      "source": "named decision mechanism",
+      "binds": [
+        "subject",
+        "action",
+        "state"
+      ]
+    }
+  ],
+  "enforcement": {
+    "channels": [
+      {
+        "id": "account-permission",
+        "description": "Session permission of the account: scope, caps, expiry, revocation.",
+        "mechanism": {
+          "kind": "wallet-permission",
+          "ref": "account permission record"
+        },
+        "location": "account",
+        "coverage": "full",
+        "knownBypasses": []
+      },
+      {
+        "id": "guard-contract",
+        "description": "Guarded account: every operator call is checked against the presented bindings; derisk-only keeps repay/cancel open.",
+        "mechanism": {
+          "kind": "asf-guarded-account",
+          "ref": "deployed guard contract"
+        },
+        "location": "contract",
+        "coverage": "full",
+        "knownBypasses": [
+          "direct signatures by the principal are outside the binding by design"
+        ]
+      },
+      {
+        "id": "runtime-labels",
+        "description": "Provenance labels on inputs, pinned loader, egress allow list.",
+        "mechanism": {
+          "kind": "runtime",
+          "ref": "runtime image"
+        },
+        "location": "runtime",
+        "coverage": "partial",
+        "knownBypasses": [
+          "indirect disclosure through aggregate behaviour"
+        ]
+      },
+      {
+        "id": "monitoring-plane",
+        "description": "Monitors and alert routes run outside the assistant's authority.",
+        "mechanism": {
+          "kind": "monitoring",
+          "ref": "monitoring plane"
+        },
+        "location": "runtime",
+        "coverage": "full",
+        "knownBypasses": []
+      }
+    ]
+  },
+  "failureHandling": {
+    "unknown": "wait",
+    "denied": "refuse",
+    "dependencyFailure": "degrade",
+    "notes": "degrade = the account falls back to derisk-only until the dependency is back; it never falls back to unchecked execution."
+  },
+  "remedies": {
+    "suspensionModes": [
+      "derisk-only",
+      "full-stop"
+    ],
+    "recovery": "the principal resumes after reviewing the incident record",
+    "dispute": "the decision mechanism named in the binding parameters",
+    "compensation": "outside this specification",
+    "reversibility": "mixed",
+    "interventionWindow": "before the next autonomous payment; the account checks every call",
+    "serviceContinuity": [
+      "reading the principal's own mail and calendar",
+      "repayment and order cancellation"
+    ],
+    "incidentReporting": {
+      "channels": [
+        "the guardian",
+        "the principal's incident channel named in the binding parameters"
+      ],
+      "evidenceRequirements": [
+        "the action or message concerned",
+        "its source labels",
+        "the time and the account"
+      ]
+    }
+  },
+  "profiles": {
+    "required": [
+      "asf:profile:authority/bounded-spend@1",
+      "asf:profile:information/untrusted-input@1",
+      "asf:profile:governance/intervention@1"
+    ],
+    "optional": [
+      "asf:profile:supply-chain/pinned-dependencies@1",
+      "asf:profile:behavior/monitoring-integrity@1"
+    ]
+  },
+  "limitations": [
+    "Caps are enforced for the guarded path only; the principal's own signatures are not bound.",
+    "Information isolation is monitored, not proven."
+  ],
+  "metadata": {
+    "registration": {
+      "chainId": 11155111,
+      "registry": "0x00000000000000000000000000000000000a5f01",
+      "publisher": "0x00000000000000000000000000000000000009b1",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    }
+  }
+}

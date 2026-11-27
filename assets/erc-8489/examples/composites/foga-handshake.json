@@ -1,0 +1,124 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.foga-handshake",
+  "version": "1.0.0",
+  "title": "FOGA handshake: two strangers establish a scoped, verifiable link",
+  "labels": [
+    "aifp:paradigm/direct/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "feedback"
+  ],
+  "cardinality": {
+    "contributors": "roster",
+    "pairwise": true
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "members",
+      "submissionVisibility": "all",
+      "payloadProtection": "e2ee",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish",
+        "respond"
+      ],
+      "acquisition": "predicate",
+      "transferable": false,
+      "expiry": "renewable"
+    },
+    "management": {
+      "admission": [
+        "protocol"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "none"
+      ],
+      "rules": [
+        "decision-body"
+      ],
+      "disclosure": [
+        "none"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": true,
+      "derive": false,
+      "publishElsewhere": false
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "request-response",
+      "delivery": [
+        "push"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "respond": {
+      "anyOf": [
+        {
+          "identity": {
+            "verifier": "0x0000000000000000000000000000000000000002",
+            "registry": "0x0000000000000000000000000000000000000003",
+            "requiredState": "active"
+          }
+        },
+        {
+          "credential": {
+            "verifier": "0x0000000000000000000000000000000000000001",
+            "scheme": "0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764",
+            "minLevel": 1,
+            "proofMode": "proved"
+          }
+        }
+      ]
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association",
+      "push",
+      "payload-protection"
+    ]
+  }
+}
