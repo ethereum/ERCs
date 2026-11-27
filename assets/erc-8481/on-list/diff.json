@@ -1,5 +1,5 @@
 {
-  "description": "list version diffs: added / removed / changed by normalized account, and the hash change. The draft does not define a diff; this format is informative (9abaacf).",
+  "description": "list version diffs: added / removed / changed by normalized account, and the hash change. ERC-8481 does not define a diff; this format is informative.",
   "v1": {
     "version": "erc-presign-list/1",
     "source": "https://example.org/upstream/synthetic-list",

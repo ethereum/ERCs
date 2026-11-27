@@ -291,7 +291,7 @@ def build():
     breq, brep = decoded_case()
     vectors = [
         {"id": "wrapped-approve-unsupported-batch", "basis": "spec",
-         "note": "The reviewer's case: approve(spender, 2^256 - 1) to the token inside an ERC-7821 batch "
+         "note": "approve(spender, 2^256 - 1) to the token inside an ERC-7821 batch "
                  "execute(bytes32,bytes) that this source does not decode. The source lists only the outer target, "
                  "every finding for it is read, and coverage names the gap; the report must not read as no findings.",
          "hidden": {"path": "tx.calls[0].inner[0]", "to": caip10(inner[0][0]), "data": hx(inner[0][2]),

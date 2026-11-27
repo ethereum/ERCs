@@ -357,7 +357,7 @@
     {
       "id": "retrieval-time-inside-document",
       "basis": "spec",
-      "note": "extra top-level fields are allowed, are part of the hash and are ignored by readers (9abaacf), so a document that carries retrievedAt hashes differently, which is why the draft keeps it out",
+      "note": "extra top-level fields are allowed, are part of the hash and are ignored by readers, so a document that carries retrievedAt hashes differently, which is why the draft keeps it out",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -398,7 +398,7 @@
     {
       "id": "published-bytes-vs-jcs",
       "basis": "spec",
-      "note": "hash is digest() of the normalized form over the parsed JSON value, so whitespace and key order in the published bytes do not matter; keccak256 of the raw bytes differs (9abaacf)",
+      "note": "hash is digest() of the normalized form over the parsed JSON value, so whitespace and key order in the published bytes do not matter; keccak256 of the raw bytes differs",
       "publishedBytes": [
         "{\n  \"version\": \"erc-presign-list/1\",\n  \"source\": \"https://example.org/upstream/synthetic-list\",\n  \"criteria\": \"Synthetic addresses for test vectors; not a real list.\",\n  \"attestation\": \"Synthetic attestation covering every entry.\",\n  \"entries\": [\n    {\n      \"account\": \"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"\n    }\n  ]\n}",
         "{\"version\":\"erc-presign-list/1\",\"source\":\"https://example.org/upstream/synthetic-list\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"attestation\":\"Synthetic attestation covering every entry.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}]}"
@@ -429,7 +429,7 @@
     {
       "id": "duplicate-different-evidence-nonconforming",
       "basis": "spec",
-      "note": "one account twice with different content: the list does not conform and has no hash a reader can use (9abaacf; was open Q5)",
+      "note": "one account twice with different content: the list does not conform and has no hash a reader can use",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -468,7 +468,7 @@
     {
       "id": "other-namespace-case-different-hash",
       "basis": "spec",
-      "note": "a namespace other than eip155, bip122 and solana is compared as written: a case variant is a different account (d21f46e)",
+      "note": "a namespace other than eip155, bip122 and solana is compared as written: a case variant is a different account",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -508,7 +508,7 @@
     {
       "id": "other-namespace-case-variants-both-kept",
       "basis": "spec",
-      "note": "both case variants are kept as two entries, not merged, and the list conforms (d21f46e)",
+      "note": "both case variants are kept as two entries, not merged, and the list conforms",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -535,7 +535,7 @@
     {
       "id": "empty-entries",
       "basis": "spec",
-      "note": "a list with no entries conforms; on-list against it reads null for every address (d21f46e; was open Q7, see match.json empty-list-reads-null)",
+      "note": "a list with no entries conforms; on-list against it reads null for every address (see match.json empty-list-reads-null)",
       "documents": [
         {
           "version": "erc-presign-list/1",

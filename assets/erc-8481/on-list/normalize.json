@@ -1,5 +1,5 @@
 {
-  "description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written, other namespaces as written) and the bip122 encoding rule of d21f46e",
+  "description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written, other namespaces as written) and the bip122 encoding rule",
   "vectors": [
     {
       "id": "evm-eip55-to-lower",
@@ -181,7 +181,7 @@
     {
       "id": "reject-mixed-case-bech32",
       "basis": "spec",
-      "note": "BIP-173 forbids mixed case; the list does not conform (9abaacf)",
+      "note": "BIP-173 forbids mixed case; the list does not conform",
       "input": "bip122:000000000019d6689c085ae165831e93:Bc1QxRxUjWxFnVz040Jw76D26zHjDg5JuRa7Hs968S",
       "expected": {
         "ok": false
@@ -189,8 +189,8 @@
     },
     {
       "id": "reject-bad-bech32-checksum",
-      "basis": "reference",
-      "note": "last character changed: base58 by the d21f46e rule, but not valid base58check, so treated as not valid (our call, see README open question)",
+      "basis": "spec",
+      "note": "last character changed: neither a valid BIP-173/350 address nor valid Base58Check, so invalid: the list does not conform",
       "input": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968q",
       "expected": {
         "ok": false
@@ -199,7 +199,7 @@
     {
       "id": "reject-evm-bad-checksum",
       "basis": "spec",
-      "note": "mixed case that is not a valid EIP-55 checksum: the list does not conform (9abaacf; was open Q2)",
+      "note": "mixed case that is not a valid EIP-55 checksum: the list does not conform",
       "input": "eip155:1:0x8532fA14ACAf483729C449b8458aedDb900543D4",
       "expected": {
         "ok": false
@@ -208,7 +208,7 @@
     {
       "id": "reject-evm-0X-prefix",
       "basis": "spec",
-      "note": "upper-case 0X prefix is not a valid CAIP-10 eip155 address (9abaacf; was open Q2)",
+      "note": "upper-case 0X prefix is not a valid CAIP-10 eip155 address",
       "input": "eip155:1:0X8532FA14ACAf483729C449b8458aedDb900543D4",
       "expected": {
         "ok": false
@@ -217,7 +217,7 @@
     {
       "id": "reject-chain-ref-leading-zero",
       "basis": "spec",
-      "note": "eip155 chain reference with a leading zero: the list does not conform (9abaacf; was open Q4)",
+      "note": "eip155 chain reference with a leading zero: the list does not conform",
       "input": "eip155:01:0x8532FA14ACAf483729C449b8458aedDb900543D4",
       "expected": {
         "ok": false
@@ -226,7 +226,7 @@
     {
       "id": "base58-btc-p2sh",
       "basis": "spec",
-      "note": "not a valid BIP-173/350 address, so base58, kept as written (d21f46e)",
+      "note": "not a valid BIP-173/350 address, so base58, kept as written",
       "input": "bip122:000000000019d6689c085ae165831e93:34ZzsFipeK2C6YiYAPCMspm7A4zPUedpid",
       "expected": {
         "ok": true,
@@ -237,7 +237,7 @@
     {
       "id": "other-namespace-as-written",
       "basis": "spec",
-      "note": "a namespace other than eip155, bip122 and solana: kept exactly as written, case included (d21f46e)",
+      "note": "a namespace other than eip155, bip122 and solana: kept exactly as written, case included",
       "input": "xmpl:testnet:AbCdEf0123XyZ",
       "expected": {
         "ok": true,
@@ -248,7 +248,7 @@
     {
       "id": "other-namespace-lower-variant",
       "basis": "spec",
-      "note": "the lowercase variant is also kept as written: a different account (d21f46e)",
+      "note": "the lowercase variant is also kept as written: a different account",
       "input": "xmpl:testnet:abcdef0123xyz",
       "expected": {
         "ok": true,
@@ -321,7 +321,7 @@
     {
       "id": "bad-bech32-checksum-is-base58",
       "basis": "spec",
-      "note": "last character changed: not a valid BIP-173 address, so base58 by the text. It is not valid base58check either; whether the list conforms is a reference choice (normalize.json reject-bad-bech32-checksum)",
+      "note": "last character changed: not a valid BIP-173 address, so base58 by the text. It is not valid Base58Check either, so the list does not conform (normalize.json reject-bad-bech32-checksum)",
       "namespace": "bip122",
       "address": "bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968q",
       "expected": {
@@ -351,7 +351,7 @@
     {
       "id": "mixed-case-bech32-is-base58",
       "basis": "spec",
-      "note": "mixed case is not valid BIP-173, so the encoding rule gives base58; the list still does not conform, since a mixed-case bech32 account is named as invalid (9abaacf, normalize.json reject-mixed-case-bech32)",
+      "note": "mixed case is not valid BIP-173, so the encoding rule gives base58; the list still does not conform, since a mixed-case bech32 account is named as invalid (normalize.json reject-mixed-case-bech32)",
       "namespace": "bip122",
       "address": "Bc1QxRxUjWxFnVz040Jw76D26zHjDg5JuRa7Hs968S",
       "expected": {

@@ -1,7 +1,6 @@
 # Text injection cases
 
-Executable examples for `erc.presign.text.injection` as specified in ERC-8481 at
-`d62208962642407870b5272e0002f339f19de429`. Contributed by Ted (@haot3x), CC0-1.0.
+Executable examples for `erc.presign.text.injection` as specified in ERC-8481. Contributed by Ted (@haot3x), CC0-1.0.
 
 From the repository root:
 

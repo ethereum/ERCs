@@ -1,17 +1,11 @@
 # Pre-sign report executable assets
 
-From this directory, install the pinned test library and run:
+The Solidity tests use Foundry's standard test library, forge-std, version 1.17.0
+(commit `f3dae6e6ee381f25eb6a246f7da9b85c91a68219`), installed at `lib/forge-std`, for
+example with `forge install foundry-rs/forge-std@v1.17.0`. From this directory, run
+`forge test` (Solidity 0.8.30, EVM Prague, as set in `foundry.toml`). No RPC is required.
 
-```sh
-mkdir -p lib
-git clone --depth 1 --branch v1.17.0 https://github.com/foundry-rs/forge-std.git lib/forge-std
-git -C lib/forge-std checkout f3dae6e6ee381f25eb6a246f7da9b85c91a68219
-forge test
-```
-
-Validated with Forge 1.7.1, Solidity 0.8.30, EVM Prague, and the forge-std commit above:
-31 tests pass (14 existing delegate vectors, 12 anchor cases, 5 historical-signer
-cases). Each of the two fuzz tests runs 256 cases. No RPC is required.
+All files in this directory are CC0-1.0.
 
 ## Candidate anchor implementation
 
@@ -49,7 +43,7 @@ The cases show:
   but today's `isValidSignature` rejects the old report. Replaying the signature
   check in the earlier state accepts it.
 
-The last case is now normative: when auditing an anchored report, step 2 runs at the same
+The last case follows the Specification: when auditing an anchored report, step 2 runs at the same
 historical block as step 3, both whether the signer has code (EIP-7702 can change it) and the
 ERC-1271 `isValidSignature` call. A verifier without archive state treats the report as not
 read, not as unsigned. Pre-sign checks still use current state.
@@ -57,8 +51,14 @@ read, not as unsigned. Pre-sign checks still use current state.
 Cross-chain timestamp-to-block selection, reorg handling, archive unavailability,
 and historical content-addressed/mutable registration files are outside this harness.
 
-The pre-existing `PreSignDelegateVectors.t.sol` remains MIT-licensed by it44. New
-anchor and historical-signer assets are CC0-1.0. The delegate vectors are unchanged.
+## Delegate vectors
+
+`PreSignDelegateVectors.t.sol` runs the delegate vectors V1 to V7 of the Test Cases for
+`delegate-single-caller` and `delegate-unbounded-outflow`, and four checks on the harness
+itself (native EIP-7702 path against setting the code directly, a fixed caller outside the
+tried set, a per-call cap against total outflow, and fuzzed callers). V7 is a stand-in with
+the shape of the Ethereum delegate named in the Test Cases, written for this test; it embeds
+no deployed contract's code.
 
 ## On-list list document vectors
 
@@ -69,7 +69,7 @@ They are CC0-1.0, by the RUNECLAW team.
 ## Coverage vectors
 
 `coverage/` holds JSON vectors for the report's `coverage` object, the answer to the case where a source cannot decode
-part of a request (review: Revinand). Run `python3 coverage/coverage_vectors.py` (standard library only; it reuses
+part of a request. Run `python3 coverage/coverage_vectors.py` (standard library only; it reuses
 keccak256 and RFC 8785 from `on-list/onlist_vectors.py`); `--write` regenerates `coverage.json` deterministically.
 
 - `wrapped-approve-unsupported-batch`: `approve(spender, 2^256 - 1)` inside an ERC-7821 batch `execute(bytes32,bytes)`
@@ -89,7 +89,7 @@ placeholder. The batch calldata and one EIP-712 digest were also recomputed with
 
 ## Text injection cases
 
-`text-injection/` adds 26 executable cases for the `text.injection` format in d622089:
+`text-injection/` adds 26 executable cases for the `text.injection` format:
 declared normalization, fixed class order and uniqueness, exact-byte pattern-set
 hashes, unsupported versus empty results, and composition with partial coverage.
 Run `python3 text-injection/test_injection.py` (Python 3.9+, standard library only).

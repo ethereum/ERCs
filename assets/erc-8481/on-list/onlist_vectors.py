@@ -8,9 +8,9 @@ implemented below, so nothing needs installing).
     python3 onlist_vectors.py           # check every vector file against this implementation
     python3 onlist_vectors.py --write   # regenerate the vector files (deterministic)
 
-Cases marked "basis": "spec" follow the draft text as of d21f46e. Cases marked "basis": "reference"
-are choices this implementation makes where the draft is silent (see README.md). Cases under "open"
-carry no expected result and are not checked; as of d21f46e there are none.
+Cases marked "basis": "spec" follow the text of ERC-8481. Cases marked "basis": "reference"
+are choices this implementation makes where the text is silent (see README.md). Cases under "open"
+carry no expected result and are not checked; there are none.
 """
 import hashlib
 import json
@@ -209,17 +209,17 @@ _CAIP10 = re.compile(r"([-a-z0-9]{3,8}):([-_a-zA-Z0-9]{1,32}|\*):([-.%a-zA-Z0-9]
 
 
 def bip122_encoding(addr: str) -> str:
-    """d21f46e: inside bip122 an address is bech32 when it is a valid BIP-173 or BIP-350 address, base58 otherwise."""
+    """inside bip122 an address is bech32 when it is a valid BIP-173 or BIP-350 address, base58 otherwise."""
     return "bech32" if segwit_valid(addr) else "base58"
 
 
 def normalize_account(account: str, allow_wildcard=True):
     """Returns {"ok": True, "account", "encoding"} or {"ok": False, "error"}.
 
-    Spec (9abaacf): EVM (eip155) lowercase hex, bech32 lowercase, base58 as written. An account that is not
+    Spec: EVM (eip155) lowercase hex, bech32 lowercase, base58 as written. An account that is not
     valid CAIP-10 for its namespace makes a list non-conforming: a mixed-case EVM address that is not a valid
     EIP-55 checksum, a mixed-case bech32 address, an eip155 chain reference with a leading zero.
-    Spec (d21f46e): inside bip122, bech32 when a valid BIP-173/350 address, base58 otherwise; namespaces other
+    Spec: inside bip122, bech32 when a valid BIP-173/350 address, base58 otherwise; namespaces other
     than eip155, bip122 and solana are compared exactly as written unless their CAIP-10 profile defines a
     normalization (this implementation knows of none, so it keeps them as written).
     Reference choices (README): a bip122 string that is classified base58 but is not valid base58check (for
@@ -249,13 +249,13 @@ def normalize_account(account: str, allow_wildcard=True):
             return {"ok": False, "error": "mixed-case bech32 (BIP-173 forbids it)"}
         if b58check_valid(addr):
             return {"ok": True, "account": account, "encoding": "base58"}
-        return {"ok": False, "error": "classified base58 (d21f46e) but not valid base58check (reference choice)"}
+        return {"ok": False, "error": "classified base58 but not valid base58check"}
     if ns == "solana":
         raw = b58decode(addr)
         if raw is None or len(raw) != 32:
             return {"ok": False, "error": "solana address is not base58 of 32 bytes"}
         return {"ok": True, "account": account, "encoding": "base58"}
-    # d21f46e: other namespaces compared exactly as written (no CAIP-10 profile normalization is applied here)
+    # other namespaces compared exactly as written (no CAIP-10 profile normalization is applied here)
     return {"ok": True, "account": account, "encoding": "as-written"}
 
 
@@ -299,8 +299,8 @@ def conforms(doc):
 
 
 def match_value(doc, address):
-    """The entry `value` names: the exact chain reference wins over `*` (9abaacf); None when nothing matches,
-    including against a list with no entries (d21f46e)."""
+    """The entry `value` names: the exact chain reference wins over `*`; None when nothing matches,
+    including against a list with no entries."""
     m = matches(doc, address)
     if not m:
         return None
@@ -343,7 +343,7 @@ def on_list_findings(scenario):
             else:
                 h, err = list_hash(l["published"])
                 if err or h != p["hash"] or not conforms(l["published"])[0]:
-                    # fetch failed, normalized digest differs, or the list does not conform (9abaacf)
+                    # fetch failed, normalized digest differs, or the list does not conform
                     f.update(status="not-read", reason="unavailable")
                 else:
                     f.update(status="read", value=match_value(l["published"], ent))
@@ -500,22 +500,22 @@ def build_normalize():
         ("reject-bare-address", FBI_EVM, "spec", "entries are CAIP-10, not bare addresses"),
         ("reject-short-hex", f"eip155:1:{FBI_EVM[:-1]}", "reference", "39 hex digits"),
         ("reject-mixed-case-bech32", f"{BTC}:{mixed_case(FBI_BTC)}", "spec",
-         "BIP-173 forbids mixed case; the list does not conform (9abaacf)"),
-        ("reject-bad-bech32-checksum", f"{BTC}:{FBI_BTC[:-1]}{'q' if FBI_BTC[-1] != 'q' else 'p'}", "reference",
-         "last character changed: base58 by the d21f46e rule, but not valid base58check, so treated as not valid "
-         "(our call, see README open question)"),
+         "BIP-173 forbids mixed case; the list does not conform"),
+        ("reject-bad-bech32-checksum", f"{BTC}:{FBI_BTC[:-1]}{'q' if FBI_BTC[-1] != 'q' else 'p'}", "spec",
+         "last character changed: neither a valid BIP-173/350 address nor valid Base58Check, so invalid: the list "
+         "does not conform"),
         ("reject-evm-bad-checksum", f"eip155:1:{bad_eip55(FBI_EVM)}",
-         "spec", "mixed case that is not a valid EIP-55 checksum: the list does not conform (9abaacf; was open Q2)"),
+         "spec", "mixed case that is not a valid EIP-55 checksum: the list does not conform"),
         ("reject-evm-0X-prefix", f"eip155:1:0X{FBI_EVM[2:]}", "spec",
-         "upper-case 0X prefix is not a valid CAIP-10 eip155 address (9abaacf; was open Q2)"),
+         "upper-case 0X prefix is not a valid CAIP-10 eip155 address"),
         ("reject-chain-ref-leading-zero", f"eip155:01:{FBI_EVM}", "spec",
-         "eip155 chain reference with a leading zero: the list does not conform (9abaacf; was open Q4)"),
+         "eip155 chain reference with a leading zero: the list does not conform"),
         ("base58-btc-p2sh", f"{BTC}:{synth_p2sh(1)}", "spec",
-         "not a valid BIP-173/350 address, so base58, kept as written (d21f46e)"),
+         "not a valid BIP-173/350 address, so base58, kept as written"),
         ("other-namespace-as-written", f"{OTHER_NS}:{OTHER_ADDR}", "spec",
-         "a namespace other than eip155, bip122 and solana: kept exactly as written, case included (d21f46e)"),
+         "a namespace other than eip155, bip122 and solana: kept exactly as written, case included"),
         ("other-namespace-lower-variant", f"{OTHER_NS}:{OTHER_ADDR.lower()}", "spec",
-         "the lowercase variant is also kept as written: a different account (d21f46e)"),
+         "the lowercase variant is also kept as written: a different account"),
     ]
     vec = []
     for cid, inp, basis, note in cases:
@@ -535,21 +535,21 @@ def build_normalize():
         ("base58-p2pkh", synth_p2pkh(1), "not BIP-173/350: base58"),
         ("base58-p2sh", synth_p2sh(1), "not BIP-173/350: base58"),
         ("bad-bech32-checksum-is-base58", bad_ck,
-         "last character changed: not a valid BIP-173 address, so base58 by the text. It is not valid base58check "
-         "either; whether the list conforms is a reference choice (normalize.json reject-bad-bech32-checksum)"),
+         "last character changed: not a valid BIP-173 address, so base58 by the text. It is not valid Base58Check "
+         "either, so the list does not conform (normalize.json reject-bad-bech32-checksum)"),
         ("v1-with-bech32-checksum-is-base58", v1_bech32,
          "witness v1 with the BIP-173 checksum: BIP-350 makes it invalid, so base58 by the text"),
         ("v0-with-bech32m-checksum-is-base58", v0_bech32m,
          "witness v0 with the BIP-350 checksum: invalid, so base58 by the text"),
         ("mixed-case-bech32-is-base58", mixed_case(FBI_BTC),
          "mixed case is not valid BIP-173, so the encoding rule gives base58; the list still does not conform, "
-         "since a mixed-case bech32 account is named as invalid (9abaacf, normalize.json reject-mixed-case-bech32)"),
+         "since a mixed-case bech32 account is named as invalid (normalize.json reject-mixed-case-bech32)"),
     ]
     classification = [{"id": cid, "basis": "spec", "note": note, "namespace": "bip122", "address": a,
                        "expected": {"encoding": bip122_encoding(a)}} for cid, a, note in cls]
     assert [c["expected"]["encoding"] for c in classification] == ["bech32"] * 4 + ["base58"] * 6
     return {"description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written, "
-                           "other namespaces as written) and the bip122 encoding rule of d21f46e",
+                           "other namespaces as written) and the bip122 encoding rule",
             "vectors": vec, "classification": classification, "open": []}
 
 
@@ -596,17 +596,17 @@ def build_list_hash():
         [synth_list([f"eip155:*:{e2}", f"eip155:*:{e1}"]), synth_list([f"eip155:*:{e1.lower()}", f"eip155:*:{e2}"])],
         True)
     add("retrieval-time-inside-document", "spec",
-        "extra top-level fields are allowed, are part of the hash and are ignored by readers (9abaacf), so a "
+        "extra top-level fields are allowed, are part of the hash and are ignored by readers, so a "
         "document that carries retrievedAt hashes differently, which is why the draft keeps it out",
         [synth_list([f"eip155:*:{e1}"]), synth_list([f"eip155:*:{e1}"], retrievedAt="2026-11-01T15:50:13Z")], False)
 
-    # published bytes vs canonical bytes (Q1)
+    # published bytes vs canonical bytes
     d = synth_list([f"eip155:*:{e1.lower()}"])
     pretty = json.dumps(d, indent=2)
     compact = json.dumps(d, separators=(",", ":"))
     vec.append({"id": "published-bytes-vs-jcs", "basis": "spec",
                 "note": "hash is digest() of the normalized form over the parsed JSON value, so whitespace and key "
-                        "order in the published bytes do not matter; keccak256 of the raw bytes differs (9abaacf)",
+                        "order in the published bytes do not matter; keccak256 of the raw bytes differs",
                 "publishedBytes": [pretty, compact],
                 "expected": {"digest": digest(json.loads(pretty)),
                              "rawKeccak": [hx(keccak256(pretty.encode())), hx(keccak256(compact.encode()))]}})
@@ -629,23 +629,23 @@ def build_list_hash():
     c, err = canonical_list(dup)
     vec.append({"id": "duplicate-different-evidence-nonconforming", "basis": "spec",
                 "note": "one account twice with different content: the list does not conform and has no hash a "
-                        "reader can use (9abaacf; was open Q5)",
+                        "reader can use",
                 "documents": [dup], "expected": {"conforms": conforms(dup)[0], "hash": None if err else digest(c)}})
     add("other-namespace-case-different-hash", "spec",
         "a namespace other than eip155, bip122 and solana is compared as written: a case variant is a different "
-        "account (d21f46e)",
+        "account",
         [synth_list([f"{OTHER_NS}:{OTHER_ADDR}"]), synth_list([f"{OTHER_NS}:{OTHER_ADDR.lower()}"])], False)
     both = synth_list([f"{OTHER_NS}:{OTHER_ADDR.lower()}", f"{OTHER_NS}:{OTHER_ADDR}"])
     c, err = canonical_list(both)
     assert not err and len(c["entries"]) == 2
     vec.append({"id": "other-namespace-case-variants-both-kept", "basis": "spec",
-                "note": "both case variants are kept as two entries, not merged, and the list conforms (d21f46e)",
+                "note": "both case variants are kept as two entries, not merged, and the list conforms",
                 "documents": [both], "expected": {"conforms": conforms(both)[0], "entries": len(c["entries"]),
                                                   "hash": digest(c), "canonical": jcs(c)}})
     empty = synth_list([])
     vec.append({"id": "empty-entries", "basis": "spec",
                 "note": "a list with no entries conforms; on-list against it reads null for every address "
-                        "(d21f46e; was open Q7, see match.json empty-list-reads-null)",
+                        "(see match.json empty-list-reads-null)",
                 "documents": [empty], "expected": {"conforms": conforms(empty)[0], "hash": list_hash(empty)[0]}})
     return {"description": "list document hash: hash = keccak256(JCS(document)) after entries are normalized, "
                            "sorted by account and deduplicated", "vectors": vec, "open": []}
@@ -675,18 +675,18 @@ def build_match():
     L3 = synth_list([f"{OTHER_NS}:{OTHER_ADDR}", f"eip155:*:{e1}"])
     for cid, cand, note in [
             ("other-namespace-exact", f"{OTHER_NS}:{OTHER_ADDR}",
-             "a namespace other than eip155, bip122 and solana, same string: match (d21f46e)"),
+             "a namespace other than eip155, bip122 and solana, same string: match"),
             ("other-namespace-case-differs", f"{OTHER_NS}:{OTHER_ADDR.lower()}",
-             "same namespace, case differs: compared exactly as written, no match (d21f46e)"),
+             "same namespace, case differs: compared exactly as written, no match"),
             ("other-namespace-upper-differs", f"{OTHER_NS}:{OTHER_ADDR.upper()}",
-             "all upper case: also no match, there is no case folding outside eip155 and bech32 (d21f46e)"),
+             "all upper case: also no match, there is no case folding outside eip155 and bech32"),
             ("other-namespace-other-chain", f"xmpl:mainnet:{OTHER_ADDR}",
              "same address, other chain reference, entry is not *: no match")]:
         vec.append({"id": cid, "basis": "spec", "note": note, "list": "L3", "candidate": cand,
                     "expected": {"value": match_value(L3, cand)}})
     for cid, cand, note in [
             ("two-entries-exact-chain-wins", f"eip155:1:{e1}",
-             "eip155:1:X and eip155:*:X both match: value is the exact chain reference entry (9abaacf; was open Q5)"),
+             "eip155:1:X and eip155:*:X both match: value is the exact chain reference entry"),
             ("two-entries-other-chain-wildcard", f"eip155:10:{e1}", "only eip155:*:X matches on another chain")]:
         vec.append({"id": cid, "basis": "spec", "note": note, "list": "L2", "candidate": cand,
                     "expected": {"value": match_value(L2, cand)}})
@@ -721,7 +721,7 @@ def build_match():
                       "lists": {uri_x: {"source-reads": False}, uri: {"published": L}}}},
         {"id": "nonconforming-hash-match-unavailable", "basis": "spec",
          "note": "the normalized digest matches hash, but the list has no attestation and an entry without "
-                 "evidence: not read / unavailable (9abaacf; was open Q7)",
+                 "evidence: not read / unavailable",
          "scenario": {"entities": [f"eip155:1:{e1}"], "params": [{"uri": uri_n, "hash": h_noatt}],
                       "lists": {uri_n: {"published": noatt}}}},
         {"id": "extra-top-level-field-ignored", "basis": "spec",
@@ -729,7 +729,7 @@ def build_match():
          "scenario": {"entities": [f"eip155:42161:{e1}"], "params": [{"uri": uri_e, "hash": h_extra}],
                       "lists": {uri_e: {"published": extra}}}},
         {"id": "empty-list-reads-null", "basis": "spec",
-         "note": "a list with no entries conforms; on-list against it reads null for every address (d21f46e)",
+         "note": "a list with no entries conforms; on-list against it reads null for every address",
          "scenario": {"entities": [f"eip155:1:{e1}", f"{BTC}:{FBI_BTC}", f"{SOL}:{sol}", f"{OTHER_NS}:{OTHER_ADDR}"],
                       "params": [{"uri": uri_0, "hash": h_empty}], "lists": {uri_0: {"published": empty}}}},
     ]
@@ -742,13 +742,13 @@ def build_match():
     for cid, doc, note in [("attested-no-evidence-conforms", synth_list([f"eip155:*:{e1}"]), "draft test case"),
                            ("no-attestation-no-evidence-fails", noatt, "draft test case"),
                            ("no-attestation-partial-evidence-fails", part, "one entry without evidence"),
-                           ("extra-top-level-field-conforms", extra, "extra top-level fields are allowed (9abaacf)"),
-                           ("empty-list-conforms", empty, "a list with no entries conforms (d21f46e)"),
+                           ("extra-top-level-field-conforms", extra, "extra top-level fields are allowed"),
+                           ("empty-list-conforms", empty, "a list with no entries conforms"),
                            ("empty-list-without-attestation-conforms",
                             {k: v for k, v in empty.items() if k != "attestation"},
-                            "no entries, so no entry lacks evidence; conforms (d21f46e)"),
+                            "no entries, so no entry lacks evidence; conforms"),
                            ("bad-eip55-entry-fails", synth_list([f"eip155:*:{bad_eip55(e1)}"]),
-                            "an entry with a mixed-case EVM address that is not a valid EIP-55 checksum (9abaacf)")]:
+                            "an entry with a mixed-case EVM address that is not a valid EIP-55 checksum")]:
         ok, why = conforms(doc)
         conf.append({"id": cid, "basis": "spec", "note": note, "document": doc, "expected": {"conforms": ok}})
     document_evidence = build_document_evidence()
@@ -776,7 +776,7 @@ def upstream_fixture_name(i):
 
 
 def build_document_evidence():
-    """d21f46e: the document evidence hash is keccak256 of the bytes the source read at retrievedAt."""
+    """the document evidence hash is keccak256 of the bytes the source read at retrievedAt."""
     e1, e2 = synth_evm(1), synth_evm(2)
     lst = synth_list([f"eip155:*:{e1}", f"eip155:*:{e2}"], source=UPSTREAM_URI)
     h_list, _ = list_hash(lst)
@@ -785,7 +785,7 @@ def build_document_evidence():
         raw = upstream_page(t, nonce)
         vec.append({"id": f"fetch{i + 1}", "basis": "spec",
                     "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no "
-                            "re-encoding (d21f46e)",
+                            "re-encoding",
                     "fixture": upstream_fixture_name(i), "bytesLength": len(raw),
                     "expected": {"evidence": {"type": "document", "uri": UPSTREAM_URI, "hash": hx(keccak256(raw)),
                                               "retrievedAt": t},
@@ -794,13 +794,13 @@ def build_document_evidence():
     crlf = raw1.replace(b"\n", b"\r\n")
     vec.append({"id": "same-text-crlf-different-hash", "basis": "spec",
                 "note": "fetch1 with CRLF line endings: the same text, other bytes, so another hash; the hash is "
-                        "over bytes as read (d21f46e)",
+                        "over bytes as read",
                 "bytesHex": crlf.hex(), "expected": {"hash": hx(keccak256(crlf))}})
     assert len({v["expected"]["evidence"]["hash"] for v in vec[:2]} | {vec[2]["expected"]["hash"]}) == 3
     return {"note": "the upstream publication goes in a document evidence entry of the finding, with retrievedAt. "
                     "Its hash is keccak256 of the bytes the source read and records what was read; a page that "
                     "re-renders on each fetch gives a different hash each time and a third party cannot recompute "
-                    "it, which is why the list (one hash for both fetches) is the pinned document (d21f46e).",
+                    "it, which is why the list (one hash for both fetches) is the pinned document.",
             "list": lst, "listHash": h_list, "vectors": vec}
 
 
@@ -831,7 +831,7 @@ def build_diff():
         vec.append({"id": cid, "basis": "reference", "note": note, "from": "v1", "to": v2,
                     "expected": diff(v1, v2)})
     return {"description": "list version diffs: added / removed / changed by normalized account, and the hash "
-                           "change. The draft does not define a diff; this format is informative (9abaacf).",
+                           "change. ERC-8481 does not define a diff; this format is informative.",
             "v1": v1, "vectors": vec, "open": []}
 
 

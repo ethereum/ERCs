@@ -157,7 +157,7 @@
     {
       "id": "other-namespace-exact",
       "basis": "spec",
-      "note": "a namespace other than eip155, bip122 and solana, same string: match (d21f46e)",
+      "note": "a namespace other than eip155, bip122 and solana, same string: match",
       "list": "L3",
       "candidate": "xmpl:testnet:AbCdEf0123XyZ",
       "expected": {
@@ -169,7 +169,7 @@
     {
       "id": "other-namespace-case-differs",
       "basis": "spec",
-      "note": "same namespace, case differs: compared exactly as written, no match (d21f46e)",
+      "note": "same namespace, case differs: compared exactly as written, no match",
       "list": "L3",
       "candidate": "xmpl:testnet:abcdef0123xyz",
       "expected": {
@@ -179,7 +179,7 @@
     {
       "id": "other-namespace-upper-differs",
       "basis": "spec",
-      "note": "all upper case: also no match, there is no case folding outside eip155 and bech32 (d21f46e)",
+      "note": "all upper case: also no match, there is no case folding outside eip155 and bech32",
       "list": "L3",
       "candidate": "xmpl:testnet:ABCDEF0123XYZ",
       "expected": {
@@ -199,7 +199,7 @@
     {
       "id": "two-entries-exact-chain-wins",
       "basis": "spec",
-      "note": "eip155:1:X and eip155:*:X both match: value is the exact chain reference entry (9abaacf; was open Q5)",
+      "note": "eip155:1:X and eip155:*:X both match: value is the exact chain reference entry",
       "list": "L2",
       "candidate": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
       "expected": {
@@ -458,7 +458,7 @@
     {
       "id": "nonconforming-hash-match-unavailable",
       "basis": "spec",
-      "note": "the normalized digest matches hash, but the list has no attestation and an entry without evidence: not read / unavailable (9abaacf; was open Q7)",
+      "note": "the normalized digest matches hash, but the list has no attestation and an entry without evidence: not read / unavailable",
       "scenario": {
         "entities": [
           "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
@@ -561,7 +561,7 @@
     {
       "id": "empty-list-reads-null",
       "basis": "spec",
-      "note": "a list with no entries conforms; on-list against it reads null for every address (d21f46e)",
+      "note": "a list with no entries conforms; on-list against it reads null for every address",
       "scenario": {
         "entities": [
           "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
@@ -712,7 +712,7 @@
     {
       "id": "extra-top-level-field-conforms",
       "basis": "spec",
-      "note": "extra top-level fields are allowed (9abaacf)",
+      "note": "extra top-level fields are allowed",
       "document": {
         "version": "erc-presign-list/1",
         "source": "https://example.org/upstream/synthetic-list",
@@ -741,7 +741,7 @@
     {
       "id": "empty-list-conforms",
       "basis": "spec",
-      "note": "a list with no entries conforms (d21f46e)",
+      "note": "a list with no entries conforms",
       "document": {
         "version": "erc-presign-list/1",
         "source": "https://example.org/upstream/synthetic-list",
@@ -756,7 +756,7 @@
     {
       "id": "empty-list-without-attestation-conforms",
       "basis": "spec",
-      "note": "no entries, so no entry lacks evidence; conforms (d21f46e)",
+      "note": "no entries, so no entry lacks evidence; conforms",
       "document": {
         "version": "erc-presign-list/1",
         "source": "https://example.org/upstream/synthetic-list",
@@ -770,7 +770,7 @@
     {
       "id": "bad-eip55-entry-fails",
       "basis": "spec",
-      "note": "an entry with a mixed-case EVM address that is not a valid EIP-55 checksum (9abaacf)",
+      "note": "an entry with a mixed-case EVM address that is not a valid EIP-55 checksum",
       "document": {
         "version": "erc-presign-list/1",
         "source": "https://example.org/upstream/synthetic-list",
@@ -788,7 +788,7 @@
     }
   ],
   "documentEvidence": {
-    "note": "the upstream publication goes in a document evidence entry of the finding, with retrievedAt. Its hash is keccak256 of the bytes the source read and records what was read; a page that re-renders on each fetch gives a different hash each time and a third party cannot recompute it, which is why the list (one hash for both fetches) is the pinned document (d21f46e).",
+    "note": "the upstream publication goes in a document evidence entry of the finding, with retrievedAt. Its hash is keccak256 of the bytes the source read and records what was read; a page that re-renders on each fetch gives a different hash each time and a third party cannot recompute it, which is why the list (one hash for both fetches) is the pinned document.",
     "list": {
       "version": "erc-presign-list/1",
       "source": "https://example.org/upstream/synthetic-advisory",
@@ -808,7 +808,7 @@
       {
         "id": "fetch1",
         "basis": "spec",
-        "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding (d21f46e)",
+        "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding",
         "fixture": "upstream-page.fetch1.html.txt",
         "bytesLength": 362,
         "expected": {
@@ -824,7 +824,7 @@
       {
         "id": "fetch2",
         "basis": "spec",
-        "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding (d21f46e)",
+        "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding",
         "fixture": "upstream-page.fetch2.html.txt",
         "bytesLength": 362,
         "expected": {
@@ -840,7 +840,7 @@
       {
         "id": "same-text-crlf-different-hash",
         "basis": "spec",
-        "note": "fetch1 with CRLF line endings: the same text, other bytes, so another hash; the hash is over bytes as read (d21f46e)",
+        "note": "fetch1 with CRLF line endings: the same text, other bytes, so another hash; the hash is over bytes as read",
         "bytesHex": "3c21646f63747970652068746d6c3e0d0a3c68746d6c3e3c686561643e3c6d65746120636861727365743d227574662d38223e3c7469746c653e53796e7468657469632061647669736f72793c2f7469746c653e3c6d657461206e616d653d2272656e6465722d6e6f6e63652220636f6e74656e743d2261316633223e3c2f686561643e0d0a3c626f64793e0d0a3c703e52656e646572656420323032362d31312d30315431353a35303a31335a2e2053796e7468657469632061646472657373657320666f72207465737420766563746f72733b206e6f742061207265616c206c6973742e3c2f703e0d0a3c756c3e0d0a3c6c693e3078326332653534343139384135303837313045303131423961413261373965323246354344333332313c2f6c693e0d0a3c6c693e3078643841613230613533373332373635633345383830323542324634324138343133633034376262613c2f6c693e0d0a3c2f756c3e0d0a3c2f626f64793e3c2f68746d6c3e0d0a",
         "expected": {
           "hash": "0x9fcf0c900903534398efa2cf0f96b56c019d4c7227c1e8533b63a9cd35b60103"
