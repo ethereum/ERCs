@@ -1,0 +1,9 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Synthetic advisory</title><meta name="render-nonce" content="a1f3"></head>
+<body>
+<p>Rendered 2026-11-01T15:50:13Z. Synthetic addresses for test vectors; not a real list.</p>
+<ul>
+<li>0x2c2e544198A508710E011B9aA2a79e22F5CD3321</li>
+<li>0xd8Aa20a53732765c3E88025B2F42A8413c047bba</li>
+</ul>
+</body></html>
