@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: CC0-1.0
 """pq_key_binding.v1/canonicalization -- admission check for a binding statement's raw bytes (stdlib only).
 
 Verdicts: admit | reject:size_exceeded | reject:name_too_long | reject:not_canonical

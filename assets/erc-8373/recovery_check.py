@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: CC0-1.0
 """pq-recovery-classes.v0 — recomputable authority-transition classes for per-agent PQ keys.
 
 A key-binding scheme survives past a single incident only if a third party can INDEPENDENTLY tell what

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: CC0-1.0
 """pq_key_binding.v1 — cutoff enforcement (Python reference).
 
 A faithful port of the live gateway enforcer (trustless-ai/vertice-gateway src/lib/pqCutoff.ts),

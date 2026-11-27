@@ -63,12 +63,12 @@ audit before relying on any of it.
 python3 canonicalization_check.py pq-key-binding-v1.canonicalization.json pq-key-binding-v1.canonicalization-vectors.json
 ```
 
-An on-chain anchor that enforces the size bound at admission and proves canonical-form violations by a one-segment fraud proof: [babyblueviper1/erc8373-optimistic-jcs](https://github.com/babyblueviper1/erc8373-optimistic-jcs) (`PinpointJcsAnchor`).
+An independent on-chain anchor enforces the size bound at admission and proves canonical-form violations by a one-segment fraud proof. It is not part of these assets.
 
 
 ## Which files are normative
 
-There is one conformance target per facet:
+The ERC's Test Cases section lists the normative file per facet and governs. For convenience:
 
 | Facet | Normative file | Notes |
 |---|---|---|
