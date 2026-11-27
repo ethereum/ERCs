@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8506/schemas/source.schema.json",
+  "title": "AITO Source",
+  "description": "Who issues, who owes supply, who fulfils, and on what grounds units may be issued.",
+  "type": "object",
+  "required": [
+    "aito",
+    "kind",
+    "issuer",
+    "responsibleParty",
+    "fulfillers",
+    "issuanceBases",
+    "exclusivity",
+    "collateral"
+  ],
+  "properties": {
+    "aito": {
+      "const": "1",
+      "description": "Record format version."
+    },
+    "kind": {
+      "const": "source"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/bytes32",
+      "description": "Identifier of the record this one replaces."
+    },
+    "issuer": {
+      "$ref": "#/$defs/account"
+    },
+    "responsibleParty": {
+      "$ref": "#/$defs/account"
+    },
+    "fulfillers": {
+      "description": "Accounts that run the computation, or the string undisclosed.",
+      "oneOf": [
+        {
+          "const": "undisclosed"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/account"
+          }
+        }
+      ]
+    },
+    "issuanceBases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "origin",
+          "issuanceRight",
+          "supplyObligation",
+          "authorization",
+          "quantityBound",
+          "timeBound",
+          "doubleIssuanceControl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "description": "own-capacity, reserved-upstream-capacity, transferable-upstream-quota, credit, shared-redemption-pool, protocol-budget, or another declared origin."
+          },
+          "description": {
+            "type": "string"
+          },
+          "issuanceRight": {
+            "type": "string",
+            "description": "Who may issue against this basis."
+          },
+          "supplyObligation": {
+            "type": "string",
+            "description": "Who owes the supply issued against this basis."
+          },
+          "authorization": {
+            "description": "Upstream authorization to resell or reissue and its evidence, or not-obtained, or not-applicable."
+          },
+          "quantityBound": {
+            "type": "string"
+          },
+          "timeBound": {
+            "type": "object"
+          },
+          "doubleIssuanceControl": {
+            "type": "string",
+            "description": "How the same entitlement is kept from being issued twice."
+          },
+          "backing": {
+            "description": "Collateral or guarantee, or the string none."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "capacity": {
+      "type": "object"
+    },
+    "exclusivity": {
+      "description": "Reference to an Assessment of capacity exclusivity, or the string undeclared."
+    },
+    "collateral": {
+      "description": "Collateral or margin, or the string none."
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "account": {
+      "type": "string",
+      "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$",
+      "description": "CAIP-10 account identifier."
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+      "description": "A non-negative decimal written as a string. Records carry no floating-point numbers."
+    },
+    "integer": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "undeclared": {
+      "const": "undeclared"
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.heartbeat-liveness",
+  "version": "1.0.0",
+  "title": "Heartbeat: absence within an agreed window marks the source inactive",
+  "labels": [
+    "aifp:paradigm/source/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "fan-out"
+  ],
+  "cardinality": {
+    "contributors": "single",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "open",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish"
+      ],
+      "acquisition": "closed",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "source"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "source"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "since-join",
+      "retention": "bounded",
+      "mutable": false
+    },
+    "time": {
+      "realtime": true,
+      "correlation": "none",
+      "delivery": [
+        "push"
+      ],
+      "batching": "epoch",
+      "clock": "registry",
+      "absence": "rule-defined"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "observe": {
+      "open": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "rule-association",
+      "push",
+      "absence-detection"
+    ]
+  },
+  "extensions": {
+    "absence": {
+      "rule": "liveness",
+      "windowSeconds": 3600,
+      "objectionRole": "observe",
+      "defaultOutcome": "mark-inactive"
+    }
+  }
+}

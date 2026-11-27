@@ -1,0 +1,101 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.blackboard",
+  "version": "1.0.0",
+  "title": "Blackboard: shared object updated by several contributors",
+  "labels": [
+    "aifp:paradigm/blackboard/v1"
+  ],
+  "carriers": [
+    "shared-object"
+  ],
+  "operators": [
+    "n-party"
+  ],
+  "cardinality": {
+    "contributors": "roster",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "members",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "modify",
+        "respond"
+      ],
+      "acquisition": "manager",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "moderator"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "moderator"
+      ],
+      "rules": [
+        "moderator"
+      ],
+      "disclosure": [
+        "moderator"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": true
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "none",
+      "delivery": [
+        "pull",
+        "push"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "supersedes",
+      "references",
+      "derivesFrom"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association",
+      "pull",
+      "push",
+      "total-order"
+    ]
+  }
+}

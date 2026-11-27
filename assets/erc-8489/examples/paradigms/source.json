@@ -1,0 +1,106 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.source",
+  "version": "1.0.0",
+  "title": "Source: one logical publisher, open observation",
+  "labels": [
+    "aifp:paradigm/source/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "fan-out"
+  ],
+  "cardinality": {
+    "contributors": "single",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "open",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish"
+      ],
+      "acquisition": "closed",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "source"
+      ],
+      "ordering": [
+        "source"
+      ],
+      "removal": [
+        "source"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": true,
+      "correlation": "none",
+      "delivery": [
+        "push",
+        "stream"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "observe": {
+      "open": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "rule-association",
+      "push"
+    ]
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8506/schemas/receipt.schema.json",
+  "title": "AITO Receipt",
+  "description": "Record of one logical request: usage claim, evidence, acceptance and settlement effect.",
+  "type": "object",
+  "required": [
+    "aito",
+    "kind",
+    "request",
+    "claim",
+    "evidence",
+    "acceptance",
+    "effect"
+  ],
+  "properties": {
+    "aito": {
+      "const": "1",
+      "description": "Record format version."
+    },
+    "kind": {
+      "const": "receipt"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/bytes32",
+      "description": "Identifier of the record this one replaces."
+    },
+    "request": {
+      "type": "object",
+      "required": [
+        "requestId",
+        "requestKey",
+        "ledger",
+        "seriesId",
+        "holder",
+        "consumer",
+        "fulfiller",
+        "authorizationId",
+        "unit"
+      ],
+      "properties": {
+        "requestId": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "requestKey": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "ledger": {
+          "$ref": "#/$defs/account"
+        },
+        "seriesId": {
+          "type": "string"
+        },
+        "holder": {
+          "$ref": "#/$defs/account"
+        },
+        "consumer": {
+          "$ref": "#/$defs/account"
+        },
+        "fulfiller": {
+          "$ref": "#/$defs/account"
+        },
+        "authorizationId": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "unit": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "period": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "claim": {
+      "type": "object",
+      "required": [
+        "by",
+        "usage",
+        "outcome",
+        "executionObject"
+      ],
+      "properties": {
+        "by": {
+          "$ref": "#/$defs/account"
+        },
+        "usage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/integer"
+          }
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "partial",
+            "refused",
+            "timed-out",
+            "cancelled-by-consumer",
+            "provider-error"
+          ]
+        },
+        "executionObject": {
+          "description": "The execution object actually used, or the string undisclosed."
+        },
+        "claimHash": {
+          "$ref": "#/$defs/bytes32"
+        }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "array",
+      "description": "May be empty. Each entry states what it shows and what it does not.",
+      "items": {
+        "type": "object",
+        "required": [
+          "proposition",
+          "mechanism",
+          "reliesOn",
+          "doesNotShow"
+        ],
+        "properties": {
+          "proposition": {
+            "enum": [
+              "origin",
+              "metering",
+              "execution",
+              "quality",
+              "delivery-settlement"
+            ]
+          },
+          "mechanism": {
+            "type": "string"
+          },
+          "reliesOn": {
+            "type": "string"
+          },
+          "doesNotShow": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "required": [
+        "rule",
+        "by",
+        "amount"
+      ],
+      "properties": {
+        "rule": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string"
+        },
+        "amount": {
+          "$ref": "#/$defs/integer"
+        }
+      },
+      "additionalProperties": true
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "deducted",
+        "released",
+        "receiptHash"
+      ],
+      "properties": {
+        "deducted": {
+          "$ref": "#/$defs/integer"
+        },
+        "released": {
+          "$ref": "#/$defs/integer"
+        },
+        "receiptHash": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "transaction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "account": {
+      "type": "string",
+      "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$",
+      "description": "CAIP-10 account identifier."
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+      "description": "A non-negative decimal written as a string. Records carry no floating-point numbers."
+    },
+    "integer": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "undeclared": {
+      "const": "undeclared"
+    }
+  }
+}

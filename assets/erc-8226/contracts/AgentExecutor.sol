@@ -1,80 +1,73 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
 import {IAgentExecutor} from "./interfaces/IAgentExecutor.sol";
 import {IAgentMandate} from "./interfaces/IAgentMandate.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title AgentExecutor
-/// @notice Reference IAgentExecutor bound to one principal. An agent calls execute; the executor reads the
-///         gated amount from the forwarded calldata, gates it against the mandate, records it, then forwards.
-contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
-    /// @param supported Whether this selector may be executed.
-    /// @param hasAmount False for value-less actions (gate at amount 0).
-    /// @param amountIndex Index of the uint256 amount argument.
-    struct ActionSpec {
-        bool supported;
-        bool hasAmount;
-        uint8 amountIndex;
-    }
-
+/// @notice Reference IAgentExecutor, run as EIP-7702 delegate code. An agent calls execute on the principal's
+///         account; the executor gates the call against the mandate, forwards it, then records as flows the change
+///         of the principal's balance in each token that the mandate limits: the decrease for an OUTFLOW limit, the
+///         increase for an INFLOW limit.
+/// @dev One deployment per chain and registry serves every account: the principal is the account that runs the code.
+///      It has no configuration: the mandate alone decides what the agent may do.
+contract AgentExecutor is IAgentExecutor, IERC1271, SignerEIP7702, ReentrancyGuard, ERC721Holder {
     IAgentMandate public immutable rams;
-    address public immutable principal;
 
-    mapping(bytes4 selector => ActionSpec) public actions;
-
-    error UnsupportedAction(bytes4 selector);
     error InvalidData();
-    error CannotExecute(
-        address agent, address target, bytes4 selector, uint256 amount, IAgentMandate.MandateReason reason
-    );
+    error CannotExecute(address agent, address target, bytes4 selector, IAgentMandate.MandateReason reason);
     error CallFailed(bytes returnData);
 
-    /// @notice Emitted when an action's execution spec is set, so the trusted amount-position registry is auditable.
-    event ActionConfigured(bytes4 indexed selector, bool supported, bool hasAmount, uint8 amountIndex);
-
-    constructor(IAgentMandate _rams, address _principal, address owner_) Ownable(owner_) {
-        rams = _rams;
-        principal = _principal;
+    constructor(IAgentMandate ramsRegistry) {
+        rams = ramsRegistry;
     }
 
-    /// @notice Sets how an action's amount is read. A wrong amountIndex mis-gates the cap, so treat this
-    ///         like the enforcer role.
-    function setAction(bytes4 selector, bool supported, bool hasAmount, uint8 amountIndex) external onlyOwner {
-        actions[selector] = ActionSpec({supported: supported, hasAmount: hasAmount, amountIndex: amountIndex});
-        emit ActionConfigured(selector, supported, hasAmount, amountIndex);
-    }
+    /// @notice Accepts ETH, so a principal that delegates its account to this code can still receive it.
+    receive() external payable {}
 
     /// @inheritdoc IAgentExecutor
-    function execute(address target, bytes calldata data) external nonReentrant returns (bytes memory) {
+    function execute(address target, bytes calldata data) external nonReentrant returns (bytes memory returnData) {
         if (data.length < 4) revert InvalidData();
 
         address agent = msg.sender;
-        bytes4 selector = bytes4(data[:4]);
-        ActionSpec memory spec = actions[selector];
-        if (!spec.supported) revert UnsupportedAction(selector);
+        bytes32 action = bytes32(bytes4(data[:4]));
+        _check(agent, target, action, data);
 
-        uint256 amount = spec.hasAmount ? _amountArg(data, spec.amountIndex) : 0;
-        bytes32 action = bytes32(selector);
-
-        (bool ok, IAgentMandate.MandateReason reason) = rams.canExecute(agent, principal, target, action, amount);
-        if (!ok) {
-            revert CannotExecute(agent, target, selector, amount, reason);
+        IAgentMandate.Limit[] memory limits = rams.getLimits(agent, address(this), target);
+        uint256[] memory held = new uint256[](limits.length);
+        for (uint256 index = 0; index < limits.length; index++) {
+            held[index] = IERC20(limits[index].asset).balanceOf(address(this));
         }
 
-        rams.recordExecution(agent, principal, target, action, amount);
-
-        bytes memory returnData;
+        bool ok;
         (ok, returnData) = target.call(data);
         if (!ok) revert CallFailed(returnData);
-        return returnData;
+
+        IAgentMandate.Flow[] memory flows = new IAgentMandate.Flow[](limits.length);
+        for (uint256 index = 0; index < limits.length; index++) {
+            uint256 remaining = IERC20(limits[index].asset).balanceOf(address(this));
+            (uint256 start, uint256 end) = limits[index].direction == IAgentMandate.Direction.OUTFLOW
+                ? (held[index], remaining)
+                : (remaining, held[index]);
+            flows[index] =
+                IAgentMandate.Flow(limits[index].asset, limits[index].direction, start > end ? start - end : 0);
+        }
+        rams.recordExecution(agent, address(this), target, action, data, flows);
     }
 
-    /// @dev A uint256 argument sits at 4 + 32*index in calldata, so this reads the amount by index.
-    function _amountArg(bytes calldata data, uint8 index) internal pure returns (uint256) {
-        uint256 offset = 4 + uint256(index) * 32;
-        if (data.length < offset + 32) revert InvalidData();
-        return uint256(bytes32(data[offset:offset + 32]));
+    /// @notice Lets the delegated account keep signing: a signature is valid when the account's own key signed the hash.
+    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4) {
+        return _rawSignatureValidation(hash, signature) ? IERC1271.isValidSignature.selector : bytes4(0xffffffff);
+    }
+
+    function _check(address agent, address target, bytes32 action, bytes calldata data) private view {
+        (bool allowed, IAgentMandate.MandateReason reason) =
+            rams.canExecute(agent, address(this), target, action, data, new IAgentMandate.Flow[](0));
+        if (!allowed) revert CannotExecute(agent, target, bytes4(action), reason);
     }
 }

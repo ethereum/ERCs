@@ -11,7 +11,7 @@ Reference implementation for ERC-8226. Under development.
 | `contracts/interfaces/IAgentExecutor.sol` | Optional account-side executor interface |
 | `contracts/AgentMandate.sol` | RAMS registry (reference implementation) |
 | `contracts/ComplianceProvider.sol` | Reference compliance provider |
-| `contracts/AgentExecutor.sol` | Reference executor (optional venue) |
+| `contracts/AgentExecutor.sol` | Reference executor, EIP-7702 delegate code (optional venue) |
 | `contracts/RamsGated.sol` | Reference base contract for the token gate venue |
 | `contracts/mocks/IERC7943.sol` | ERC-7943 interface (vendored, used by the tests) |
 | `contracts/mocks/uRWA20.sol` | ERC-7943 uRWA-20 regulated asset (vendored). Ungated: the target the executor venue forwards to |

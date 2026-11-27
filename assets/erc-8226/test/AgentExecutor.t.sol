@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.29;
+pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC7943Fungible} from "../contracts/mocks/IERC7943.sol";
 
 import {AgentExecutor} from "../contracts/AgentExecutor.sol";
@@ -12,35 +11,35 @@ import {ComplianceProvider} from "../contracts/ComplianceProvider.sol";
 import {IAgentMandate} from "../contracts/interfaces/IAgentMandate.sol";
 import {uRWA20} from "../contracts/mocks/uRWA20.sol";
 
-/// @notice Tests the executor venue against the real registry, compliance provider, and a uRWA-20 asset.
+/// @notice Tests the executor as the principal's EIP-7702 code against the real registry, compliance provider, and a
+///         uRWA-20 asset.
 contract AgentExecutorTest is Test {
     AgentExecutor executor;
     AgentMandate mandate;
     ComplianceProvider compliance;
     uRWA20 token;
+    uRWA20 tokenB;
 
     address admin = makeAddr("admin");
     address complianceOwner = makeAddr("complianceOwner");
-    address executorOwner = makeAddr("executorOwner");
     address enforcer = makeAddr("enforcer");
-    address principal = makeAddr("principal");
+    address principal;
     address agent = makeAddr("agent");
     address recipient = makeAddr("recipient");
     address stranger = makeAddr("stranger");
     address spender = makeAddr("spender");
 
     bytes32 constant IDREF = keccak256("kyc-principal");
-    bytes4 constant TRANSFER_FROM = IERC20.transferFrom.selector;
     bytes4 constant APPROVE = IERC20.approve.selector;
-    bytes4 constant SWAP = uRWA20.swap.selector;
-
-    event ActionConfigured(bytes4 indexed selector, bool supported, bool hasAmount, uint8 amountIndex);
+    bytes4 constant TRANSFER = IERC20.transfer.selector;
+    bytes4 constant DEPOSIT = this.deposit.selector;
 
     function setUp() public {
         compliance = new ComplianceProvider(complianceOwner);
         mandate = new AgentMandate(admin);
         token = new uRWA20("Regulated", "RWA", admin);
-        executor = new AgentExecutor(IAgentMandate(address(mandate)), principal, executorOwner);
+        uint256 principalKey;
+        (principal, principalKey) = makeAddrAndKey("principal");
 
         vm.prank(complianceOwner);
         compliance.grantPrincipal(principal, IDREF, 0);
@@ -52,10 +51,14 @@ contract AgentExecutorTest is Test {
         token.mint(principal, 10_000);
         vm.stopPrank();
 
-        bytes32[] memory actions = new bytes32[](3);
-        actions[0] = bytes32(TRANSFER_FROM);
-        actions[1] = bytes32(APPROVE);
-        actions[2] = bytes32(SWAP);
+        IAgentMandate.Action[] memory actions = new IAgentMandate.Action[](2);
+        actions[0].action = bytes32(TRANSFER);
+        actions[1].action = bytes32(APPROVE);
+        actions[1].constraints = new IAgentMandate.Constraint[](1);
+        actions[1].constraints[0] =
+            IAgentMandate.Constraint(0, IAgentMandate.Check.EQUALS, bytes32(uint256(uint160(spender))));
+        IAgentMandate.Limit[] memory limits = new IAgentMandate.Limit[](1);
+        limits[0] = IAgentMandate.Limit(address(token), IAgentMandate.Direction.OUTFLOW, 1000, 1500, 0);
         IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
             agent: agent,
             validFrom: 0,
@@ -63,110 +66,175 @@ contract AgentExecutorTest is Test {
             principal: principal,
             complianceProvider: address(compliance),
             identityRef: IDREF,
-            asset: address(token),
-            maxTransactionValue: 1000,
-            maxCumulativeValue: 1500,
-            metadata: bytes32(0),
+            target: address(token),
             actions: actions,
+            limits: limits,
+            metadata: bytes32(0),
             deadline: 0
         });
+        // The principal delegates its account to the shared executor code. No RECORDER_ROLE and no approve: the token
+        // sees the principal as msg.sender, and the registry accepts the principal as its own recorder.
+        vm.signAndAttachDelegation(address(new AgentExecutor(IAgentMandate(address(mandate)))), principalKey);
         vm.prank(principal);
         mandate.grantMandate(params, "");
-
-        vm.startPrank(admin);
-        mandate.grantRole(mandate.RECORDER_ROLE(), address(executor));
-        vm.stopPrank();
-        vm.prank(executorOwner);
-        executor.setAction(TRANSFER_FROM, true, true, 2);
-
-        vm.prank(principal);
-        token.approve(address(executor), type(uint256).max);
+        executor = AgentExecutor(payable(principal));
     }
 
     function _transfer(address to, uint256 amount) internal {
         vm.prank(agent);
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, to, amount));
+        executor.execute(address(token), abi.encodeWithSelector(TRANSFER, to, amount));
     }
 
-    function test_AmountArgReadByIndexWithDynamicArgBefore() public {
-        // swap(uint256 minimumOut, uint256[] path, uint256 amount): amount is arg index 2. The dynamic `path` at index 1
-        // only stores an offset in its head slot, so amount still sits at 4 + 32*2 and must decode as 42.
-        vm.prank(executorOwner);
-        executor.setAction(SWAP, true, true, 2);
-
-        uint256[] memory arr = new uint256[](3);
-        arr[0] = 1;
-        arr[1] = 2;
-        arr[2] = 3;
-        vm.prank(agent);
-        executor.execute(address(token), abi.encodeWithSelector(SWAP, uint256(111), arr, uint256(42)));
-
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 42);
+    /// @dev A target that pulls two tokens from the principal that are not in its calldata, like a staking deposit.
+    function deposit(uint256 amount, uint256 amountB) external {
+        token.transferFrom(principal, address(this), amount);
+        tokenB.transferFrom(principal, address(this), amountB);
     }
 
-    function test_ApproveWithAmountAtDifferentIndex() public {
-        // A second action whose amount sits at arg index 1 (approve(spender, amount)).
-        vm.prank(executorOwner);
-        executor.setAction(APPROVE, true, true, 1);
-
-        vm.prank(agent);
-        executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(400)));
-
-        assertEq(token.allowance(address(executor), spender), 400);
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 400);
-    }
-
-    function test_Misconfig_ValueBearingActionAsValueless_BypassesCap() public {
-        // RISK: registering a value-bearing action (approve) as hasAmount=false makes the executor gate it
-        // at amount 0, bypassing maxTransactionValue. Owners MUST register value-bearing actions as hasAmount=true.
-        vm.prank(executorOwner);
-        executor.setAction(APPROVE, true, false, 0);
-
-        vm.prank(agent);
-        executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(700)));
-
-        assertEq(token.allowance(address(executor), spender), 700); // the forwarded call still ran
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 0); // but the cap was untouched
-    }
-
-    function test_RevertsAmountIndexOutOfRange() public {
-        vm.prank(executorOwner);
-        executor.setAction(APPROVE, true, true, 5);
-
-        vm.prank(agent);
-        vm.expectRevert(AgentExecutor.InvalidData.selector);
-        executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(1)));
-    }
-
-    function test_RevertsOverCumulativeCap() public {
-        _transfer(recipient, 1000); // cumulative 1000
-        vm.prank(agent);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector,
-                agent,
-                address(token),
-                TRANSFER_FROM,
-                uint256(1000),
-                IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP
-            )
-        );
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1000)));
+    function test_TransfersAndRecords() public {
+        _transfer(recipient, 500);
+        assertEq(token.balanceOf(recipient), 500);
+        assertEq(mandate.getLimits(agent, principal, address(token))[0].cumulativeUsed, 500);
     }
 
     function test_RevertsOverPerTxCap() public {
         vm.prank(agent);
         vm.expectRevert(
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_TX_CAP)
+        );
+        executor.execute(address(token), abi.encodeWithSelector(TRANSFER, recipient, uint256(1001)));
+        assertEq(token.balanceOf(principal), 10_000);
+    }
+
+    function test_RevertsOverCumulativeCap() public {
+        _transfer(recipient, 1000);
+        vm.prank(agent);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP
+            )
+        );
+        executor.execute(address(token), abi.encodeWithSelector(TRANSFER, recipient, uint256(1000)));
+    }
+
+    function test_ApproveSpendsNothingAndIsGatedBySpender() public {
+        vm.prank(agent);
+        executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(5000)));
+        assertEq(token.allowance(principal, spender), 5000);
+        assertEq(mandate.getLimits(agent, principal, address(token))[0].cumulativeUsed, 0);
+
+        vm.prank(agent);
+        vm.expectRevert(
             abi.encodeWithSelector(
                 AgentExecutor.CannotExecute.selector,
                 agent,
                 address(token),
-                TRANSFER_FROM,
-                uint256(1500),
-                IAgentMandate.MandateReason.OVER_TX_CAP
+                APPROVE,
+                IAgentMandate.MandateReason.CONSTRAINT_FAILED
             )
         );
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1500)));
+        executor.execute(address(token), abi.encodeWithSelector(APPROVE, stranger, uint256(5000)));
+    }
+
+    function test_TwoTokensNotInCalldataCountedApart() public {
+        tokenB = new uRWA20("Regulated B", "RWB", admin);
+        vm.startPrank(admin);
+        token.changeReceiveWhitelist(address(this), true);
+        tokenB.changeSendWhitelist(principal, true);
+        tokenB.changeReceiveWhitelist(principal, true);
+        tokenB.changeReceiveWhitelist(address(this), true);
+        tokenB.mint(principal, 10_000);
+        vm.stopPrank();
+        vm.startPrank(principal);
+        token.approve(address(this), type(uint256).max);
+        tokenB.approve(address(this), type(uint256).max);
+        vm.stopPrank();
+
+        IAgentMandate.Action[] memory actions = new IAgentMandate.Action[](1);
+        actions[0].action = bytes32(DEPOSIT);
+        IAgentMandate.Limit[] memory limits = new IAgentMandate.Limit[](2);
+        limits[0] = IAgentMandate.Limit(address(token), IAgentMandate.Direction.OUTFLOW, 2, 10, 0);
+        limits[1] = IAgentMandate.Limit(address(tokenB), IAgentMandate.Direction.OUTFLOW, 20, 100, 0);
+        IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
+            agent: agent,
+            validFrom: 0,
+            validUntil: uint48(block.timestamp + 1 days),
+            principal: principal,
+            complianceProvider: address(compliance),
+            identityRef: IDREF,
+            target: address(this),
+            actions: actions,
+            limits: limits,
+            metadata: bytes32(0),
+            deadline: 0
+        });
+        vm.prank(principal);
+        mandate.grantMandate(params, "");
+
+        vm.prank(agent);
+        executor.execute(address(this), abi.encodeWithSelector(DEPOSIT, 1, 15));
+        IAgentMandate.Limit[] memory used = mandate.getLimits(agent, principal, address(this));
+        assertEq(used[0].cumulativeUsed, 1);
+        assertEq(used[1].cumulativeUsed, 15);
+
+        vm.prank(agent);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_TX_CAP)
+        );
+        executor.execute(address(this), abi.encodeWithSelector(DEPOSIT, 3, 1));
+    }
+
+    function test_InflowLimitCountsWhatEntersThePrincipal() public {
+        vm.startPrank(admin);
+        token.changeSendWhitelist(stranger, true);
+        token.changeReceiveWhitelist(stranger, true);
+        token.mint(stranger, 10_000);
+        vm.stopPrank();
+        vm.prank(stranger);
+        token.approve(principal, type(uint256).max);
+
+        IAgentMandate.Action[] memory actions = new IAgentMandate.Action[](1);
+        actions[0].action = bytes32(IERC20.transferFrom.selector);
+        IAgentMandate.Limit[] memory limits = new IAgentMandate.Limit[](2);
+        limits[0] = IAgentMandate.Limit(address(token), IAgentMandate.Direction.OUTFLOW, 0, 0, 0);
+        limits[1] = IAgentMandate.Limit(address(token), IAgentMandate.Direction.INFLOW, 500, 800, 0);
+        IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
+            agent: agent,
+            validFrom: 0,
+            validUntil: uint48(block.timestamp + 1 days),
+            principal: principal,
+            complianceProvider: address(compliance),
+            identityRef: IDREF,
+            target: address(token),
+            actions: actions,
+            limits: limits,
+            metadata: bytes32(0),
+            deadline: 0
+        });
+        vm.startPrank(principal);
+        mandate.revokeMandate(agent, principal, address(token), 0, "");
+        mandate.grantMandate(params, "");
+        vm.stopPrank();
+
+        vm.prank(agent);
+        executor.execute(address(token), abi.encodeCall(IERC20.transferFrom, (stranger, principal, 500)));
+        IAgentMandate.Limit[] memory used = mandate.getLimits(agent, principal, address(token));
+        assertEq(used[0].cumulativeUsed, 0);
+        assertEq(used[1].cumulativeUsed, 500);
+
+        vm.prank(agent);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_TX_CAP)
+        );
+        executor.execute(address(token), abi.encodeCall(IERC20.transferFrom, (stranger, principal, 501)));
+
+        vm.prank(agent);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAgentMandate.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP
+            )
+        );
+        executor.execute(address(token), abi.encodeCall(IERC20.transferFrom, (stranger, principal, 301)));
     }
 
     function test_RevertsShortCalldata() public {
@@ -175,10 +243,18 @@ contract AgentExecutorTest is Test {
         executor.execute(address(token), hex"001122");
     }
 
-    function test_RevertsUnsupportedSelector() public {
+    function test_RevertsActionNotEnabled() public {
         bytes4 unknown = bytes4(keccak256("foo()"));
         vm.prank(agent);
-        vm.expectRevert(abi.encodeWithSelector(AgentExecutor.UnsupportedAction.selector, unknown));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                unknown,
+                IAgentMandate.MandateReason.ACTION_NOT_ENABLED
+            )
+        );
         executor.execute(address(token), abi.encodeWithSelector(unknown));
     }
 
@@ -195,12 +271,11 @@ contract AgentExecutorTest is Test {
                 AgentExecutor.CannotExecute.selector,
                 agent,
                 address(token),
-                TRANSFER_FROM,
-                uint256(500),
+                TRANSFER,
                 IAgentMandate.MandateReason.AGENT_FROZEN
             )
         );
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));
+        executor.execute(address(token), abi.encodeWithSelector(TRANSFER, recipient, uint256(500)));
     }
 
     function test_RevertsWhenRevoked() public {
@@ -212,59 +287,50 @@ contract AgentExecutorTest is Test {
                 AgentExecutor.CannotExecute.selector,
                 agent,
                 address(token),
-                TRANSFER_FROM,
-                uint256(500),
+                TRANSFER,
                 IAgentMandate.MandateReason.REVOKED
             )
         );
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));
-    }
-
-    function test_SetActionCanDisable() public {
-        vm.prank(executorOwner);
-        executor.setAction(TRANSFER_FROM, false, true, 2);
-
-        (bool supported,,) = executor.actions(TRANSFER_FROM);
-        assertFalse(supported);
-
-        vm.prank(agent);
-        vm.expectRevert(abi.encodeWithSelector(AgentExecutor.UnsupportedAction.selector, TRANSFER_FROM));
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(100)));
-    }
-
-    function test_SetActionEmitsEvent() public {
-        vm.expectEmit(true, false, false, true, address(executor));
-        emit ActionConfigured(APPROVE, true, true, 1);
-        vm.prank(executorOwner);
-        executor.setAction(APPROVE, true, true, 1);
-    }
-
-    function test_SetActionOnlyOwner() public {
-        vm.prank(agent);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, agent));
-        executor.setAction(TRANSFER_FROM, true, true, 2);
-    }
-
-    function test_SetActionRegisters() public {
-        vm.prank(executorOwner);
-        executor.setAction(APPROVE, true, true, 1);
-
-        (bool supported, bool hasAmount, uint8 amountIndex) = executor.actions(APPROVE);
-        assertTrue(supported);
-        assertTrue(hasAmount);
-        assertEq(amountIndex, 1);
+        executor.execute(address(token), abi.encodeWithSelector(TRANSFER, recipient, uint256(500)));
     }
 
     function test_TokenComplianceBlocksIndependently() public {
         bytes memory inner = abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotReceive.selector, stranger);
         vm.prank(agent);
         vm.expectRevert(abi.encodeWithSelector(AgentExecutor.CallFailed.selector, inner));
-        executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, stranger, uint256(500)));
+        executor.execute(address(token), abi.encodeWithSelector(TRANSFER, stranger, uint256(500)));
     }
 
-    function test_TransfersAndRecords() public {
-        _transfer(recipient, 500);
-        assertEq(token.balanceOf(recipient), 500);
-        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 500);
+    function test_AcceptsEthAndSafeTransfers() public {
+        vm.deal(stranger, 1 ether);
+        vm.prank(stranger);
+        (bool ok,) = address(executor).call{value: 1 ether}("");
+        assertTrue(ok);
+        assertEq(address(executor).balance, 1 ether);
+        assertEq(executor.onERC721Received(stranger, stranger, 1, ""), executor.onERC721Received.selector);
+    }
+
+    function test_DelegatedPrincipalSigns() public {
+        (, uint256 principalKey) = makeAddrAndKey("principal");
+        address operator = makeAddr("operator");
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "SetOperator(address principal,address operator,bool approved,uint256 nonce,uint256 deadline)"
+                ),
+                principal,
+                operator,
+                true,
+                mandate.nonces(principal),
+                deadline
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(principalKey, keccak256(abi.encodePacked(hex"1901", mandate.DOMAIN_SEPARATOR(), structHash)));
+
+        vm.prank(stranger);
+        mandate.setOperator(principal, operator, true, deadline, abi.encodePacked(r, s, v));
+        assertTrue(mandate.isOperator(principal, operator));
     }
 }

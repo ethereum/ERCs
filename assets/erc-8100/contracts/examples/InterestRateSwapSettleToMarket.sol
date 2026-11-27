@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {
-IXMLRepresentableStateVersionedHashed,
-IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
+    IXMLRepresentableStateVersionedHashed,
+    IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
 } from "../IRepresentableState.sol";
 
 contract InterestRateSwapSettleToMarket is IXMLRepresentableStateVersionedHashed {
@@ -250,11 +250,11 @@ contract InterestRateSwapSettleToMarket is IXMLRepresentableStateVersionedHashed
                 abi.encodePacked(
                     "<?xml version='1.0' encoding='UTF-8'?>",
                     "<Settlements"
-                    " xmlns='urn:example:settlement-context'"
-                    " xmlns:evmstate='urn:evm:state:1.0'"
-                    " evmstate:chain-id=''"
-                    " evmstate:contract-address=''"
-                    " evmstate:block-number=''>",
+                        " xmlns='urn:example:settlement-context'"
+                        " xmlns:evmstate='urn:evm:state:1.0'"
+                        " evmstate:chain-id=''"
+                        " evmstate:contract-address=''"
+                        " evmstate:block-number=''>",
                     _settlementsFragment(),
                     "</Settlements>"
                 )
