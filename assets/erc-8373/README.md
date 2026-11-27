@@ -70,7 +70,7 @@ An independent on-chain anchor enforces the size bound at admission and proves c
 
 | File | What it is |
 |------|------------|
-| `pq-key-binding-v1.signature-vectors.json` | The exact bytes of the published signatures: rotation continuity and possession and the revocation authorization (SLH-DSA-SHA2-192s, direct route), and one live ML-DSA-65 binding signed through a Nostr carrier (carrier-bound route). Each case carries negative controls: wrong context, pre-hash SHA-512 and SHA-256, the message as a hex string, wrong message, wrong key, mutated signature, and for the carrier case the direct route and a tampered carrier |
+| `pq-key-binding-v1.signature-vectors.json` | The exact bytes of the published signatures: the genesis binding's possession signature, rotation continuity and possession, and the revocation authorization (SLH-DSA-SHA2-192s, direct route), and one live ML-DSA-65 binding signed through a Nostr carrier (carrier-bound route). Each case carries negative controls: wrong context, pre-hash SHA-512 and SHA-256, the message as a hex string, wrong message, wrong key, mutated signature, and for the carrier case the direct route and a tampered carrier |
 | `check_signatures.mjs` | Recomputes each message from the statement or the carrier, then checks the signature and every control under one contract: pure mode, empty context, message = the 32 raw bytes |
 
 ```
