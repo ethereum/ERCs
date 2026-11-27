@@ -36,7 +36,7 @@ interface ISealedBidTender {
         uint64 revealDeadline; // reveals accepted while commitDeadline < block.timestamp <= revealDeadline
         uint256 bond; // escrowed per commit
         address bondAsset; // address(0) for the chain's native asset, else an ERC-20
-        address slashRecipient; // where slashed bonds go; MUST be non-zero when bond > 0
+        address slashRecipient; // where slashed bonds go; MUST be non-zero and not the requester when bond > 0
         uint256 maxBidders; // commitments accepted per tender; MUST be >= 1 and <= the implementation's limit
         bytes4 integrationProfile; // AwardProfiles.PRICE_BINDING or AwardProfiles.ALLOCATION_ONLY
         bytes32 contentHash; // commits work, payment denomination and acceptance policy; fixed at opening

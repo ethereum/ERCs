@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title IAwardMechanism
 /// @notice A pure allocation-and-pricing rule: maps revealed bids to an award.
-/// @dev Mechanisms are stateless by design. See the ERC text for the six
+/// @dev Mechanisms are stateless by design. See the ERC text for the seven
 ///      conditions `award` must satisfy.
 interface IAwardMechanism {
     struct Bid {

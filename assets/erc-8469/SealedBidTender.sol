@@ -68,7 +68,7 @@ contract SealedBidTender is ISealedBidTender {
     }
 
     /// @notice Canonical target commitment per the ERC. `targetId` is the target's
-    ///         identifier normalised to bytes32 (uint256 ids are left-padded).
+    ///         identifier normalized to bytes32 (uint256 ids are left-padded).
     function targetRefOf(uint256 chainId, address targetContract, bytes32 targetId) external pure returns (bytes32) {
         return keccak256(abi.encode(chainId, targetContract, targetId));
     }
