@@ -66,6 +66,20 @@ python3 canonicalization_check.py pq-key-binding-v1.canonicalization.json pq-key
 An independent on-chain anchor enforces the size bound at admission and proves canonical-form violations by a one-segment fraud proof. It is not part of these assets.
 
 
+## Signature fixtures (`pq_key_binding.v1/signatures`)
+
+| File | What it is |
+|------|------------|
+| `pq-key-binding-v1.signature-vectors.json` | The exact bytes of the published signatures: rotation continuity and possession and the revocation authorization (SLH-DSA-SHA2-192s, direct route), and one live ML-DSA-65 binding signed through a Nostr carrier (carrier-bound route). Each case carries negative controls: wrong context, pre-hash SHA-512 and SHA-256, the message as a hex string, wrong message, wrong key, mutated signature, and for the carrier case the direct route and a tampered carrier |
+| `check_signatures.mjs` | Recomputes each message from the statement or the carrier, then checks the signature and every control under one contract: pure mode, empty context, message = the 32 raw bytes |
+
+```
+npm install --no-save @noble/post-quantum@0.7.1
+node check_signatures.mjs pq-key-binding-v1.signature-vectors.json
+```
+
+The source records are unchanged; this file only collects their bytes. It backs the signature contract under discussion for the Specification (decision D2) and is not yet listed as normative there.
+
 ## Which files are normative
 
 The ERC's Test Cases section lists the normative file per facet and governs. For convenience:
