@@ -94,7 +94,11 @@ contract CutoffVectorsTest is Test {
     function _build(uint256 i) internal returns (PQCutoffEnforcer enf, VectorCompanionVerifier ver) {
         VectorAnchorSubstrate sub = new VectorAnchorSubstrate();
         ver = new VectorCompanionVerifier();
-        enf = new PQCutoffEnforcer(consumerCutoff, sub, ver, CLASSICAL);
+        // A case may declare its own consumer cutoff, which is how the vectors put the cutoff
+        // before the baseline anchor. Every other case uses the file's cutoff.
+        string memory cp = string.concat(_case(i), ".consumer_cutoff");
+        uint64 cutoff = vm.keyExistsJson(json, cp) ? uint64(vm.parseJsonUint(json, cp)) : consumerCutoff;
+        enf = new PQCutoffEnforcer(cutoff, sub, ver, CLASSICAL);
 
         // Chain state mutators are owner-only, so build every case as the identity itself.
         vm.startPrank(CLASSICAL);
@@ -247,7 +251,7 @@ contract CutoffVectorsTest is Test {
     function test_v1_vector_file_is_the_published_one() public view {
         assertEq(consumerCutoff, 1790000000);
         assertEq(uint64(vm.parseJsonUint(json, ".bindings[0].binding_anchor_time")), 1785423299);
-        assertEq(caseCount, 26, "the published v1 set has 26 cases; a different count means a stale copy");
+        assertEq(caseCount, 32, "the published v1 set has 32 cases; a different count means a stale copy");
     }
 
     /// The reason is the field ERC-8373 makes REQUIRED for an unverifiable and requires to be a

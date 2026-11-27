@@ -5,7 +5,8 @@ A faithful port of the live gateway enforcer (trustless-ai/vertice-gateway src/l
 which is itself the operative side of this profile. v1 over v0 changes exactly two things, both to
 STOP the back catalogue being retroactively invalidated:
 
-  1. PRE-BASELINE LEGACY ADMIT (admitted, NOT governed). An artifact anchored before the baseline's
+  1. PRE-BASELINE LEGACY ADMIT (admitted, NOT governed). An artifact anchored before the consumer
+     cutoff AND before the baseline's
      EFFECTIVE ACTIVATION BOUNDARY B (its anchor, or a later activated_at — see activation_of) is not
      governed by any binding — no binding was in force at that instant — but it is ADMITTED classical-
      only rather than refused: it claims no PQ companion, so nothing asserts protection it lacks (whether
@@ -139,6 +140,15 @@ def admit(bindings, consumer_cutoff, artifact):
         # set {verified, refuted, unverifiable}; the legacy admission lives in resolution_reason + rule.
         baseline = min(anchored, key=lambda x: x["binding_anchor_time"])
         if at < activation_of(bindings, baseline):
+            # pre_baseline is admitted ONLY before the consumer cutoff. At or after the cutoff there is
+            # no binding in force to verify a companion under, so the artifact is refused, exactly as
+            # PQCutoffEnforcer.sol does. Without this check an attacker holding the classical key could
+            # anchor a late "genesis" binding and have every forged artifact anchored between the cutoff
+            # and that binding's B admitted classical-only.
+            if not at < consumer_cutoff:
+                return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "pre_baseline",
+                        "evidence": "refuted", "decision": project("refuted"),
+                        "rule": "post_cutoff_no_valid_companion"}
             # pre_baseline: NOT governed (resolved stays null) but ADMITTED under the legacy back-catalogue
             # rule. `verified` attests the TEMPORAL classification only — provably anchored before B (the
             # effective activation boundary), admitted classical-only. It does NOT assert a classical-
