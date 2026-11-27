@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.28;
 
 import {IERC20Errors} from '@openzeppelin/contracts/interfaces/draft-IERC6093.sol';
@@ -391,6 +391,21 @@ contract ERC8473IntegrationTest is Helpers {
     _token.transfer(_actors[2], 5);
     assertEq(_policy.holderCount(), 3);
     assertEq(_elsewhere.afterTransferCalls(), 0);
+  }
+
+  /// @notice Policy requirement 17: on its own installation, the forwarder passes the module the token's
+  ///         `_previousPolicy` and `_token` unchanged, and here the same `_data`
+  function test_WhenAForwarderIsInstalled_ItsModuleGetsTheSameArguments() public {
+    InstallRecorderPolicy _recorder = new InstallRecorderPolicy();
+    IERC8473Policy[] memory _modules = new IERC8473Policy[](1);
+    _modules[0] = IERC8473Policy(address(_recorder));
+    ForwardingPolicy _forwarder = new ForwardingPolicy(_modules);
+
+    vm.prank(_admin);
+    _token.setPolicy(address(_forwarder), hex'c0ffee');
+    assertEq(_recorder.seenPolicy(), address(_forwarder));
+    assertEq(_recorder.seenPrevious(), address(_policy));
+    assertEq(_recorder.seenData(), hex'c0ffee');
   }
 
   /// @notice A forwarder with no modules would return `TRANSFER_OK` from every check, so it cannot be built
