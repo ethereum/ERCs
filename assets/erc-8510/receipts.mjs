@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Reference implementation of ERC-8510, Inference Receipts. Keccak-256 and secp256k1 recovery are written out with
 // BigInt so the file has no dependencies; that costs about 11 ms per receipt checked.
 

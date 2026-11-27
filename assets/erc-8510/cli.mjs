@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Command line for receipts.mjs; README.md lists the commands and exit codes.
 import { readFileSync } from "node:fs";
 

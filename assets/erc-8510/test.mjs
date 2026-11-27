@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Offline tests for the reference implementation against vectors.json: node --test test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

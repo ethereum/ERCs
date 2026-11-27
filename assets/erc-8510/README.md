@@ -53,7 +53,7 @@ finds the first block after the day closed by binary search on block timestamps,
 logs from those publishers forward from there. It prints the record with its block, log index and transaction, then
 checks it against the list:
 
-    node cli.mjs find-record https://rpc.usebrainchain.com day-list-2026-11-19.json
+    node cli.mjs find-record https://rpc.example.com day-list-2026-11-19.json
 
 ## The vectors
 
@@ -71,20 +71,6 @@ the file holds:
 - `trees`: day roots over the first 2, 3 and 5 receipts;
 - `findRecord`: a mocked chain holding the real 2026-11-19 record log and the logs a verifier must skip around it;
 - `repeatedPayment`: a valid receipt for a payment another receipt already covers;
-- `public`: the reference deployment's day list for 2026-11-19 (with the `records` member added, since it was served
-  before the member existed), one receipt whose hash is that day's root, and the day record as inscribed on chain with
-  the log that carries it.
-
-## Deployments
-
-BrainChain's inference gateway issues these receipts for calls paid in USDG over x402, signed by
-`0x70D882879E1954Ac9A06b693379334Fd131B786D`, and serves its day lists at
-`https://inference.usebrainchain.com/v1/receipts/<YYYY-MM-DD>`. Two chains are involved:
-
-- The payments settle on Robinhood Chain, chain id 4663, so receipts carry `network` `eip155:4663`.
-- The day records are published on BrainChain, chain id 274663, an L3 that settles on Robinhood Chain, so lists carry
-  `records.network` `eip155:274663`. Its public RPC is `https://rpc.usebrainchain.com`. Records go through
-  `0x770D6756CA8a1627FFf01B846383b13d6fa0c514`, sent by `0x70C665780E43BA1496a4E691e408F24844dB58eC`.
-
-Where it differs from the proposal: it returns the receipt in an `X-BrainChain-Receipt` header, and its records carry
-two more members, `brainchain` and `at`. It served day lists before they carried `records`; they carry it now.
+- `public`: a running issuer's day list for 2026-11-19 (with the `records` member added, since it was served before the
+  member existed), one receipt whose hash is that day's root, and the day record as published on chain with the log
+  that carries it.
