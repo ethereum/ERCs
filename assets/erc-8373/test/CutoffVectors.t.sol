@@ -145,6 +145,20 @@ contract CutoffVectorsTest is Test {
                 enf.revokeBinding(ca, rec);
             }
         }
+
+        // Further revocations a case declares, applied after the chain is built and in the order
+        // listed. A vector names the binding by its content_address, which these vectors set to
+        // the binding's name.
+        string memory rp = string.concat(_case(i), ".revocations");
+        if (vm.keyExistsJson(json, rp)) {
+            for (uint256 r = 0; vm.keyExistsJson(json, string.concat(rp, "[", vm.toString(r), "]")); r++) {
+                string memory e = string.concat(rp, "[", vm.toString(r), "]");
+                string memory target = vm.parseJsonString(json, string.concat(e, ".revokes_content_address"));
+                bytes32 rec = keccak256(abi.encodePacked(target, "-revocation-", vm.toString(r)));
+                sub.anchor(rec, uint64(vm.parseJsonUint(json, string.concat(e, ".revocation_anchor_time"))), CLASSICAL);
+                enf.revokeBinding(keccak256(bytes(target)), rec);
+            }
+        }
     }
 
     function _runCase(uint256 i)
@@ -257,7 +271,7 @@ contract CutoffVectorsTest is Test {
     function test_v1_vector_file_is_the_published_one() public view {
         assertEq(consumerCutoff, 1790000000);
         assertEq(uint64(vm.parseJsonUint(json, ".bindings[0].binding_anchor_time")), 1785423299);
-        assertEq(caseCount, 35, "the published v1 set has 35 cases; a different count means a stale copy");
+        assertEq(caseCount, 41, "the published v1 set has 41 cases; a different count means a stale copy");
     }
 
     /// The reason is the field ERC-8373 makes REQUIRED for an unverifiable and requires to be a

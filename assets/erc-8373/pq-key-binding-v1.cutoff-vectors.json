@@ -742,6 +742,194 @@
     "evidence": "unverifiable",
     "decision": "REJECT"
    }
+  },
+  {
+   "name": "revoked successor, no fallback (N05): genesis at 10, rotation at 20 revoked at 30; artifact at 35 is authority_revoked, never governed by the retired genesis",
+   "consumer_cutoff": 100,
+   "bindings": [
+    {
+     "name": "genesis",
+     "content_address": "genesis",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 10
+    },
+    {
+     "name": "rotation",
+     "content_address": "rotation",
+     "pq_pubkey": "5e8c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 20,
+     "revoked_at": 30
+    }
+   ],
+   "artifact": {
+    "anchor_time": 35,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "no_in_force_binding",
+    "rule": "no_in_force_binding",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "revoked successor, control: the same chain, artifact at 25 is governed by the rotation",
+   "consumer_cutoff": 100,
+   "bindings": [
+    {
+     "name": "genesis",
+     "content_address": "genesis",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 10
+    },
+    {
+     "name": "rotation",
+     "content_address": "rotation",
+     "pq_pubkey": "5e8c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 20,
+     "revoked_at": 30
+    }
+   ],
+   "artifact": {
+    "anchor_time": 25,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "rotation",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "earliest revocation wins (F05): revoked at 20, revoked again at 40; artifact at 30 stays authority_revoked",
+   "consumer_cutoff": 100,
+   "bindings": [
+    {
+     "name": "genesis",
+     "content_address": "genesis",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 10,
+     "revoked_at": 20
+    }
+   ],
+   "revocations": [
+    {
+     "revokes_content_address": "genesis",
+     "revocation_anchor_time": 40
+    }
+   ],
+   "artifact": {
+    "anchor_time": 30,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "no_in_force_binding",
+    "rule": "no_in_force_binding",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "earliest revocation wins, control: the same chain, artifact at 19 is still governed",
+   "consumer_cutoff": 100,
+   "bindings": [
+    {
+     "name": "genesis",
+     "content_address": "genesis",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 10,
+     "revoked_at": 20
+    }
+   ],
+   "revocations": [
+    {
+     "revokes_content_address": "genesis",
+     "revocation_anchor_time": 40
+    }
+   ],
+   "artifact": {
+    "anchor_time": 19,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "activation not forward (F09): genesis anchored 100 activating 500, successor anchored 200 activating 200; the chain is malformed",
+   "consumer_cutoff": 1000,
+   "bindings": [
+    {
+     "name": "genesis",
+     "content_address": "genesis",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 100,
+     "activated_at": 500
+    },
+    {
+     "name": "rotation",
+     "content_address": "rotation",
+     "pq_pubkey": "5e8c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 200,
+     "activated_at": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 600,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "chain_malformed",
+    "rule": "chain_malformed",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "equal activation is forward: genesis activating 300, successor anchored 200 activating 300; artifact at 300 is governed by the successor, by chain order not list position",
+   "consumer_cutoff": 1000,
+   "bindings": [
+    {
+     "name": "genesis",
+     "content_address": "genesis",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 100,
+     "activated_at": 300
+    },
+    {
+     "name": "rotation",
+     "content_address": "rotation",
+     "pq_pubkey": "5e8c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 200,
+     "activated_at": 300
+    }
+   ],
+   "artifact": {
+    "anchor_time": 300,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "rotation",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
   }
  ]
 }

@@ -55,6 +55,7 @@ contract PQCutoffEnforcer is IPQKeyBindingConsumer {
     error PredecessorNotInChain(bytes32 predecessor);
     error ChainIsTerminal();
     error RotationNotForward(uint64 predecessorAnchor, uint64 anchorTime);
+    error NotChainTip(bytes32 predecessor);
     error NotClassicalAddress(address expected, address actual);
     error UnhandledReason(PQReason reason);
 
@@ -137,6 +138,10 @@ contract PQCutoffEnforcer is IPQKeyBindingConsumer {
         if (_chain.length != 0) {
             uint256 pi = _indexPlusOne[predecessor];
             if (pi == 0) revert PredecessorNotInChain(predecessor);
+            // The chain is linear: a successor names the current tip. Naming an older binding would
+            // fork the chain, and it would also let a successor be registered through an ancestor of
+            // a terminal binding, since terminality is checked on the predecessor named here.
+            if (pi != _chain.length) revert NotChainTip(predecessor);
             Binding storage p = _chain[pi - 1];
             if (p.terminal) revert ChainIsTerminal();
             // Rotation is forward-acting, so a successor cannot claim an earlier anchor than the
@@ -155,6 +160,14 @@ contract PQCutoffEnforcer is IPQKeyBindingConsumer {
         // the chain is not entitled to answer.
         uint64 activatedAt = activationDeclared ? declaredActivation : anchorTime;
         bool malformed = anchored && activationDeclared && declaredActivation < anchorTime;
+
+        // Rotation is forward-acting in activation too. A successor that activates before its anchored
+        // predecessor would make the governing binding depend on ordering rather than on the chain,
+        // so the chain is recorded as malformed, the same way as an activation before its own anchor.
+        if (anchored && _chain.length != 0) {
+            Binding storage tip = _chain[_chain.length - 1];
+            if (tip.anchored && activatedAt < tip.activatedAt) malformed = true;
+        }
 
         _chain.push(
             Binding({
@@ -197,7 +210,10 @@ contract PQCutoffEnforcer is IPQKeyBindingConsumer {
         address anchorer = anchorRegistry.anchoredBy(revocationRecord);
         if (anchorer != classicalAddress) revert WrongAnchorer(classicalAddress, anchorer);
 
-        _chain[i - 1].revokedAt = revokedAt;
+        // R is the EARLIEST authenticated revocation. A later revocation of the same binding cannot
+        // reopen an interval an earlier one already closed.
+        Binding storage b = _chain[i - 1];
+        if (b.revokedAt == 0 || revokedAt < b.revokedAt) b.revokedAt = revokedAt;
     }
 
     /// @notice Mark a binding terminal, closing the chain to further rotation.
@@ -298,7 +314,14 @@ contract PQCutoffEnforcer is IPQKeyBindingConsumer {
         override
         returns (PQDecision, PQEvidence, PQReason, PQRule)
     {
-        uint64 anchorTime = anchorRegistry.anchorTimeOf(artifactContentAddress);
+        // A registry that reverts has not answered, so the artifact is unverifiable rather than the
+        // call failing. A revert that escaped here would leave the caller without a verdict at all.
+        uint64 anchorTime;
+        try anchorRegistry.anchorTimeOf(artifactContentAddress) returns (uint64 t) {
+            anchorTime = t;
+        } catch {
+            return (PQDecision.Refuse, PQEvidence.Unverifiable, PQReason.AnchorUnavailable, PQRule.AnchorUnavailable);
+        }
 
         // An artifact whose anchor cannot be read is refused, but the evidence says we could not
         // tell rather than that it was bad. Merging those would let an indexing gap read as a

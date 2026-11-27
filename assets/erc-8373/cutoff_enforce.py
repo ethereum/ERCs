@@ -62,22 +62,24 @@ def activation_of(bindings, b):
 
 
 def resolve_in_force(bindings, at_time):
-    """Which binding governs an artifact anchored at at_time. Generic over chain length and
-    revocation: eligible from its activation boundary; a revoked_at ends authority (artifacts anchored
-    at/after are no longer governed). Returns (binding | None, reason)."""
-    eligible = []
+    """Which binding governs an artifact anchored at at_time. The chain is linear, in list order: the
+    governing binding is the LATEST anchored binding in the chain whose activation boundary B <= at_time.
+    If that binding is revoked at or before at_time, authority has ended and nothing governs: there is
+    NO fallback to a predecessor, because a rotation retires its predecessor permanently. (The previous
+    version skipped revoked bindings before choosing, so a revoked successor handed authority back to
+    the binding it replaced.) Returns (binding | None, reason)."""
+    latest = None
     for b in bindings:
         if b.get("binding_anchor_time") is None:
             continue                                     # anchor UNAVAILABLE — no reproducible B, cannot govern
-        if activation_of(bindings, b) > at_time:
-            continue
-        rev = b.get("revoked_at")
-        if rev is not None and at_time >= rev:
-            continue                                     # revocation slot — authority ended
-        eligible.append(b)
-    if not eligible:
+        if activation_of(bindings, b) <= at_time:
+            latest = b                                   # later in the chain supersedes earlier
+    if latest is None:
         return None, "no_in_force_binding"
-    return max(eligible, key=lambda b: activation_of(bindings, b)), "resolved_at_anchor_time"
+    rev = latest.get("revoked_at")
+    if rev is not None and at_time >= rev:
+        return None, "no_in_force_binding"               # revocation slot — authority ended, no fallback
+    return latest, "resolved_at_anchor_time"
 
 
 def apply_revocations(bindings, revocations):
@@ -85,7 +87,11 @@ def apply_revocations(bindings, revocations):
         return None
     if not revocations:
         return bindings
-    earliest = {}
+    # R is the EARLIEST authenticated revocation of a binding, whatever its source: a revocation
+    # already embedded on the binding (revoked_at) counts alongside the listed ones, so a later
+    # revocation can never reopen an interval an earlier one closed.
+    earliest = {b["content_address"]: b["revoked_at"] for b in bindings
+                if b.get("content_address") is not None and b.get("revoked_at") is not None}
     for r in revocations:
         cc, t = r["revokes_content_address"], r["revocation_anchor_time"]
         if cc not in earliest or t < earliest[cc]:
@@ -130,6 +136,27 @@ def admit(bindings, consumer_cutoff, artifact):
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "chain_malformed",
                 "evidence": "unverifiable", "unverifiable_reason": "activation_before_anchor",
                 "decision": project("unverifiable"), "rule": "chain_malformed"}
+    # MALFORMED chain, second shape: a successor whose activation boundary is EARLIER than its anchored
+    # predecessor's. Rotation is forward-acting in activation as well as in anchor time; otherwise which
+    # binding governs depends on how the list happens to be ordered, not on the chain.
+    # Anchor time must move forward too, strictly, as PQCutoffEnforcer.sol enforces at registration
+    # (RotationNotForward): otherwise the same bindings listed in another order would be a different,
+    # equally acceptable chain.
+    prev_b = prev_anchor = None
+    for b in bindings:
+        if b.get("binding_anchor_time") is None:
+            continue
+        cur = activation_of(bindings, b)
+        bad = None
+        if prev_anchor is not None and b["binding_anchor_time"] <= prev_anchor:
+            bad = "anchor_not_forward"
+        elif prev_b is not None and cur < prev_b:
+            bad = "activation_not_forward"
+        if bad:
+            return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "chain_malformed",
+                    "evidence": "unverifiable", "unverifiable_reason": bad,
+                    "decision": project("unverifiable"), "rule": "chain_malformed"}
+        prev_b, prev_anchor = cur, b["binding_anchor_time"]
     resolved, reason = resolve_in_force(bindings, at)
     if resolved is None:
         # Chain resolved and non-empty; nothing ANCHORED governs at `at`. First the fail-closed cause

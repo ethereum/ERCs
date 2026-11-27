@@ -336,4 +336,40 @@ contract PQCutoffEnforcerTest is Test {
         enf.settleArtifact(a, "");
         assertEq(vm.getRecordedLogs().length, 1, "a refusal must leave a trace");
     }
+
+    // ── Linear chain, and a registry that cannot answer ─────────────────────
+
+    /// A successor names the current tip. Naming an older binding would fork the chain.
+    function test_successor_must_name_the_chain_tip() public {
+        reg.anchor(ROTATED, CUTOFF - 500, CLASSICAL);
+        enf.registerBinding(ROTATED, GENESIS, PK2);
+        bytes32 fork = keccak256("binding-fork");
+        reg.anchor(fork, CUTOFF - 400, CLASSICAL);
+        vm.expectRevert(abi.encodeWithSelector(PQCutoffEnforcer.NotChainTip.selector, GENESIS));
+        enf.registerBinding(fork, GENESIS, hex"c3c3");
+    }
+
+    /// A terminal binding cannot be routed around by naming one of its ancestors as predecessor.
+    function test_terminal_cannot_be_bypassed_through_an_ancestor() public {
+        reg.anchor(ROTATED, CUTOFF - 500, CLASSICAL);
+        enf.registerBinding(ROTATED, GENESIS, PK2);
+        vm.prank(CLASSICAL);
+        enf.markTerminal(ROTATED);
+        bytes32 revive = keccak256("binding-revive");
+        reg.anchor(revive, CUTOFF - 400, CLASSICAL);
+        vm.expectRevert();
+        enf.registerBinding(revive, GENESIS, hex"c3c3");
+        vm.expectRevert(PQCutoffEnforcer.ChainIsTerminal.selector);
+        enf.registerBinding(revive, ROTATED, hex"c3c3");
+    }
+
+    /// A registry that reverts has not answered: the artifact is unverifiable, and the call returns.
+    function test_registry_outage_is_unverifiable_not_a_revert() public {
+        bytes32 a = keccak256("during-outage");
+        vm.mockCallRevert(address(reg), abi.encodeWithSelector(IPQAnchorRegistry.anchorTimeOf.selector, a), "down");
+        (PQDecision d, PQEvidence e, PQReason r,) = enf.verifyArtifact(a, "");
+        assertEq(uint256(d), uint256(PQDecision.Refuse));
+        assertEq(uint256(e), uint256(PQEvidence.Unverifiable));
+        assertEq(uint256(r), uint256(PQReason.AnchorUnavailable));
+    }
 }
