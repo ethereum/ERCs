@@ -1,4 +1,5 @@
 ---
+eip: 8520
 title: ERC-721 Composition Extension
 description: An ERC-721 extension declaring the assets each token holds in its own locked container, released only to the owner recorded at burn.
 author: Antonio Ferraioli (@antferr)
