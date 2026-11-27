@@ -290,6 +290,9 @@
     "shielded_pool_receipts": {
       "status": "read",
       "value": {
+        "addresses": [
+          "0xdc36d51963d08862c525045ccfd39fae6a0c7f40"
+        ],
         "pool_list": "Toll's named shielded pools (https://t0ll.xyz/agents/privacy)",
         "pools": [
           "0x39e28cde55cab798874746ac52cb4b5cc99a0194"

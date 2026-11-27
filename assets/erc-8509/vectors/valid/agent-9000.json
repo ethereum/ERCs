@@ -38,8 +38,8 @@
     },
     "payTo": {
       "status": "not_read",
-      "reason": "unsupported",
-      "detail": "the reference reader returned no payTo for this agent"
+      "reason": "unavailable",
+      "detail": "the reference answer has no payTo value (null): the payment terms were not established"
     }
   },
   "findings": {
@@ -63,8 +63,8 @@
           "role": "payTo",
           "address": null,
           "status": "not_read",
-          "reason": "unsupported",
-          "detail": "the reference reader returned no payTo for this agent"
+          "reason": "unavailable",
+          "detail": "the reference answer has no payTo value (null): the payment terms were not established"
         }
       ]
     },
@@ -74,8 +74,8 @@
           "role": "payTo",
           "address": null,
           "status": "not_read",
-          "reason": "unsupported",
-          "detail": "the reference reader returned no payTo for this agent"
+          "reason": "unavailable",
+          "detail": "the reference answer has no payTo value (null): the payment terms were not established"
         }
       ]
     },
@@ -85,8 +85,8 @@
           "role": "payTo",
           "address": null,
           "status": "not_read",
-          "reason": "unsupported",
-          "detail": "the reference reader returned no payTo for this agent"
+          "reason": "unavailable",
+          "detail": "the reference answer has no payTo value (null): the payment terms were not established"
         }
       ]
     },
@@ -108,8 +108,8 @@
           "role": "payTo",
           "address": null,
           "status": "not_read",
-          "reason": "unsupported",
-          "detail": "the reference reader returned no payTo for this agent"
+          "reason": "unavailable",
+          "detail": "the reference answer has no payTo value (null): the payment terms were not established"
         }
       ]
     },
@@ -141,12 +141,22 @@
               "block": "119727331"
             }
           ]
+        },
+        {
+          "role": "payTo",
+          "address": null,
+          "status": "not_read",
+          "reason": "unavailable",
+          "detail": "the reference answer has no payTo value (null): the payment terms were not established"
         }
       ]
     },
     "shielded_pool_receipts": {
       "status": "read",
       "value": {
+        "addresses": [
+          "0x801d335f1285020f2b65b3d530306875f340b66d"
+        ],
         "pool_list": "Toll's named shielded pools (https://t0ll.xyz/agents/privacy)",
         "pools": [
           "0x39e28cde55cab798874746ac52cb4b5cc99a0194"
@@ -205,6 +215,7 @@
       "activity_hour_concentration": {
         "status": "read",
         "value": {
+          "window_hours": 6,
           "from_hour_utc": 8,
           "to_hour_utc": 14,
           "share_bps": 9000,
@@ -238,7 +249,31 @@
   "partial": true,
   "partial_reasons": [
     {
+      "field": "/agent/payTo",
+      "reason": "unavailable"
+    },
+    {
+      "field": "/findings/payment_lands_on_owner/entries/1",
+      "reason": "unavailable"
+    },
+    {
+      "field": "/findings/owner_funded_payment_address/entries/0",
+      "reason": "unavailable"
+    },
+    {
+      "field": "/findings/owner_payment_direct_link/entries/0",
+      "reason": "unavailable"
+    },
+    {
+      "field": "/findings/shared_payment_address/entries/0",
+      "reason": "unavailable"
+    },
+    {
       "field": "/findings/payers_visible",
+      "reason": "unavailable"
+    },
+    {
+      "field": "/helps/stealth_meta_address/entries/1",
       "reason": "unavailable"
     }
   ],

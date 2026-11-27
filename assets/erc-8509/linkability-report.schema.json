@@ -917,12 +917,20 @@
             "value": {
               "type": "object",
               "required": [
+                "addresses",
                 "pool_list",
                 "pools",
                 "received_from"
               ],
               "additionalProperties": false,
               "properties": {
+                "addresses": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/address"
+                  }
+                },
                 "pool_list": {
                   "type": "string"
                 },
@@ -1075,42 +1083,41 @@
                   "const": "read"
                 },
                 "value": {
-                  "oneOf": [
-                    {
-                      "type": "null"
+                  "type": "object",
+                  "required": [
+                    "window_hours",
+                    "from_hour_utc",
+                    "to_hour_utc",
+                    "share_bps",
+                    "tx_count"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "window_hours": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 23
                     },
-                    {
-                      "type": "object",
-                      "required": [
-                        "from_hour_utc",
-                        "to_hour_utc",
-                        "share_bps",
-                        "tx_count"
-                      ],
-                      "additionalProperties": false,
-                      "properties": {
-                        "from_hour_utc": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 23
-                        },
-                        "to_hour_utc": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 24
-                        },
-                        "share_bps": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 10000
-                        },
-                        "tx_count": {
-                          "type": "integer",
-                          "minimum": 0
-                        }
-                      }
+                    "from_hour_utc": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 23
+                    },
+                    "to_hour_utc": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 23
+                    },
+                    "share_bps": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 10000
+                    },
+                    "tx_count": {
+                      "type": "integer",
+                      "minimum": 0
                     }
-                  ]
+                  }
                 },
                 "evidence": {
                   "$ref": "#/$defs/evidenceList"

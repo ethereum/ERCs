@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: CC0-1.0
 // Dependency-free validator for Agent Linkability Report test vectors.
 // Usage: node validate.mjs            (validates vectors/valid/* must pass, vectors/invalid/* must fail)
 //        node validate.mjs report.json (validates one report)
@@ -97,9 +98,13 @@ function rules(r, errs) {
   const groups = { ...r.findings, ...r.helps };
   for (const [name, f] of Object.entries(groups)) {
     if (!f || !Array.isArray(f.entries)) continue;
+    if (payTo === undefined && !f.entries.some((e) => e.role === 'payTo' && e.address === null)) errs.push(`rule entries: ${name} has no payTo entry with address null although agent.payTo is not read`);
     f.entries.forEach((e, i) => {
       const where = `rule entries: ${name}/entries/${i}`;
       const addr = lc(e.address);
+      const unsetWallet = name === 'payment_lands_on_owner' && e.role === 'agentWallet';
+      if (addr === null && e.status === 'read' && !unsetWallet) errs.push(`${where} has address null but is read`);
+      if (addr === null && e.role === 'payTo' && payTo !== undefined) errs.push(`${where} has address null but agent.payTo is read`);
       if (e.role === 'agentWallet' && wallet !== undefined && addr !== wallet) errs.push(`${where} names ${addr} but agent.agentWallet is ${wallet}`);
       if (e.role === 'payTo' && payTo !== undefined && addr !== null && !payTo.includes(addr)) errs.push(`${where} names a payTo the agent does not list`);
       if (e.role === 'owner' && owner !== undefined && addr !== owner) errs.push(`${where} names ${addr} but agent.owner is ${owner}`);
@@ -110,6 +115,10 @@ function rules(r, errs) {
       if ((name === 'owner_funded_payment_address' || name === 'owner_payment_direct_link') && e.status === 'read' && owner !== undefined && (e.value === 'same-address') !== (addr === owner)) errs.push(`${where} same-address does not agree with the addresses`);
     });
   }
+
+  // 4. activity_hour_concentration: the window ends window_hours after it starts.
+  const act = r.extensions?.payment_wallet_leaks?.activity_hour_concentration;
+  if (act && act.status === 'read' && act.value.to_hour_utc !== (act.value.from_hour_utc + act.value.window_hours) % 24) errs.push('rule activity: to_hour_utc is not from_hour_utc + window_hours (mod 24)');
 }
 
 function check(file) {
