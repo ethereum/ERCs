@@ -56,7 +56,7 @@ audit before relying on any of it.
 | File | What it is |
 |------|------------|
 | `pq-key-binding-v1.canonicalization.json` | The facet's two admission bounds (member name 64 escaped bytes, statement 6208 bytes) and their derivation |
-| `pq-key-binding-v1.canonicalization-vectors.json` | 13 cases: the five published statements, an ML-DSA-87-sized binding, and each bound at exactly the limit and one past it |
+| `pq-key-binding-v1.canonicalization-vectors.json` | 23 cases: the five published statements, an ML-DSA-87-sized binding, each bound at exactly the limit and one past it, and non-canonical inputs (whitespace, member order, top-level arrays, lone surrogates, deep nesting, integers at ±2^53) |
 | `canonicalization_check.py` | Stdlib admission check that reproduces the vectors |
 
 ```
@@ -74,10 +74,20 @@ The ERC's Test Cases section lists the normative file per facet and governs. For
 |---|---|---|
 | Binding statement | `pq-key-binding-v0.vectors.json` | No v1 exists. The v0 prefix is the profile it was published under, not a superseded set |
 | Cutoff enforcement | `pq-key-binding-v1.cutoff-vectors.json` | Supersedes `pq-key-binding-v0.cutoff-vectors.json`, which is kept unchanged as the frozen base the v1 profile refines and is not a second target |
-| Rotation | `pq-key-binding-v0.rotation-vectors.json` (+ `.rotation.json`) | Current |
-| Revocation | `pq-key-binding-v0.revocation-vectors.json` (+ `.revocation.json`) | Current |
+| Rotation | `pq-key-binding-v1.rotation-vectors.json` (+ `pq-key-binding-v0.rotation.json`) | Supersedes `pq-key-binding-v0.rotation-vectors.json`, kept unchanged |
+| Revocation | `pq-key-binding-v1.revocation-vectors.json` (+ `pq-key-binding-v0.revocation.json`) | Supersedes `pq-key-binding-v0.revocation-vectors.json`, kept unchanged |
 | Canonicalization | `pq-key-binding-v1.canonicalization-vectors.json` (+ `.canonicalization.json`) | Current |
 | Recovery classes | `recovery-classes-vectors.json` | Current |
+
+The Python checkers for the normative facets:
+
+```
+python3 cutoff_enforce.py pq-key-binding-v1.cutoff-vectors.json
+python3 cutoff_enforce.py pq-key-binding-v1.rotation-vectors.json
+python3 cutoff_enforce.py pq-key-binding-v1.revocation-vectors.json
+python3 canonicalization_check.py pq-key-binding-v1.canonicalization.json pq-key-binding-v1.canonicalization-vectors.json
+python3 recovery_check.py recovery-classes-vectors.json
+```
 
 `pq-key-binding-v0.per-agent-anchor.json` is an informative snapshot of one deployment's batch
 anchor, not a conformance target. `pq-key-binding-v0.spec.md` is the working spec of the v0 profile.
