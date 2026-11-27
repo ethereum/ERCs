@@ -189,7 +189,7 @@ The cases below use only what the Specification requires. Alice, Bob, and Carol 
 
 ## Reference Implementation
 
-The implementation below builds on the reference implementation of [ERC-8423](./eip-8423.md), `ERC721BurnRecord`, and keeps a token's composition and container in contract state, written once per token and read by the two view functions. It covers rules 1 through 4, 7, 8, and 9; minting, the lock itself, and the non-upgradeability of rule 10 are left to the contract that creates each container, shown afterward for an ERC-6551 container.
+The implementation below builds on the reference implementation of [ERC-8423](./eip-8423.md), `ERC721BurnRecord`, and keeps a token's composition and container in contract state, written once per token and read by the two view functions. It covers rules 1 through 4, 7, 8, and 9; minting, the lock itself, and the non-upgradeability of rule 10 are left to the contract that creates each container, shown afterward for an ERC-6551 container. A mint path that does not go through `_update`, such as a batch mint during construction announced under ERC-2309, has to make the same checks itself: it declares every token before the batch and refuses a receiver that `_containerToken` reports as a declared container.
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
@@ -249,8 +249,16 @@ abstract contract ERC721Composition is ERC721BurnRecord, IERC721Composition {
         return interfaceId == type(IERC721Composition).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    /// @dev Type and verification data of the container of a declared token.
+    /// @dev Type and verification data of the container of a declared token. Constant for
+    ///      each token: implementations derive them from immutable parameters.
     function _accountTypeAndData(uint256 tokenId) internal view virtual returns (bytes4, bytes memory);
+
+    /// @dev Whether `account` is a container this contract has declared, and for which token.
+    function _containerToken(address account) internal view returns (bool declared, uint256 tokenId) {
+        uint256 tokenIdPlusOne = _containerTokens[account];
+        declared = tokenIdPlusOne != 0;
+        if (declared) tokenId = tokenIdPlusOne - 1;
+    }
 
     /// @dev Records the composition and the container of `tokenId` and emits
     ///      {CompositionDeclared}. The caller ensures the container holds at least the
@@ -283,7 +291,9 @@ abstract contract ERC721Composition is ERC721BurnRecord, IERC721Composition {
     }
 
     /// @dev Rejects a transfer or a mint to any declared container, a mint of an undeclared
-    ///      token, and a mint of a previously burned token.
+    ///      token, and a mint of a previously burned token. A mint that bypasses this
+    ///      function, such as a batch mint during construction, makes these checks itself,
+    ///      with {_containerToken}.
     function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
         if (to != address(0)) {
             uint256 holder = _containerTokens[to];
