@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /// @title Launch Observations
 /// @notice Immutable, block-pinned facts an independent detector observed about a token launch.
 interface ILaunchObservations {
-    enum KeyKind { None, Erc8376, Token, Erc8462Venue }
+    enum KeyKind { None, Erc8376, Token, DeclarationVenue }
 
     enum Lean { None, Clear, Careful, Against }
 

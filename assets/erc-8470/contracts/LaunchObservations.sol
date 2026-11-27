@@ -11,6 +11,12 @@ interface ILaunchDirectoryTokenOf {
     function tokenOf(bytes32 launchId) external view returns (address);
 }
 
+/// @dev ArbSys, the system contract an Arbitrum chain provides at address(100).
+interface IArbSys {
+    /// @return The chain's own current block number, the number `eth_blockNumber` returns on that chain.
+    function arbBlockNumber() external view returns (uint256);
+}
+
 /// @title LaunchObservations (reference implementation)
 /// @notice Permissionless, ownerless, append-only registry of block-pinned launch observations.
 contract LaunchObservations is ILaunchObservations, IERC165 {
@@ -20,8 +26,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     uint256 public constant NOT_READ = type(uint256).max;
     uint256 public constant MAX_BPS = 10_000;
 
-    // Block history. On Arbitrum chains `block.number` is the parent chain's block, so the chain's own block number is
-    // read from ArbSys; past block hashes come from the EIP-2935 history contract where the chain deploys it.
+    // Block history. On Arbitrum chains `block.number` is the parent chain's block, so a registry deployed with
+    // `usesArbSys` set reads the chain's own block number from ArbSys; past block hashes come from the EIP-2935
+    // history contract where the chain deploys it.
     address public constant ARB_SYS = address(100);
     address public constant HISTORY_STORAGE = 0x0000F90827F1C53a10cb7A02335B175320002935;
     uint256 public constant BLOCKHASH_WINDOW = 256;
@@ -80,6 +87,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
     address private immutable _directory;
 
+    /// @notice The block-number source, fixed by the deployer: true reads ArbSys, false reads `block.number`.
+    bool public immutable usesArbSys;
+
     uint256 private _count;
     mapping(uint256 => Observation) private _observations;
     mapping(uint256 => Finding[]) private _findings;
@@ -90,8 +100,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     // tokenKey(chainId, token) => detector => its observation of the token with the highest observed block, any key kind
     mapping(bytes32 => mapping(address => uint256)) private _latestByToken;
 
-    constructor(address directory) {
+    constructor(address directory, bool arbSysBlockNumber) {
         _directory = directory;
+        usesArbSys = arbSysBlockNumber;
     }
 
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
@@ -186,8 +197,8 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         o.reportHash = input.reportHash;
         o.reportURI = input.reportURI;
         o.evidenceRoot = input.evidenceRoot;
-        // An ERC-8462 venue-scoped declaration id is kept so a reader joins the observation to the declaration.
-        if (input.kind == KeyKind.Erc8462Venue) o.declarationId = input.launchId;
+        // A venue-scoped declaration id (Token Launch Declarations) is kept so a reader joins the observation to the declaration.
+        if (input.kind == KeyKind.DeclarationVenue) o.declarationId = input.launchId;
     }
 
     function _storeFindings(uint256 observationId, Finding[] calldata findings) private {
@@ -287,13 +298,10 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
     // ---------------------------------------------------------------- internal
 
-    /// @dev The number the chain's own blocks carry, as `eth_blockNumber` returns it. On an Arbitrum chain
-    /// `block.number` is the parent chain's block, so the number is read from ArbSys at 0x64 when it answers.
+    /// @dev The number the chain's own blocks carry, as `eth_blockNumber` returns it. The source is the one fixed at
+    /// deployment: ArbSys when `usesArbSys` is set (a failing ArbSys call reverts), `block.number` otherwise.
     function _chainBlockNumber() internal view returns (uint256 number, bool arbitrum) {
-        if (ARB_SYS.code.length != 0) {
-            (bool ok, bytes memory ret) = ARB_SYS.staticcall(abi.encodeWithSignature("arbBlockNumber()"));
-            if (ok && ret.length >= 32) return (abi.decode(ret, (uint256)), true);
-        }
+        if (usesArbSys) return (IArbSys(ARB_SYS).arbBlockNumber(), true);
         return (block.number, false);
     }
 
@@ -355,9 +363,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
             if (input.launchId != bytes32(0) || input.chainId == 0 || input.token == address(0)) revert InvalidKey();
             return (tokenKey(input.chainId, input.token), input.chainId, input.token);
         }
-        if (input.kind == KeyKind.Erc8462Venue) {
-            // `launchId` carries the ERC-8462 venue-scoped declaration id. It is not checked against a declarations
-            // contract here (ERC-8462 has no canonical deployment); readers check it with `getDeclaration`.
+        if (input.kind == KeyKind.DeclarationVenue) {
+            // `launchId` carries the venue-scoped declaration id. It is not checked against a declarations
+            // contract here (declarations have no canonical deployment); readers check it with `getDeclaration`.
             if (input.launchId == bytes32(0) || input.chainId == 0 || input.token == address(0)) revert InvalidKey();
             return (declarationKey(input.chainId, input.launchId), input.chainId, input.token);
         }

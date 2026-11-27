@@ -54,12 +54,12 @@ contract LaunchObservationsTest {
     uint256 constant LABEL_PARTLY_FOUND = 2;
     address constant ARB_SYS = address(100);
     address constant HISTORY = 0x0000F90827F1C53a10cb7A02335B175320002935;
-    uint64 constant L2_NOW = 99_930_810; // Robinhood Chain's own block while block.number reads the parent chain's
+    uint64 constant L2_NOW = 99_930_810; // an Arbitrum chain's own block while block.number reads the parent chain's
 
     function setUp() public {
         dir = new MockDirectory();
         ids = new MockIdentityRegistry();
-        reg = new LaunchObservations(address(dir));
+        reg = new LaunchObservations(address(dir), false);
         dir.list(LAUNCH_ID, TOKEN);
         vm.roll(1_000);
         vm.warp(1_800_000_000);
@@ -93,7 +93,7 @@ contract LaunchObservationsTest {
         i.observedBlockHash = _bh(observedBlock);
         i.tally = ILaunchObservations.Tally(2, 1, 3);
         i.reportHash = keccak256("report");
-        i.reportURI = "https://t0ll.xyz/r/0x7011";
+        i.reportURI = "https://example.com/r/0x7011";
     }
 
     function _findings() internal pure returns (ILaunchObservations.Finding[] memory f) {
@@ -138,7 +138,7 @@ contract LaunchObservationsTest {
         _eq(o.tally.careful, 1, "careful");
         _eq(o.tally.clear, 3, "clear");
         _eq(o.reportHash, keccak256("report"), "reportHash");
-        require(keccak256(bytes(o.reportURI)) == keccak256("https://t0ll.xyz/r/0x7011"), "uri");
+        require(keccak256(bytes(o.reportURI)) == keccak256("https://example.com/r/0x7011"), "uri");
         _eq(f.length, 6, "findings");
         _eq(f[1].kind, EARLY_BUYER_SHARE, "finding kind");
         _eq(f[1].param, 30, "finding param");
@@ -184,7 +184,7 @@ contract LaunchObservationsTest {
         vm.expectRevert(LaunchObservations.InvalidKey.selector);
         reg.recordObservation(i, _findings());
 
-        LaunchObservations noDir = new LaunchObservations(address(0));
+        LaunchObservations noDir = new LaunchObservations(address(0), false);
         i.token = address(0);
         vm.prank(DETECTOR_A);
         vm.expectRevert(LaunchObservations.InvalidKey.selector);
@@ -302,7 +302,7 @@ contract LaunchObservationsTest {
             0,
             ILaunchObservations.Tally(2, 1, 3),
             keccak256("report"),
-            "https://t0ll.xyz/r/0x7011",
+            "https://example.com/r/0x7011",
             bytes32(0)
         );
         for (uint256 k = 0; k < f.length; k++) {
@@ -647,12 +647,12 @@ contract LaunchObservationsTest {
         _eq(reg.latestByToken(56, TOKEN, DETECTOR_A), 0, "other chain");
     }
 
-    // ---------------------------------------------------------------- ERC-8462 venue-scoped keys
+    // ---------------------------------------------------------------- declaration venue keys
 
     address constant VENUE = address(0x7E9E);
     address constant CREATOR = address(0xC0FFEE);
 
-    /// An ERC-8462 venue-scoped declaration id, derived as ERC-8462 specifies.
+    /// A venue-scoped declaration id, derived as the Token Launch Declarations proposal specifies.
     function _venueDeclarationId(uint256 chainId, uint256 nonce) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(keccak256("erc.launch-declarations.venue-scoped"), chainId, VENUE, TOKEN, CREATOR, nonce)
@@ -665,11 +665,11 @@ contract LaunchObservationsTest {
         returns (ILaunchObservations.ObservationInput memory i)
     {
         i = _tokenInput(observedBlock);
-        i.kind = ILaunchObservations.KeyKind.Erc8462Venue;
+        i.kind = ILaunchObservations.KeyKind.DeclarationVenue;
         i.launchId = declarationId;
     }
 
-    function test_Erc8462VenueKeyDerivationAndRecord() public {
+    function test_DeclarationVenueKeyDerivationAndRecord() public {
         bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
         bytes32 expected =
             keccak256(abi.encode(keccak256("erc.launch-observations.venue-declared"), RH_CHAIN, declarationId));
@@ -679,7 +679,7 @@ contract LaunchObservationsTest {
         (uint256 id, bytes32 key) = reg.recordObservation(_venueInput(900, declarationId), _findings());
         _eq(key, expected, "key");
         (ILaunchObservations.Observation memory o, ILaunchObservations.Finding[] memory f) = reg.getObservation(id);
-        require(o.kind == ILaunchObservations.KeyKind.Erc8462Venue, "kind");
+        require(o.kind == ILaunchObservations.KeyKind.DeclarationVenue, "kind");
         _eq(o.launchKey, key, "launchKey");
         _eq(o.declarationId, declarationId, "declaration id kept for the join");
         _eq(o.chainId, RH_CHAIN, "chain");
@@ -694,7 +694,7 @@ contract LaunchObservationsTest {
         _eq(o.declarationId, bytes32(0), "token key: none");
     }
 
-    function test_Erc8462VenueEventCarriesDeclarationId() public {
+    function test_DeclarationVenueEventCarriesDeclarationId() public {
         bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
         bytes32 key = reg.declarationKey(RH_CHAIN, declarationId);
         vm.expectEmit(true, true, true, true, address(reg));
@@ -702,7 +702,7 @@ contract LaunchObservationsTest {
             1,
             key,
             DETECTOR_A,
-            ILaunchObservations.KeyKind.Erc8462Venue,
+            ILaunchObservations.KeyKind.DeclarationVenue,
             RH_CHAIN,
             TOKEN,
             declarationId,
@@ -712,14 +712,14 @@ contract LaunchObservationsTest {
             0,
             ILaunchObservations.Tally(2, 1, 3),
             keccak256("report"),
-            "https://t0ll.xyz/r/0x7011",
+            "https://example.com/r/0x7011",
             bytes32(0)
         );
         vm.prank(DETECTOR_A);
         reg.recordObservation(_venueInput(900, declarationId), _none());
     }
 
-    function test_Erc8462VenueMalformedReverts() public {
+    function test_DeclarationVenueMalformedReverts() public {
         bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
         ILaunchObservations.ObservationInput memory i = _venueInput(900, bytes32(0));
         vm.expectRevert(LaunchObservations.InvalidKey.selector);
@@ -736,11 +736,11 @@ contract LaunchObservationsTest {
         reg.recordObservation(i, _none());
 
         // A registry without a directory still takes venue-scoped keys.
-        LaunchObservations noDir = new LaunchObservations(address(0));
+        LaunchObservations noDir = new LaunchObservations(address(0), false);
         noDir.recordObservation(_venueInput(900, declarationId), _none());
     }
 
-    function test_Erc8462VenueKeyNeverCollides() public {
+    function test_DeclarationVenueKeyNeverCollides() public {
         // Fed the same 32 bytes, each kind lands under its own key.
         bytes32 venueKey = reg.declarationKey(RH_CHAIN, LAUNCH_ID);
         require(venueKey != LAUNCH_ID, "not an ERC-8376 launchId");
@@ -766,7 +766,7 @@ contract LaunchObservationsTest {
         _eq(reg.latestOf(LAUNCH_ID, DETECTOR_B), 0, "venue record not under the launchId");
     }
 
-    function test_LatestByTokenIncludesErc8462Venue() public {
+    function test_LatestByTokenIncludesDeclarationVenue() public {
         bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
         _record(DETECTOR_A, 900); // token key
         vm.prank(DETECTOR_A);
@@ -885,11 +885,42 @@ contract LaunchObservationsTest {
 
     // ---------------------------------------------------------------- Arbitrum block numbers and EIP-2935
 
+    /// Puts ArbSys at address(100) and deploys a registry whose deployer selected ArbSys as its block-number source.
     function _etchArbSys(uint256 number) internal {
+        _putArbSys(number);
+        reg = new LaunchObservations(address(dir), true);
+    }
+
+    function _putArbSys(uint256 number) internal {
         vm.etch(ARB_SYS, address(new MockArbSys()).code);
         MockArbSys(ARB_SYS).setArbBlockNumber(number);
         // Foundry answers ArbSys itself on chain ids it knows as Arbitrum (with block.number); pin the mock's answer.
         vm.mockCall(ARB_SYS, abi.encodeWithSignature("arbBlockNumber()"), abi.encode(number));
+    }
+
+    function test_BlockSourceFixedAtDeployment() public {
+        vm.chainId(RH_CHAIN);
+        require(!reg.usesArbSys(), "fixture: block.number registry");
+        // ArbSys present but not selected: the registry keeps block.number, so an L2 block number is in the future.
+        _putArbSys(L2_NOW);
+        vm.expectRevert(LaunchObservations.InvalidObservedBlock.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW - 100, keccak256("l2 block")), _none());
+        reg.recordObservation(_ownChainInput(900, _bh(900)), _none());
+
+        // ArbSys selected but absent: recording on the registry's own chain reverts instead of falling back.
+        LaunchObservations arb = new LaunchObservations(address(dir), true);
+        require(arb.usesArbSys(), "ArbSys registry");
+        // (On a chain id Foundry knows as Arbitrum it serves ArbSys itself, so this part runs on a chain id it does not.)
+        vm.clearMockedCalls();
+        vm.etch(ARB_SYS, "");
+        vm.chainId(777_777);
+        ILaunchObservations.ObservationInput memory own = _ownChainInput(900, _bh(900));
+        own.chainId = 777_777;
+        vm.expectRevert();
+        arb.recordObservation(own, _none());
+        // A launch on another chain never reads the block source.
+        vm.chainId(1);
+        arb.recordObservation(_tokenInput(900), _none());
     }
 
     function _etchHistory() internal {
@@ -972,8 +1003,8 @@ contract LaunchObservationsTest {
         vm.chainId(RH_CHAIN);
         _etchArbSys(L2_NOW);
         _etchHistory();
-        // No window is assumed: a block far past 8191 that the history still holds is checked (Robinhood Chain's
-        // history held ~393k blocks, about 11 h, when measured on 2026-10-29) ...
+        // No window is assumed: a block far past 8191 that the history still holds is checked (an Arbitrum chain's
+        // history window is set by ArbOS in the chain's own blocks) ...
         // ... and a block the history has no hash for (it reverts) is not checked, with no blockhash fallback on
         // Arbitrum, past the history's reach or near the head. (Oldest first: a detector's blocks only go forward.)
         bytes32 real = keccak256("real");
