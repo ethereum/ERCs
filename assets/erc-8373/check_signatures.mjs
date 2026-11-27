@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { slh_dsa_sha2_192s } from '@noble/post-quantum/slh-dsa.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import { sha256, sha512 } from '@noble/hashes/sha2.js';
+import { schnorr } from '@noble/curves/secp256k1.js';
 
 const ALG = { 'SLH-DSA-SHA2-192s': slh_dsa_sha2_192s, 'ML-DSA-65': ml_dsa65 };
 const PREHASH = { sha256, sha512 };
@@ -49,6 +50,11 @@ for (const c of fx.cases) {
   } else if (c.route === 'carrier-bound') {
     report(sha(c.carrier.content) === statementCA, `${c.id} carrier content is the statement`);
     msgHex = eventId(c.carrier);
+    // The carrier must be signed by the binding's classical identity (BIP-340 over the event id).
+    report(c.carrier.pubkey === c.statement.secp256k1_pubkey, `${c.id} carrier key is the statement's classical identity`);
+    let schnorrOk = false;
+    try { schnorrOk = schnorr.verify(hex(c.carrier.sig), hex(msgHex), hex(c.carrier.pubkey)); } catch { schnorrOk = false; }
+    report(schnorrOk, `${c.id} carrier BIP-340 signature`);
   } else { report(false, c.id, `unknown route ${c.route}`); continue; }
   report(msgHex === c.message_hex, `${c.id} recomputed message matches`, msgHex === c.message_hex ? '' : `${msgHex} != ${c.message_hex}`);
 
@@ -66,6 +72,12 @@ for (const c of fx.cases) {
       case 'wrong_key': r = verify(alg, sig, msg, hex(n.public_key_hex)); break;
       case 'mutated_signature': r = verify(alg, flip(sig), msg, pub); break;
       case 'direct_route_over_statement_digest': r = verify(alg, sig, hex(statementCA), pub); break;
+      case 'carrier_wrong_classical_key': {
+        const other = Buffer.from(schnorr.getPublicKey(new Uint8Array(32).fill(9))).toString('hex');
+        let v = false; try { v = schnorr.verify(hex(c.carrier.sig), hex(msgHex), hex(other)); } catch { v = false; }
+        r = v ? 'valid' : 'invalid';
+        break;
+      }
       case 'tampered_carrier': {
         const t = { ...c.carrier, content: c.carrier.content + ' ' };
         r = (sha(t.content) !== statementCA && eventId(t) !== msgHex) ? 'link_broken' : 'link_intact';
