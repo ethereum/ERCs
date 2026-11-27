@@ -57,8 +57,10 @@ contract ADRFResolutionModule is ADRFModule {
             _record(caseId, sq, T.Value.UNDETERMINED, 0, bytes32(0), address(0), T.Reason.PREMISE_NOT_ESTABLISHED);
             return;
         }
+        uint32 round = _s.clocks[caseId].roundCount;
         (T.Value value, bytes32 resultHash, uint8 kinds) =
             IADRFEvidenceRule(q.method).evaluate(caseId, sq, q.proposition, q.params, bundle);
+        _unchangedSince(caseId, sq, round);
         kinds &= ~T.SUPPORT_JUDGED; // an evidence rule does not form a judgment
         notPending(caseId, value);
         _record(caseId, sq, value, kinds, resultHash, q.method,

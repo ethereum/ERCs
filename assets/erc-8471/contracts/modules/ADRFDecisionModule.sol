@@ -6,6 +6,7 @@ import {ADRFErrors as E} from "../ADRFErrors.sol";
 import {ADRFStore as S} from "../libraries/ADRFStore.sol";
 import {ADRFModule} from "./ADRFModule.sol";
 import {IADRFPolicyRegistry} from "../interfaces/IADRFPolicyRegistry.sol";
+import {IADRFEvidenceRule} from "../interfaces/IADRFEvidenceRule.sol";
 
 /// @title  ADRFDecisionModule — round decisions and finality (module of the dispute registry)
 /// @notice A round decision maps the decisive finding to the claim through the claim's own direction
@@ -14,6 +15,10 @@ import {IADRFPolicyRegistry} from "../interfaces/IADRFPolicyRegistry.sol";
 ///         writes the ruling (a review, which opens a new round, is in the resolution module). Nothing here
 ///         executes an effect.
 contract ADRFDecisionModule is ADRFModule {
+    /// Gas forwarded to an evidence rule read at expiry. A call that cannot forward it is refused, so that no
+    /// caller can starve the rule into failing and so turn its answer into TIMEOUT.
+    uint256 internal constant EXPIRY_EVALUATION_GAS = 1_000_000;
+
     constructor(IADRFPolicyRegistry policies_) ADRFModule(policies_) {}
 
     // ------------------------------------------------------------------ optimistic track
@@ -50,9 +55,7 @@ contract ADRFDecisionModule is ADRFModule {
         T.CaseHeader storage c = _admitted(caseId);
         if (S.now64() <= _s.clocks[caseId].decisionDeadline) revert E.ADRF_WindowOpen("decision");
         T.Track memory track = policies.trackOf(c.policyId);
-        if (!_s.findings[caseId][c.decisive].resolved) {
-            _record(caseId, c.decisive, T.Value.UNDETERMINED, 0, bytes32(0), address(0), T.Reason.TIMEOUT);
-        }
+        if (!_s.findings[caseId][c.decisive].resolved) recordAtExpiry(caseId, c.decisive);
         decideRound(caseId, c);
         afterRound(caseId, c, track);
     }
@@ -69,15 +72,80 @@ contract ADRFDecisionModule is ADRFModule {
         if (c.state != T.ProcedureState.Admitted && c.state != T.ProcedureState.Provisional) revert E.ADRF_WrongState(caseId, uint8(c.state));
         if (S.now64() <= _s.clocks[caseId].hardDeadline) revert E.ADRF_WindowOpen("hard deadline");
         if (c.state == T.ProcedureState.Admitted) {
-            if (!_s.findings[caseId][c.decisive].resolved) {
-                _record(caseId, c.decisive, T.Value.UNDETERMINED, 0, bytes32(0), address(0), T.Reason.TIMEOUT);
-            }
+            if (!_s.findings[caseId][c.decisive].resolved) recordAtExpiry(caseId, c.decisive);
             decideRound(caseId, c);
         }
         closeWithTrack(caseId, c, policies.trackOf(c.policyId), T.Reason.TIMEOUT);
     }
 
     // ------------------------------------------------------------------ internals
+
+    /// The decisive finding of a question nobody resolved by the deadline: what a resolution at that instant
+    /// would have recorded, where the registry can establish it without a party's input. A premise without a
+    /// finding gives TIMEOUT (the order rule could not be met); a premise with another value than the required
+    /// one gives PREMISE_NOT_ESTABLISHED; an EVIDENCED question is answered by its rule, read once (TRUE or FALSE
+    /// as the rule's finding, UNDETERMINED with METHOD_UNDETERMINED, a rule that cannot answer with TIMEOUT); a
+    /// FORMAL question, whose verifier needs inputs a party supplies, and a JUDGED question, whose method pushes
+    /// a Final result of its source, give TIMEOUT. So the value and the reason do not depend on who called.
+    function recordAtExpiry(bytes32 caseId, uint32 sq) internal {
+        T.SubQuestion storage q = _s.subs[caseId][sq];
+        T.Reason reason = T.Reason.TIMEOUT;
+        bool premisesMet = true;
+        for (uint256 d = 0; d < q.dependsOn.length; d++) {
+            T.Finding storage p = _s.findings[caseId][q.dependsOn[d]];
+            if (!p.resolved) {
+                premisesMet = false;
+                reason = T.Reason.TIMEOUT;
+                break;
+            }
+            if (p.value != q.requiredValues[d]) {
+                premisesMet = false;
+                reason = T.Reason.PREMISE_NOT_ESTABLISHED;
+            }
+        }
+        if (premisesMet && q.qType == T.QuestionType.EVIDENCED) {
+            (bool ok, T.Value value, bytes32 resultHash, uint8 kinds) = readRule(caseId, sq, q);
+            if (ok) {
+                _record(caseId, sq, value, kinds & ~T.SUPPORT_JUDGED, resultHash, q.method,
+                    value == T.Value.UNDETERMINED ? T.Reason.METHOD_UNDETERMINED : T.Reason.NONE);
+                return;
+            }
+        }
+        _record(caseId, sq, T.Value.UNDETERMINED, 0, bytes32(0), address(0), reason);
+    }
+
+    /// One evaluation of an evidence rule with an empty bundle and a fixed gas allowance. The call is refused
+    /// unless the whole allowance can be forwarded, and refused afterwards if the rule changed the case through a
+    /// call back into the registry; only the first three words of the answer are copied, and an answer that is
+    /// short, out of range or reverted counts as no answer.
+    function readRule(bytes32 caseId, uint32 sq, T.SubQuestion storage q)
+        internal
+        returns (bool ok, T.Value value, bytes32 resultHash, uint8 kinds)
+    {
+        bytes memory data = abi.encodeCall(IADRFEvidenceRule.evaluate, (caseId, sq, q.proposition, q.params, bytes("")));
+        uint256 allowance = EXPIRY_EVALUATION_GAS;
+        uint256 required = allowance + allowance / 63 + 20_000;
+        if (gasleft() < required) revert E.ADRF_InsufficientGas(required);
+        address rule = q.method;
+        uint32 round = _s.clocks[caseId].roundCount;
+        uint256 v;
+        uint256 k;
+        bytes32 h;
+        assembly ("memory-safe") {
+            ok := call(allowance, rule, 0, add(data, 32), mload(data), 0, 0)
+            if lt(returndatasize(), 96) { ok := 0 }
+            if ok {
+                let p := mload(0x40)
+                returndatacopy(p, 0, 96)
+                v := mload(p)
+                h := mload(add(p, 32))
+                k := mload(add(p, 64))
+            }
+        }
+        _unchangedSince(caseId, sq, round);
+        if (!ok || v > uint256(T.Value.FALSE) || k > type(uint8).max) return (false, T.Value.UNDETERMINED, bytes32(0), 0);
+        return (true, T.Value(v), h, uint8(k));
+    }
 
     /// Union of the support kinds of a finding and of its transitive premises. Provenance only: it names the
     /// sources the result cites and confers no proof on the derived result.

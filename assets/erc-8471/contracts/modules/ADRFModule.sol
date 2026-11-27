@@ -91,6 +91,15 @@ abstract contract ADRFModule is ADRFStorage, ADRFEvents {
         }
     }
 
+    /// After a call to an evidence rule, which may change state: the case must still be Admitted, in the same
+    /// round, with the sub-question still open. A rule that called back into the registry and moved the case on
+    /// (applied the silence rule, recorded the finding itself) has its call refused, and with it every change
+    /// made during it.
+    function _unchangedSince(bytes32 caseId, uint32 sq, uint32 round) internal view {
+        if (_s.cases[caseId].state != T.ProcedureState.Admitted || _s.clocks[caseId].roundCount != round
+            || _s.findings[caseId][sq].resolved) revert E.ADRF_ReentrantChange(caseId);
+    }
+
     /// Writes a finding: what was decided, by which method, with which support kinds, in which round.
     function _record(bytes32 caseId, uint32 sq, T.Value value, uint8 kinds, bytes32 resultHash, address acceptedBy, T.Reason reason)
         internal

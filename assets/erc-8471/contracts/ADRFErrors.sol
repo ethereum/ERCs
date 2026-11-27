@@ -48,6 +48,8 @@ library ADRFErrors {
     error ADRF_ReviewNotAllowed(string why);
     error ADRF_NotOptimistic(bytes32 caseId);
     error ADRF_AlreadyAnswered(bytes32 caseId);
+    error ADRF_InsufficientGas(uint256 required);
+    error ADRF_ReentrantChange(bytes32 caseId);
 
     // enactment log
     error ADRF_NotExecutor(address account);
