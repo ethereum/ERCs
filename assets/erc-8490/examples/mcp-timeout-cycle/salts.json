@@ -1,0 +1,15 @@
+{
+  "comment": "Per-layer salts used in the layer commitments of this example. Layers whose documents are public use the zero salt; layers whose documents stay private use a random salt that is disclosed together with the document.",
+  "baseline": [
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "0x9b1e4c7a2d5f8b0c3e6a9d1f4b7e0a3c6f9b2e5d8a1c4f7b0e3a6d9c2f5b8e1a",
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "0x4d7a0c3f6b9e2d5a8c1f4b7e0a3d6c9f2b5e8a1d4c7f0b3e6a9d2c5f8b1e4a7d"
+  ],
+  "post": [
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "0xc3f6a9d2e5b8c1f4a7d0e3b6c9f2a5d8e1b4c7f0a3d6e9b2c5f8a1d4e7b0c3f6",
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "0x4d7a0c3f6b9e2d5a8c1f4b7e0a3d6c9f2b5e8a1d4c7f0b3e6a9d2c5f8b1e4a7d"
+  ]
+}

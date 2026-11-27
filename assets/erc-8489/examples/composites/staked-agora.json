@@ -1,0 +1,142 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.staked-agora",
+  "version": "1.0.0",
+  "title": "Staked agora: open contribution gated by stake and attribution",
+  "labels": [
+    "aifp:paradigm/club/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "n-party"
+  ],
+  "cardinality": {
+    "contributors": "qualified",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "open",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish",
+        "respond"
+      ],
+      "acquisition": "predicate",
+      "transferable": false,
+      "expiry": "renewable"
+    },
+    "management": {
+      "admission": [
+        "protocol"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "decision-body"
+      ],
+      "rules": [
+        "decision-body"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "none",
+      "delivery": [
+        "push",
+        "pull"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "observe": {
+      "open": true
+    },
+    "submit": {
+      "stake": {
+        "verifier": "0x0000000000000000000000000000000000000005",
+        "chain": "eip155:11155111",
+        "contract": "0x0000000000000000000000000000000000000005",
+        "asset": "native",
+        "minAmount": "10000000000000000",
+        "period": "active"
+      }
+    },
+    "respond": {
+      "stake": {
+        "verifier": "0x0000000000000000000000000000000000000005",
+        "chain": "eip155:11155111",
+        "contract": "0x0000000000000000000000000000000000000005",
+        "asset": "native",
+        "minAmount": "10000000000000000",
+        "period": "active"
+      }
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association",
+      "push",
+      "pull",
+      "total-order"
+    ]
+  },
+  "extensions": {
+    "economic": {
+      "profile": "stake",
+      "chain": "eip155:11155111",
+      "contract": "0x0000000000000000000000000000000000000005",
+      "asset": "native",
+      "subject": "contributor",
+      "amountOrThreshold": "10000000000000000",
+      "period": "active",
+      "verifier": "0x0000000000000000000000000000000000000005"
+    }
+  }
+}

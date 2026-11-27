@@ -1,11 +1,10 @@
 {
   "name": "@finmath.net/sdc",
-  "version": "0.8.0",
+  "version": "0.10.0",
   "description": "Solidity Smart Derivative Contracts",
   "author": "Christian Fries, Peter Kohl-Landgraf, Alexandros Korpis",
-  "license": "ISC",
-  "homepage": "https://github.com/finmath/finmath-smart-derivative-contract#readme",
-  "main": "index.js",
+  "license": "CC0-1.0",
+  "homepage": "https://github.com/finmath/ERCs/tree/master/assets/erc-6123#readme",
   "scripts": {
     "build": "hardhat compile",
     "test": "hardhat test",
@@ -17,15 +16,16 @@
     "chai": "^4.3.10",
     "ethereum-waffle": "^4.0.10",
     "ethers": "^5.7.2",
-    "hardhat": "^2.18.1",
+    "hardhat": "2.28.6",
     "solidity-coverage": "^0.8.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.0"
+    "@openzeppelin/contracts": "5.0.2"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/finmath/finmath-smart-derivative-contract.git"
+    "url": "git+https://github.com/finmath/ERCs.git",
+    "directory": "assets/erc-6123"
   },
   "keywords": [
     "Smart Derivative Contract",
@@ -34,7 +34,7 @@
     "ERC-6123"
   ],
   "bugs": {
-    "url": "https://github.com/finmath/finmath-smart-derivative-contract/issues"
+    "url": "https://github.com/finmath/ERCs/issues"
   },
   "publishConfig": {
     "access": "public"

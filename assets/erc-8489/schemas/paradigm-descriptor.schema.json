@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finchip.ai/schemas/aifp/paradigm-descriptor.schema.json",
+  "title": "AIFP Paradigm Descriptor v1",
+  "description": "A flow paradigm descriptor. The paradigm identifier is keccak256 of the JCS (RFC 8785) canonical UTF-8 encoding of this document. Every dimension is expressed separately; 'unspecified' means not declared, never a default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["aifp", "family", "version", "labels", "carriers", "operators", "cardinality", "dimensions"],
+  "properties": {
+    "aifp": { "const": "1" },
+    "family": { "type": "string", "minLength": 1, "maxLength": 128, "description": "Family name; familyId = keccak256(utf8(family))." },
+    "version": { "type": "string", "minLength": 1, "maxLength": 32, "description": "Informative version string; identity is the content hash." },
+    "title": { "type": "string", "maxLength": 200 },
+    "labels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^aifp:(paradigm|ext)/[a-z0-9][a-z0-9.-]*(/[a-z0-9][a-z0-9.-]*)?/v[0-9]+$" },
+      "description": "Named paradigm labels (aifp:paradigm/<name>/v1) and extension labels (aifp:ext/<vendor>/<name>/vN). Registration declares; the canonical validator checks the decidable identification conditions."
+    },
+    "carriers": {
+      "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true,
+      "items": { "enum": ["delivery", "shared-object"] }
+    },
+    "operators": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": { "enum": ["fan-out", "fan-in", "feedback", "n-party", "select", "forward", "derive", "merge"] }
+    },
+    "cardinality": {
+      "type": "object", "additionalProperties": false, "required": ["contributors", "pairwise"],
+      "properties": {
+        "contributors": { "enum": ["single", "roster", "qualified", "open"], "description": "single: one logical publisher; roster: a named list; qualified: anyone meeting a common rule; open: anyone." },
+        "pairwise": { "type": "boolean", "description": "True when two parties address each other exclusively." }
+      }
+    },
+    "dimensions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["discovery", "observation", "contribution", "management", "redistribution", "history", "time", "disclosureTiming", "contributorVisibility", "admissionBasis", "representation", "objectRelations", "ordering"],
+      "properties": {
+        "discovery": { "enum": ["public-directory", "directed", "undiscoverable", "unspecified"] },
+        "observation": {
+          "type": "object", "additionalProperties": false,
+          "required": ["readScope", "submissionVisibility", "payloadProtection", "metadataProtection"],
+          "properties": {
+            "readScope": { "enum": ["open", "members", "predicate", "collector-only", "unspecified"] },
+            "submissionVisibility": { "enum": ["all", "collector-only", "unspecified"], "description": "Whether contributors can observe each other's submissions." },
+            "payloadProtection": { "enum": ["none", "e2ee", "unspecified"] },
+            "metadataProtection": { "enum": ["none", "partial", "full", "unspecified"] }
+          }
+        },
+        "contribution": {
+          "type": "object", "additionalProperties": false,
+          "required": ["actions", "acquisition", "transferable", "expiry"],
+          "properties": {
+            "actions": { "type": "array", "uniqueItems": true, "items": { "enum": ["publish", "submit", "respond", "modify"] } },
+            "acquisition": { "enum": ["open", "manager", "predicate", "closed", "unspecified"], "description": "How contribution roles are acquired: open (anyone), manager (granted individually), predicate (by satisfying a common rule), closed (fixed roster)." },
+            "transferable": { "type": "boolean" },
+            "expiry": { "enum": ["none", "fixed", "renewable", "unspecified"] }
+          }
+        },
+        "management": {
+          "type": "object", "additionalProperties": false,
+          "required": ["admission", "ordering", "removal", "rules", "disclosure"],
+          "properties": {
+            "admission": { "$ref": "#/$defs/controllers" },
+            "ordering": { "$ref": "#/$defs/controllers" },
+            "removal": { "$ref": "#/$defs/controllers" },
+            "rules": { "$ref": "#/$defs/controllers" },
+            "disclosure": { "$ref": "#/$defs/controllers" }
+          }
+        },
+        "redistribution": {
+          "type": "object", "additionalProperties": false,
+          "required": ["forward", "quote", "derive", "publishElsewhere"],
+          "properties": {
+            "forward": { "type": "boolean" },
+            "quote": { "type": "boolean" },
+            "derive": { "type": "boolean" },
+            "publishElsewhere": { "type": "boolean" }
+          }
+        },
+        "history": {
+          "type": "object", "additionalProperties": false,
+          "required": ["lateJoiner", "retention", "mutable"],
+          "properties": {
+            "lateJoiner": { "enum": ["none", "all", "since-join", "unspecified"] },
+            "retention": { "enum": ["none", "bounded", "indefinite", "unspecified"] },
+            "mutable": { "type": "boolean", "description": "Whether objects are updated in place (blackboard) or append-only." }
+          }
+        },
+        "time": {
+          "type": "object", "additionalProperties": false,
+          "required": ["realtime", "correlation", "delivery", "batching", "clock", "absence"],
+          "properties": {
+            "realtime": { "type": "boolean" },
+            "correlation": { "enum": ["none", "request-response", "unspecified"] },
+            "delivery": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["push", "pull", "stream", "batch"] } },
+            "batching": { "enum": ["none", "epoch", "unspecified"] },
+            "clock": { "const": "registry", "description": "All timepoints are read on the registry's ERC-6372 clock." },
+            "absence": { "enum": ["none", "rule-defined"], "description": "rule-defined: an authoritative objection window or liveness rule is declared in extensions." }
+          }
+        },
+        "disclosureTiming": { "enum": ["immediate", "scheduled", "conditional", "commit-reveal", "unspecified"] },
+        "contributorVisibility": { "enum": ["identified", "pseudonymous", "anonymous-qualified", "anonymous", "per-audience", "unspecified"] },
+        "admissionBasis": { "type": "array", "uniqueItems": true, "items": { "enum": ["prior-link", "referral", "open-discovery"] } },
+        "representation": { "enum": ["allowed", "disallowed", "unspecified"] },
+        "objectRelations": { "type": "array", "uniqueItems": true, "items": { "enum": ["replyTo", "forwards", "derivesFrom", "synthesizes", "references", "supersedes", "retracts"] } },
+        "ordering": {
+          "type": "object", "additionalProperties": false,
+          "required": ["sequencer", "order", "observable"],
+          "properties": {
+            "sequencer": { "enum": ["protocol", "moderator", "none", "unspecified"] },
+            "order": { "enum": ["total", "partial", "unspecified"] },
+            "observable": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "predicates": {
+      "type": "object", "additionalProperties": false,
+      "description": "Role acquisition predicates for the admission path, keyed by role name. A role without a predicate cannot be acquired by predicate.",
+      "properties": {
+        "discover": { "$ref": "predicate.schema.json" },
+        "observe": { "$ref": "predicate.schema.json" },
+        "submit": { "$ref": "predicate.schema.json" },
+        "respond": { "$ref": "predicate.schema.json" },
+        "modify": { "$ref": "predicate.schema.json" },
+        "manageAdmission": { "$ref": "predicate.schema.json" },
+        "manageOrder": { "$ref": "predicate.schema.json" },
+        "manageRemove": { "$ref": "predicate.schema.json" },
+        "manageRules": { "$ref": "predicate.schema.json" },
+        "redistribute": { "$ref": "predicate.schema.json" },
+        "manageDisclosure": { "$ref": "predicate.schema.json" }
+      }
+    },
+    "requiredBindings": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["identity", "rule-association", "push", "pull", "stream", "batch", "delivery-records", "history-retention", "late-join-history", "payload-protection", "metadata-protection", "membership-privacy", "total-order", "absence-detection"] }
+        }
+      }
+    },
+    "extensions": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "economic": {
+          "type": "object", "additionalProperties": false,
+          "required": ["profile", "chain", "contract", "asset", "subject", "amountOrThreshold", "period", "verifier"],
+          "properties": {
+            "profile": { "enum": ["stake", "pay-to-read", "bounty", "metered"] },
+            "chain": { "type": "string", "pattern": "^eip155:[0-9]+$" },
+            "contract": { "type": "string", "pattern": "^0x[0-9a-f]{40}$" },
+            "asset": { "type": "string", "pattern": "^(native|0x[0-9a-f]{40})$" },
+            "subject": { "enum": ["contributor", "observer", "channel"] },
+            "amountOrThreshold": { "type": "string", "pattern": "^[0-9]+$" },
+            "period": { "type": "string", "minLength": 1 },
+            "verifier": { "type": "string", "pattern": "^0x[0-9a-f]{40}$" },
+            "settlementRef": { "type": "string" }
+          }
+        },
+        "modality": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "media": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+            "meanings": { "type": "array", "uniqueItems": true, "items": { "enum": ["observation", "question", "request", "proposal", "instruction", "challenge"] } },
+            "handlingHints": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^aifp:handling/[a-z0-9-]+$" } }
+          }
+        },
+        "absence": {
+          "type": "object", "additionalProperties": false,
+          "required": ["rule", "windowSeconds", "objectionRole", "defaultOutcome"],
+          "properties": {
+            "rule": { "enum": ["objection-window", "liveness"] },
+            "windowSeconds": { "type": "integer", "minimum": 1 },
+            "objectionRole": { "enum": ["respond", "observe", "submit", "modify"] },
+            "defaultOutcome": { "type": "string", "minLength": 1, "description": "The rule's default consequence when no valid objection is registered in a complete window." }
+          }
+        },
+        "ext": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["id", "required"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^aifp:ext/[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9.-]*/v[0-9]+$" },
+              "required": { "type": "boolean", "description": "A consumer that does not understand a required extension evaluates the paradigm as UNDETERMINABLE." },
+              "params": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "controllers": {
+      "type": "array", "uniqueItems": true,
+      "items": { "enum": ["source", "moderator", "protocol", "decision-body", "none"] }
+    }
+  }
+}

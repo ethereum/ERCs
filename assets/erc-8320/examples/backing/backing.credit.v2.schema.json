@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8320/examples/backing/backing.credit.v2.schema.json",
+  "title": "ERC-8320 BACKING data: credit-backed instrument (informative example, v2)",
+  "description": "Informative example of a schema for the `data` object of an ERC-8320 claim of type BACKING about a credit-backed instrument, such as a promissory note, a receivables pool or a loan. Structure only: it fixes how a backing attestation is expressed so that payloads from different issuers parse and validate the same way. It does not encode adequacy. FX assumptions, haircuts and coverage thresholds stay with the consumer. It records facts as attested by the author named in the claim; it does not certify that a right is valid, enforceable or held by a given party.",
+  "type": "object",
+  "required": ["backingType", "instrument", "evidence", "encumbrance"],
+  "additionalProperties": false,
+  "properties": {
+    "backingType": {
+      "description": "What kind of backing is asserted to stand behind the instrument.",
+      "type": "string",
+      "enum": ["RESERVES", "COLLATERAL", "RECEIVABLES_POOL", "GUARANTEE", "OTHER"]
+    },
+    "instrument": {
+      "description": "The credit instrument being backed.",
+      "type": "object",
+      "required": ["type", "jurisdiction"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["PROMISSORY_NOTE", "RECEIVABLES", "LOAN", "BOND", "OTHER"]
+        },
+        "jurisdiction": {
+          "description": "Governing jurisdiction of the instrument, ISO 3166-1 alpha-2.",
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        }
+      }
+    },
+    "evidence": {
+      "description": "Anchor to the off-chain evidence package that substantiates the backing. The hash binds the claim to that exact package; it is not a statement that the evidence proves the right.",
+      "type": "object",
+      "required": ["contentHash", "hashAlgorithm"],
+      "additionalProperties": false,
+      "properties": {
+        "contentHash": {
+          "description": "Hash of the evidence package, 0x-prefixed 32-byte hex.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "hashAlgorithm": {
+          "description": "Algorithm that produced contentHash.",
+          "type": "string",
+          "enum": ["SHA-256", "KECCAK-256"]
+        },
+        "cid": {
+          "description": "Content-addressed locator (for example an IPFS CID) for retrieval.",
+          "type": "string"
+        },
+        "uri": { "type": "string" }
+      }
+    },
+    "coverage": {
+      "description": "Backing figures, each amount in its native currency. No converted figure is carried: choosing an FX rate, its timestamp and any haircut is an adequacy decision and stays with the consumer. Required for RESERVES, COLLATERAL and RECEIVABLES_POOL; optional for GUARANTEE and OTHER, where the backing is often a cap or a commitment rather than a measured amount. Amounts are decimal strings to avoid floating-point loss.",
+      "type": "object",
+      "required": ["basis", "backedAmount", "backedCurrency", "referenceAmount", "referenceCurrency"],
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "description": "How backedAmount was measured. NOMINAL: face value or outstanding balance, verifiable against the underlying documents or ledger. APPRAISED: the amount depends on an appraisal or mark; the appraisal itself is published as a VALUATION claim by the party accountable for it and referenced in valuationRef, so the BACKING author never carries a valuation under its own name.",
+          "type": "string",
+          "enum": ["NOMINAL", "APPRAISED"]
+        },
+        "backedAmount": {
+          "description": "Amount of the backing, in backedCurrency.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+        },
+        "backedCurrency": {
+          "description": "ISO 4217 currency code of backedAmount.",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "referenceAmount": {
+          "description": "Outstanding amount of the instrument being backed, in referenceCurrency.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+        },
+        "referenceCurrency": {
+          "description": "ISO 4217 currency code of referenceAmount.",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "valuationRef": {
+          "description": "The ERC-8320 VALUATION claim that produced an APPRAISED backedAmount. A claim is identified by chainId, registry, assetId, claim type and version; the claim type is implicitly VALUATION. assetId is the asset that was appraised, which may differ from the asset this BACKING claim is about.",
+          "type": "object",
+          "required": ["chainId", "registry", "assetId", "version"],
+          "additionalProperties": false,
+          "properties": {
+            "chainId": {
+              "description": "Chain where the registry is deployed; may differ from the chain encoded in assetId.",
+              "type": "integer",
+              "minimum": 1
+            },
+            "registry": {
+              "description": "Address of the ERC-8320 registry holding the VALUATION claim.",
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "assetId": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "version": { "type": "integer", "minimum": 1 },
+            "contentHash": {
+              "description": "Optional contentHash of the referenced VALUATION claim. Redundant with the on-chain claim; useful for offline verification.",
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": { "basis": { "const": "APPRAISED" } },
+        "required": ["basis"]
+      },
+      "then": { "properties": { "valuationRef": true }, "required": ["valuationRef"] }
+    },
+    "encumbrance": {
+      "description": "Whether a competing charge sits on the backed instrument itself (the asset this claim is about), as attested. A security interest that constitutes the backing is not an encumbrance here. Recording a status does not constitute, perfect or make the charge opposable to third parties; that follows the applicable law, for example registration in a collateral registry. An encumbrance whose beneficiary is unknown is recorded as such. A consumer reading `status != NONE` or `beneficiaryKnown == false` should treat the backing as not clean.",
+      "type": "object",
+      "required": ["status", "beneficiaryKnown"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["NONE", "PLEDGED", "SEIZED", "UNDER_DISPUTE", "UNKNOWN"]
+        },
+        "beneficiaryKnown": { "type": "boolean" },
+        "basis": {
+          "description": "Legal source of the charge, when known. SECURITY_INTEREST: registered security interest. PLEDGE_ENDORSEMENT: endorsement in pledge on a negotiable instrument. JUDICIAL_MEASURE: court measure such as an attachment. DISPUTE: pending litigation.",
+          "type": "string",
+          "enum": ["SECURITY_INTEREST", "PLEDGE_ENDORSEMENT", "JUDICIAL_MEASURE", "DISPUTE", "OTHER"]
+        },
+        "ref": {
+          "description": "Optional 0x-prefixed 32-byte hex reference to an off-chain record of the charge.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      }
+    },
+    "holderRef": {
+      "description": "Party the registry has recorded as holder of the right. A record, not a certification of ownership or identity, and not a substitute for the instrument's own law of circulation.",
+      "type": "object",
+      "required": ["recordedHolderHash"],
+      "additionalProperties": false,
+      "properties": {
+        "recordedHolderHash": {
+          "description": "Salted, non-reversible commitment to the recorded holder, 0x-prefixed 32-byte hex. A bare hash of a national ID number is brute-forceable and usually remains personal data under data-protection law, so only a salted commitment should be published.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "backingType": { "enum": ["RESERVES", "COLLATERAL", "RECEIVABLES_POOL"] } },
+        "required": ["backingType"]
+      },
+      "then": { "properties": { "coverage": true }, "required": ["coverage"] }
+    }
+  ]
+}

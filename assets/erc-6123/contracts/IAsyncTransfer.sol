@@ -19,7 +19,7 @@ interface IAsyncTransfer {
      * @param transactionID a transaction ID that may serve as correlation ID, will be passed to the callback.
      * @param callbackContract a contract implementing afterTransfer
      */
-    event TransferRequested(address from, address to, uint256 value, uint256 transactionID, IAsyncTransferCallback callbackContract);
+    event TransferRequested(address indexed from, address indexed to, uint256 value, uint256 indexed transactionID, IAsyncTransferCallback callbackContract);
 
     /**
      * @dev Emitted when a batch transfer gets requested
@@ -29,7 +29,7 @@ interface IAsyncTransfer {
      * @param transactionID a transaction ID that may serve as correlation ID, will be passed to the callback.
      * @param callbackContract a contract implementing afterTransfer
      */
-    event TransferBatchRequested(address[] from, address[] to, uint256[] value, uint256 transactionID, IAsyncTransferCallback callbackContract);
+    event TransferBatchRequested(address[] from, address[] to, uint256[] value, uint256 indexed transactionID, IAsyncTransferCallback indexed callbackContract);
 
     /*
      * @dev Performs a single transfer from msg.sender balance and checks whether this transfer can be conducted

@@ -1,0 +1,110 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.embargoed-announcement",
+  "version": "1.0.0",
+  "title": "Embargoed announcement: discoverable now, readable at a scheduled time",
+  "labels": [
+    "aifp:paradigm/source/v1",
+    "aifp:paradigm/archive/v1"
+  ],
+  "carriers": [
+    "delivery",
+    "shared-object"
+  ],
+  "operators": [
+    "fan-out"
+  ],
+  "cardinality": {
+    "contributors": "single",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "open",
+      "submissionVisibility": "all",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "publish"
+      ],
+      "acquisition": "closed",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "source"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "source"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "none",
+      "delivery": [
+        "push",
+        "pull"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "scheduled",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "observe": {
+      "open": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "rule-association",
+      "push",
+      "pull",
+      "history-retention"
+    ]
+  }
+}
