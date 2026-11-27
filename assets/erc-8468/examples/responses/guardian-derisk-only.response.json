@@ -1,0 +1,55 @@
+{
+  "asf": "1.0",
+  "kind": "intervention-response",
+  "binding": {
+    "example": "personal-assistant.binding.json",
+    "id": "0x17fff4e549c63902b0051a8c87cda260164337ca5c82d876bb5f5fe218d3ff3f"
+  },
+  "initiator": {
+    "ref": "eip155:11155111:0x0000000000000000000000000000000000006a2d",
+    "role": "guardian",
+    "basis": "RIGHT_SUSPEND granted in the binding"
+  },
+  "restrictions": [
+    "no-new-risk",
+    "derisk-only"
+  ],
+  "scope": {
+    "resources": [
+      "the guarded account"
+    ],
+    "paths": [
+      "operator calls through the guarded account"
+    ]
+  },
+  "prohibited": [
+    "borrow",
+    "placeOrder",
+    "any call that adds exposure or a new counterparty"
+  ],
+  "allowed": [
+    "repay",
+    "cancelOrder"
+  ],
+  "mustContinue": [
+    "reading the principal's own mail and calendar"
+  ],
+  "inFlight": "calls already executed stand; calls not yet executed are re-checked and refused unless allowed above",
+  "duration": {
+    "condition": "until the principal resumes the binding after reviewing the incident record"
+  },
+  "resume": {
+    "who": "the principal (adopter)",
+    "condition": "incident reviewed and the injected instruction source removed from the assistant's inputs"
+  },
+  "evidence": [
+    {
+      "id": "alert",
+      "ref": "urn:x:incident:2026-10-25-01",
+      "kind": "runtime-log"
+    }
+  ],
+  "metadata": {
+    "note": "The restrictions bit set recorded on chain is 1 | 8 = 9; responseRef is the canonical hash of this document."
+  }
+}

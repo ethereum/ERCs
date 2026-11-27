@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8506/schemas/method-application.schema.json",
+  "title": "AITO Method Application",
+  "description": "One use of a method with everything that decides its result pinned: parameters, subjects, input snapshot, conditions and validity.",
+  "type": "object",
+  "required": [
+    "aito",
+    "kind",
+    "method",
+    "parameters",
+    "subjects",
+    "inputSnapshot",
+    "conditions",
+    "validFrom",
+    "validUntil",
+    "recalibration",
+    "result"
+  ],
+  "properties": {
+    "aito": {
+      "const": "1",
+      "description": "Record format version."
+    },
+    "kind": {
+      "const": "method-application"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "supersedes": {
+      "$ref": "#/$defs/bytes32",
+      "description": "Identifier of the record this one replaces."
+    },
+    "method": {
+      "$ref": "#/$defs/bytes32"
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object"
+      }
+    },
+    "inputSnapshot": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bytes32"
+      }
+    },
+    "conditions": {
+      "type": "string"
+    },
+    "validFrom": {
+      "$ref": "#/$defs/time"
+    },
+    "validUntil": {
+      "$ref": "#/$defs/time"
+    },
+    "recalibration": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "result": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "account": {
+      "type": "string",
+      "pattern": "^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$",
+      "description": "CAIP-10 account identifier."
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+      "description": "A non-negative decimal written as a string. Records carry no floating-point numbers."
+    },
+    "integer": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "undeclared": {
+      "const": "undeclared"
+    }
+  }
+}

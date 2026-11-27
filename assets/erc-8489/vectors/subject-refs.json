@@ -1,0 +1,56 @@
+{
+  "description": "subjectRef = keccak256(utf8(canonical)); canonical = <scheme>:<domain>:<identifier> with lowercase hex addresses and decimal integers.",
+  "count": 7,
+  "vectors": [
+    {
+      "kind": "eip155-address",
+      "chainId": 1,
+      "address": "0x0000000000000000000000000000000000000001",
+      "canonical": "eip155-address:1:0x0000000000000000000000000000000000000001",
+      "ref": "0x3e4e98887f2ee7b0b3a5a889a1a8a1d840c24613f5cbf173aa7119b38e1b0736"
+    },
+    {
+      "kind": "eip155-address",
+      "chainId": 11155111,
+      "address": "0x0000000000000000000000000000000000000001",
+      "canonical": "eip155-address:11155111:0x0000000000000000000000000000000000000001",
+      "ref": "0x129fe7f023e93e8adab232685a240e2d57e7400388078bec78ee0916267f7b0d"
+    },
+    {
+      "kind": "eip155-address",
+      "chainId": 1,
+      "address": "0xAbCDef0123456789aBCDeF0123456789AbCdEf01",
+      "canonical": "eip155-address:1:0xabcdef0123456789abcdef0123456789abcdef01",
+      "ref": "0x3823ba11d26b7519f55017b847280187bb8cd8115a2b33d82e1daa9f2358ab89"
+    },
+    {
+      "kind": "eip155-address",
+      "chainId": 11155111,
+      "address": "0xAbCDef0123456789aBCDeF0123456789AbCdEf01",
+      "canonical": "eip155-address:11155111:0xabcdef0123456789abcdef0123456789abcdef01",
+      "ref": "0x2db485f9087d3732d84788a340a04ed0f0c2024e1c678b370da87edab612b7e3"
+    },
+    {
+      "kind": "erc8004",
+      "chainId": 11155111,
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 10387,
+      "canonical": "erc8004:11155111:0x8004a818bfb912233c491871b3d84c89a494bd9e:10387",
+      "ref": "0xf5c6492537a52dd2ba828b13bfbc7196294e0378a818fa9088e041684ec8fd28"
+    },
+    {
+      "kind": "did",
+      "method": "aid",
+      "id": "example-7",
+      "canonical": "did:aid:example-7",
+      "ref": "0x712b940069fe06c353d1e338f4c3ab958182ce536199add570040bc624db5f41"
+    },
+    {
+      "kind": "ext",
+      "namespace": "finchip.ai",
+      "identifier": "foga-cell-7",
+      "canonical": "ext:finchip.ai:foga-cell-7",
+      "ref": "0xa5686f86afff8c2bc351b4ff80cb33c9e8d2852336b0057ca0c51394a827e837"
+    }
+  ]
+}

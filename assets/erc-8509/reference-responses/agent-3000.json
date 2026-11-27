@@ -1,0 +1,71 @@
+{
+  "id": 3000,
+  "score": 75,
+  "grade": "B",
+  "leaks": [
+    {
+      "id": "wallet_is_owner",
+      "title": "Payments land on the owner",
+      "text": "No separate payment address is set, so every payment lands on the owner wallet.",
+      "points": 25,
+      "tip": "Register a separate payment address that the owner never sends to; fund it from a bridge or a shielded pool.",
+      "proof": [
+        {
+          "label": "Owner on the explorer",
+          "href": "https://robinhoodchain.blockscout.com/address/0xb06c2437ed223b4749c3d0224742d0e7ffa37647"
+        }
+      ]
+    }
+  ],
+  "facts": [],
+  "unread": [],
+  "partial": false,
+  "partial_why": [],
+  "payment_wallet": "0xb06c2437ed223b4749c3d0224742d0e7ffa37647",
+  "wallet_grade": "A",
+  "read": {
+    "read_at": "2026-11-21T07:57:40.533Z",
+    "block": "119726456",
+    "chain_id": "4663",
+    "identity_registry": "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432",
+    "owner": "0xb06c2437ed223b4749c3d0224742d0e7ffa37647",
+    "agent_wallet": null,
+    "pay_to": "0xb06c2437ed223b4749c3d0224742d0e7ffa37647",
+    "owner_agents": 1,
+    "shared_payment_address": {
+      "agent_ids": [],
+      "compared": [
+        "agentWallet",
+        "payTo"
+      ],
+      "at_most": 50
+    },
+    "first_funder": {
+      "payment_wallet": {
+        "address": "0xb06c2437ed223b4749c3d0224742d0e7ffa37647",
+        "funder": null,
+        "read": true
+      },
+      "pay_to": null
+    },
+    "direct_link": null,
+    "payers_30d": {
+      "payments": 0,
+      "payers": 0,
+      "window_days": 30
+    },
+    "stealth": {
+      "registry": "0x6538e6bf4b0ebd30a8ea093027ac2422ce5d6538",
+      "owner": false,
+      "agent_wallet": null
+    },
+    "shielded_pools": {
+      "list": "toll",
+      "pools": [
+        "0x39e28cde55cab798874746ac52cb4b5cc99a0194"
+      ],
+      "received_from": [],
+      "complete": true
+    }
+  }
+}

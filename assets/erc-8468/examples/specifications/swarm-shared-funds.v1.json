@@ -1,0 +1,261 @@
+{
+  "asf": "1.0",
+  "kind": "safety-specification",
+  "name": "Swarm Shared Funds",
+  "summary": "Safety arrangement for a purpose-bound swarm that executes a standing task with shared funds: one total budget enforced by a coordinator on every spending path, per-member caps, protected monitoring, and interventions that follow the swarm's own charter.",
+  "publisher": {
+    "ref": "eip155:11155111:0x00000000000000000000000000000000000009b1",
+    "name": "Example publisher"
+  },
+  "version": 1,
+  "protects": [
+    {
+      "domain": "assets-economic",
+      "description": "the swarm's shared funds and the task escrow",
+      "roles": [
+        "principal",
+        "operator"
+      ]
+    },
+    {
+      "domain": "human-public",
+      "description": "counterparties of the swarm's transactions",
+      "roles": [
+        "counterparty",
+        "public"
+      ]
+    },
+    {
+      "domain": "control-rules",
+      "description": "membership, roles and the charter's change rules",
+      "roles": [
+        "principal",
+        "operator"
+      ]
+    }
+  ],
+  "applicability": {
+    "subjects": [
+      "a registered swarm and each of its members"
+    ],
+    "tasks": [
+      "a standing task with recurring deliveries funded from a shared account"
+    ],
+    "resources": [
+      "the shared account",
+      "the task escrow"
+    ],
+    "environments": [
+      "any; the shared-budget coordinator is on chain"
+    ],
+    "notes": "The swarm's organizer adopts for the swarm; each member adopts for itself as a derived binding of the swarm's binding.",
+    "permittedUses": [
+      "deliveries under the standing task",
+      "payments to counterparties the charter admits"
+    ],
+    "prohibitedUses": [
+      "leverage or positions the charter does not authorize",
+      "payments outside the shared budget's coordinator"
+    ]
+  },
+  "constraints": [
+    {
+      "id": "budget",
+      "profile": "asf:profile:economic/shared-budget@1",
+      "family": "multi-agent-system",
+      "statement": "All members draw on one total through the coordinator; local caps never add up beyond it; an unknown settlement is reconciled before any retry.",
+      "parameters": {
+        "coordination": "reserve-commit-release",
+        "settlementUnknownPolicy": "reconcile-before-retry"
+      },
+      "scope": "group",
+      "enforcedBy": [
+        "budget-coordinator"
+      ]
+    },
+    {
+      "id": "member-spend",
+      "profile": "asf:profile:authority/bounded-spend@1",
+      "family": "identity-authority",
+      "statement": "Each member's own spending is capped per action and per window.",
+      "scope": "trajectory",
+      "enforcedBy": [
+        "member-account"
+      ]
+    },
+    {
+      "id": "monitor",
+      "profile": "asf:profile:behavior/monitoring-integrity@1",
+      "family": "behavior-goals",
+      "statement": "No member may alter the monitors of the swarm; a member's safety objection is recorded and cannot be overruled by another member alone.",
+      "scope": "action",
+      "enforcedBy": [
+        "monitoring-plane"
+      ]
+    },
+    {
+      "id": "charter-intervention",
+      "profile": "asf:profile:governance/intervention@1",
+      "family": "governance-accountability",
+      "statement": "Suspension of the swarm binding follows the charter: the organizer may suspend under no-new-risk; a collective decision may suspend under derisk-only or full-stop and may terminate; member bindings are derived and fall with the swarm binding.",
+      "scope": "state",
+      "enforcedBy": [
+        "charter-decision"
+      ]
+    }
+  ],
+  "authority": {
+    "whoMayAdopt": [
+      "the swarm's organizer account for the swarm",
+      "each member for itself, derived from the swarm's binding"
+    ],
+    "whoMayEnforce": [
+      "the budget coordinator contract",
+      "each member's account module",
+      "the charter's decision mechanism"
+    ],
+    "authorityBasis": [
+      "swarm charter and membership record",
+      "task tender terms",
+      "member operating agreement"
+    ]
+  },
+  "evidence": [
+    {
+      "id": "coordinator-deployment",
+      "kind": "declaration",
+      "source": "organizer",
+      "binds": [
+        "subject",
+        "version",
+        "state"
+      ]
+    },
+    {
+      "id": "membership",
+      "kind": "attestation",
+      "source": "swarm registry",
+      "binds": [
+        "subject",
+        "validity"
+      ]
+    },
+    {
+      "id": "charter-decision",
+      "kind": "decision",
+      "source": "decision mechanism",
+      "binds": [
+        "subject",
+        "action",
+        "state",
+        "rule-version"
+      ]
+    }
+  ],
+  "enforcement": {
+    "channels": [
+      {
+        "id": "budget-coordinator",
+        "description": "Reservation ledger that every spending path must pass.",
+        "mechanism": {
+          "kind": "shared-budget-coordinator",
+          "ref": "deployed coordinator contract"
+        },
+        "location": "contract",
+        "coverage": "full",
+        "knownBypasses": [
+          "a member paying from a private account is outside the shared budget and outside this binding"
+        ]
+      },
+      {
+        "id": "member-account",
+        "description": "Per-member caps in the member's account module.",
+        "mechanism": {
+          "kind": "wallet-permission",
+          "ref": "member account permission"
+        },
+        "location": "account",
+        "coverage": "full",
+        "knownBypasses": []
+      },
+      {
+        "id": "monitoring-plane",
+        "description": "Swarm-level monitors outside any member's authority.",
+        "mechanism": {
+          "kind": "monitoring",
+          "ref": "monitoring plane"
+        },
+        "location": "runtime",
+        "coverage": "partial",
+        "knownBypasses": [
+          "off-platform communication between members"
+        ]
+      },
+      {
+        "id": "charter-decision",
+        "description": "Collective decisions of the swarm under its charter.",
+        "mechanism": {
+          "kind": "collective-decision",
+          "ref": "decision registry policy"
+        },
+        "location": "collective",
+        "coverage": "full",
+        "knownBypasses": []
+      }
+    ]
+  },
+  "failureHandling": {
+    "unknown": "wait",
+    "denied": "refuse",
+    "dependencyFailure": "degrade",
+    "notes": "If the coordinator is unreachable, spending stops; repayment and cancellation continue under derisk-only."
+  },
+  "remedies": {
+    "suspensionModes": [
+      "no-new-risk",
+      "derisk-only",
+      "full-stop"
+    ],
+    "recovery": "a charter decision resumes the swarm binding; member bindings resume with it",
+    "dispute": "the charter's decision mechanism",
+    "compensation": "the task escrow rules",
+    "reversibility": "partially-reversible",
+    "interventionWindow": "before the coordinator commits the next reservation",
+    "serviceContinuity": [
+      "repayment",
+      "cancellation of open orders",
+      "withdrawal to the treasury"
+    ],
+    "incidentReporting": {
+      "channels": [
+        "the charter's decision mechanism"
+      ],
+      "evidenceRequirements": [
+        "coordinator ledger entries",
+        "the member and action concerned"
+      ]
+    }
+  },
+  "profiles": {
+    "required": [
+      "asf:profile:economic/shared-budget@1",
+      "asf:profile:authority/bounded-spend@1",
+      "asf:profile:governance/intervention@1"
+    ],
+    "optional": [
+      "asf:profile:behavior/monitoring-integrity@1"
+    ]
+  },
+  "limitations": [
+    "The shared budget covers one coordinator on one chain.",
+    "Monitoring covers on-platform behaviour only."
+  ],
+  "metadata": {
+    "registration": {
+      "chainId": 11155111,
+      "registry": "0x00000000000000000000000000000000000a5f01",
+      "publisher": "0x00000000000000000000000000000000000009b1",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000002"
+    }
+  }
+}

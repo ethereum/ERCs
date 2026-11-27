@@ -1,0 +1,76 @@
+{
+  "aito": "1",
+  "kind": "grade",
+  "name": "Fixed open-weight model, 128k context, no retention",
+  "description": "Supply of text inference by one fixed model. Promises and duties are listed; measured values are in Assessments.",
+  "unit": "0xa96f1bc7480d72951dd26dd0e30c1b6edbc4cc237397beb5418c4e176190dfcc",
+  "ordering": "none",
+  "executionObject": {
+    "kind": "fixed-model",
+    "identity": {
+      "weightsDigest": "0xbbfe04bd4bf636aa19ec51023efca982ba681072d178edf80a8da68fa01c3b10",
+      "quantization": "none"
+    },
+    "config": {
+      "reasoningBudget": "medium",
+      "sampling": "caller-controlled",
+      "systemPromptPolicy": "caller-only",
+      "tools": "none"
+    }
+  },
+  "requirements": [
+    {
+      "id": "context-window",
+      "family": "delivery",
+      "statement": "Context window of at least 128000 tokens.",
+      "comparator": ">=",
+      "value": "128000",
+      "scope": "per-request",
+      "compensable": false
+    },
+    {
+      "id": "first-token-latency",
+      "family": "delivery",
+      "statement": "95th percentile time to first token of at most 3000 milliseconds.",
+      "comparator": "<=",
+      "value": "3000",
+      "scope": "window",
+      "window": "PT1H",
+      "compensable": true
+    }
+  ],
+  "obligations": [
+    {
+      "id": "no-retention",
+      "family": "terms",
+      "statement": "Requests and outputs are not retained after the response is delivered.",
+      "obligor": "responsible-party",
+      "compensable": false
+    }
+  ],
+  "verificationPolicy": {
+    "origin": {
+      "evidence": "self-attested"
+    },
+    "metering": {
+      "evidence": "self-attested",
+      "acceptance": "optimistic"
+    },
+    "execution": {
+      "evidence": "self-attested"
+    },
+    "quality": {
+      "evidence": "third-party-assessed"
+    },
+    "deliverySettlement": {
+      "evidence": "onchain"
+    }
+  },
+  "attributes": {
+    "capability": "undeclared",
+    "efficiency": "undeclared",
+    "robustness": "undeclared",
+    "speciality": "undeclared",
+    "energy": "undeclared"
+  }
+}

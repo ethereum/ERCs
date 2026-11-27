@@ -1,0 +1,112 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.intake",
+  "version": "1.0.0",
+  "title": "Intake: many submitters, one collector, submissions not mutually visible",
+  "labels": [
+    "aifp:paradigm/intake/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "fan-in"
+  ],
+  "cardinality": {
+    "contributors": "qualified",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "public-directory",
+    "observation": {
+      "readScope": "collector-only",
+      "submissionVisibility": "collector-only",
+      "payloadProtection": "e2ee",
+      "metadataProtection": "partial"
+    },
+    "contribution": {
+      "actions": [
+        "submit"
+      ],
+      "acquisition": "predicate",
+      "transferable": false,
+      "expiry": "fixed"
+    },
+    "management": {
+      "admission": [
+        "protocol"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "none"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": false,
+      "derive": true,
+      "publishElsewhere": false
+    },
+    "history": {
+      "lateJoiner": "none",
+      "retention": "bounded",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "none",
+      "delivery": [
+        "push"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "conditional",
+    "contributorVisibility": "per-audience",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "submit": {
+      "credential": {
+        "verifier": "0x0000000000000000000000000000000000000001",
+        "scheme": "0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764",
+        "minLevel": 2,
+        "proofMode": "attested"
+      }
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association",
+      "push",
+      "payload-protection"
+    ]
+  }
+}
