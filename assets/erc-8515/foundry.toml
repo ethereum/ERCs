@@ -1,0 +1,6 @@
+[profile.default]
+src = "contracts"
+test = "test"
+out = "out"
+libs = ["lib"]
+fs_permissions = [{ access = "read", path = "./vectors.json" }]
