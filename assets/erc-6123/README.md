@@ -4,6 +4,24 @@
 
 The reference SDC implementation can be unit tested with Hardhat to understand the trade process logic.
 
+The trade interface takes explicit participants. Inception returns a generated
+trade ID that is never reused; confirmation and cancellation repeat it with the
+original parties, signed amounts and text fields. Termination methods also identify
+the requester and retain that requester's payment perspective.
+
+The SDC and FX spot trade examples require direct calls from the participant responsible for each
+action. This authorization policy is specific to the examples, not part of ERC-6123.
+The build uses Solidity 0.8.24.
+
+`FxSpotTrade` represents an FX spot trade with atomic payment-versus-payment (PvP)
+settlement. Confirmation exchanges the two currency-token amounts once through a
+shared `ERC20PvPSettlementRouter`. Parties approve the router before confirmation.
+
+These implementations illustrate the protocol. `ERC20Settlement` allows unrestricted
+`mint` and `setSDCAddress` calls, and `SDCSingleTradePledgedBalance.performSettlement`
+does not authenticate the valuation provider. Applications must define and enforce
+those permissions before using these examples with real assets.
+
 ### Compile and run tests with Hardhat
 
 We provide the essential steps to compile the contracts and run the provided unit tests.
@@ -21,13 +39,20 @@ We provide the essential steps to compile the contracts and run the provided uni
 
 #### Implementations
 
+- `contracts/TradeIdGenerator.sol` - Generates decimal trade identifiers that are never reused
+
 - `contracts/SDCSingleTrade.sol` - SDC abstract contract for an OTC Derivative (single trade case only)
 - `contracts/SDCSingleTradePledgedBalance.sol` - SDC full implementation for an OTC Derivative (single trade case only)
 - `contracts/ERC20Settlement.sol` - Mintable settlement token contract implementing `IERC20Settlement` for unit tests
+- `contracts/examples/FxSpotTrade/FxSpotTrade.sol` - FX spot trade with atomic PvP settlement
+- `contracts/examples/FxSpotTrade/FxSpotTradeFactory.sol` - Creates trades and registers them with the shared router
+- `contracts/examples/FxSpotTrade/ERC20PvPSettlementRouter.sol` - Settles both token legs atomically using shared token allowances
 
 #### Tests
 
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
+- `test/TradeContextTest.js` - Explicit participants, exact matching and trade ID replay checks
+- `test/FxSpotTradeTest.js` - FX settlement, exact matching and single-use lifecycle checks
 
 ### Compile and run tests with Hardhat
 
@@ -48,7 +73,7 @@ npx hardhat test
 
 ### Configuration files
 
-- `package.js` - Javascript package definition.
+- `package.json` - JavaScript package definition.
 - `hardhat.config.js` - Hardhat config.
 
 ### Used javascript-based testing libraries for solidity
@@ -58,9 +83,9 @@ npx hardhat test
 - `ethers`: This is a popular Ethereum client library. It allows you to interface with blockchains that implement the Ethereum API.
 - `solidity-coverage`: This library gives you coverage reports on unit tests with the help of Istanbul.
 
-## Version history / release notes
+### Packaging
 
-### 0.8.0
-
-- Re-introduced the method `afterSettlement` that can be used to check pre-conditions of the next settlement cycle, e.g., triggered by a time-oracle.
-- Added the event `SettlementAwaitingInitiation` which should be issued when the trade goes active and when `afterSettlement` veryfied that the trade is ready for the next settlement.
+The npm package is built from `assets/erc-6123` in the ERCs repository.
+Run `npm pack --dry-run` from this directory to inspect its contents. Contracts,
+documentation, tests and configuration are included; generated build and coverage
+files are excluded.

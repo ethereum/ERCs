@@ -1,0 +1,24 @@
+{
+  "aito": "1",
+  "kind": "method",
+  "name": "Conditional calibration against a reference workload",
+  "description": "Finds how many native units each execution object needs to reach the same supply level on a pinned workload.",
+  "methodType": "conditional-calibration",
+  "basisSide": "output",
+  "inputs": [
+    "workload digest D",
+    "compute budget B",
+    "quality requirement Q",
+    "delivery constraint S",
+    "execution objects under comparison"
+  ],
+  "outputs": [
+    "native units per reference task, per execution object",
+    "error interval"
+  ],
+  "applicability": "Text inference on the task domain of the pinned workload. Not valid outside that domain.",
+  "limitations": [
+    "Coefficients do not carry over to other workloads, budgets or quality requirements.",
+    "The method compares supply. It grants no right to issue and transfers no obligation."
+  ]
+}

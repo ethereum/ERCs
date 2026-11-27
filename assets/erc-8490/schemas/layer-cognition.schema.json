@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "amm.layer.cognition/1",
+  "title": "Layer 3 state document: cognition",
+  "description": "The agent's self-model and the strategies it reasons with: capabilities, limits, resources and applicability; assumptions about its environment with their evidential status; judgment strategies; reflection methods; and the policy it maintains itself under. Candidate changes that have not been adopted are recorded in cycle records, not here.",
+  "type": "object",
+  "required": ["schema", "layer"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "amm.layer.cognition/1"},
+    "layer": {"const": 3},
+    "revision": {"type": "string"},
+    "selfModel": {
+      "type": "object",
+      "properties": {
+        "capabilities": {"type": "array", "items": {"type": "string"}},
+        "limits": {"type": "array", "items": {"type": "string"}},
+        "resources": {"type": "array", "items": {"type": "string"}},
+        "applicability": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "status"],
+        "properties": {
+          "id": {"type": "string"},
+          "statement": {"type": "string"},
+          "status": {"type": "string", "enum": ["held", "candidate", "retired"]},
+          "evidence": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "judgmentStrategies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "rule", "status"],
+        "properties": {"id": {"type": "string"}, "rule": {"type": "string"}, "status": {"type": "string", "enum": ["adopted", "retired"]}, "adoptedIn": {"type": "string"}}
+      }
+    },
+    "reflectionMethods": {
+      "type": "array",
+      "items": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}, "description": {"type": "string"}, "version": {"type": "integer"}}}
+    },
+    "policyRef": {"type": "object", "properties": {"policyHash": {"type": "string"}, "version": {"type": "integer"}}}
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "aito": "1",
+  "kind": "unit",
+  "name": "Text inference tokens, output-equivalent",
+  "description": "Text tokens of one named counter. One denomination unit is the supply of one output token.",
+  "quantityKind": "inference-usage",
+  "modality": "text",
+  "basis": "Tokens as counted per request by the counter named in counterRef.",
+  "denomination": "One denomination unit equals one unit of the component output.",
+  "components": [
+    {
+      "id": "input",
+      "description": "Tokens read from the request, including system prompt and tool results, excluding tokens served from cache."
+    },
+    {
+      "id": "output",
+      "description": "Tokens generated, including reasoning tokens whether or not they are returned to the caller."
+    },
+    {
+      "id": "cache_read",
+      "description": "Request tokens served from a prompt cache."
+    }
+  ],
+  "relations": [
+    {
+      "a": "input",
+      "b": "cache_read",
+      "relation": "disjoint"
+    },
+    {
+      "a": "input",
+      "b": "output",
+      "relation": "additive"
+    },
+    {
+      "a": "cache_read",
+      "b": "output",
+      "relation": "additive"
+    }
+  ],
+  "boundary": {
+    "scope": "request",
+    "counted": [
+      "system-prompt",
+      "tool-results",
+      "reasoning"
+    ],
+    "notCounted": [
+      "provider-retries"
+    ]
+  },
+  "precision": "1",
+  "rounding": "up",
+  "counterRef": {
+    "name": "example-bpe",
+    "version": "2026-03",
+    "digest": "0xf6611ca0fb72a3c08b83e00558379626a49da0e4ded434bbf2bb961be153afcf"
+  }
+}

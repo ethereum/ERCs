@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "specHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "origin": {
+    "kind": "sai.origin.task",
+    "ref": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Formed by the coordinator to fulfil task tender #17; ref = keccak256(abi.encode(chainId, tender, tokenId))"
+  },
+  "charter": {
+    "path": "charter.md",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "objective": {
+    "kind": "TERMINAL",
+    "goal": "Deliver the accepted fulfillment of task tender #17: a reproducible benchmark report comparing three retrieval strategies on the published corpus.",
+    "preconditions": [
+      "The tender is funded for at least one completion",
+      "The corpus digest in the tender package resolves"
+    ],
+    "successCriteria": [
+      "A submission citing the tender's current task version is accepted by the tender's acceptance authority",
+      "The report reproduces from the committed scripts within the stated tolerance"
+    ],
+    "acceptance": {
+      "kind": "obligation",
+      "authority": "0x1111111111111111111111111111111111111111",
+      "obligation": {
+        "chainId": 11155111,
+        "target": "0xA62059A498E40C4Ae4aF926E2B00C1Ff122bDdb7",
+        "id": "17"
+      },
+      "description": "The swarm tender adapter concludes ACHIEVED when the tender records the swarm account's submission as Accepted, ABANDONED when the tender is cancelled, FAILED when settleBy passes without acceptance."
+    },
+    "amendmentRule": "The coordinator may amend the charter text as a minor amendment; any change of the objective text or of the allocation is material and opens the exit window."
+  },
+  "commitment": {
+    "allocation": [
+      {
+        "phase": "execution",
+        "rule": "role-weighted",
+        "params": {
+          "coordinator": 20,
+          "worker": 70,
+          "verifier": 10
+        },
+        "description": "Percent of the tender reward credited to the swarm account, split equally inside each role among members active and in good standing at conclusion; paid from the swarm account by the coordinator."
+      }
+    ],
+    "costs": [
+      "The evaluation harness skill is metered per call and paid by the swarm account before allocation",
+      "No bond is required"
+    ],
+    "liabilities": [
+      "A worker whose track does not reproduce forfeits its share of the worker allocation",
+      "No penalty for leaving; a seat left before conclusion earns nothing"
+    ],
+    "dataAccess": [
+      "Workers receive the corpus and the shared scripts",
+      "Verifiers receive every track's result bundle"
+    ],
+    "externalActions": [
+      "The coordinator submits the fulfillment to task tender #17 from the swarm account in the members' name",
+      "The coordinator pays the allocation from the swarm account"
+    ]
+  },
+  "mode": {
+    "namedProfile": "cooperation",
+    "phases": [
+      {
+        "name": "execution",
+        "payoff": "sai.payoff.shared",
+        "topology": "sai.topology.partitioned",
+        "coordination": "sai.coordination.collective",
+        "boundary": "OPEN",
+        "admission": "RECRUIT",
+        "inputWindow": 0,
+        "description": "The coordinator splits the corpus into three strategy tracks; each worker owns one track and records its contribution hash; the verifier council admits workers and reviews reproducibility before the coordinator submits to the tender from the swarm account.",
+        "contributions": "Members only. A contribution hash is the SHA-256 of the track's result bundle; the URI points at the bundle."
+      }
+    ]
+  },
+  "roles": [
+    {
+      "roleId": "0x4fc13b418c06e66bee8d79228bef6e44cc720286e48578225bdc8c8c0b62c27d",
+      "name": "sai.role.coordinator",
+      "description": "Splits work, submits the fulfillment from the swarm account (REPRESENT), pays the allocation",
+      "eligibility": {
+        "description": "self-join; address-anchored agent identity in state ACTIVE",
+        "requires": [
+          "agent identity ACTIVE"
+        ]
+      }
+    },
+    {
+      "roleId": "0x5e56c6e5653691ad60be29b0daa2b1da03e2626066088adb40cb89caf733d8d0",
+      "name": "sai.role.verifier",
+      "description": "Council of three: admits and removes workers through the collective decision adapter, reviews reproducibility of every track",
+      "eligibility": {
+        "description": "self-join; registered agent with validation average >= 80 under tag benchmark-review",
+        "requires": [
+          "registered agent with validation average >= 80 under tag benchmark-review"
+        ]
+      }
+    },
+    {
+      "roleId": "0x0e3a19745aa9b7079f93a3673c0bba2e976f355a1a9469cbe536fcb9df620fc1",
+      "name": "sai.role.worker",
+      "description": "Owns one strategy track; applies and is admitted by the council",
+      "eligibility": {
+        "module": "0x5555555555555555555555555555555555555555",
+        "description": "trust assertion level >= 2 under the retrieval-benchmark scheme from the two listed issuers",
+        "requires": [
+          "trust assertion level >= 2 under the retrieval-benchmark scheme from issuers A, B"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "kind": "sai.resource.skill",
+      "anchor": {
+        "chainId": 11155111,
+        "target": "0x2222222222222222222222222222222222222222",
+        "id": "1"
+      },
+      "digest": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      "digestKind": "sha-256",
+      "uri": "ipfs://bafy...skill",
+      "provider": "0x7777777777777777777777777777777777777777",
+      "purpose": "Token-bound executable skill: the evaluation harness every track runs",
+      "terms": "Metered per call by the skill's own contract; the swarm account pays"
+    },
+    {
+      "kind": "sai.resource.dataset",
+      "digest": "0x4444444444444444444444444444444444444444444444444444444444444444",
+      "digestKind": "sha-256",
+      "uri": "ipfs://bafy...corpus",
+      "purpose": "The published corpus the tender names"
+    },
+    {
+      "kind": "sai.resource.code",
+      "digest": "0x5555555555555555555555555555555555555555555555555555555555555555",
+      "digestKind": "keccak256",
+      "uri": "ipfs://bafy...scripts",
+      "roleId": "0x0e3a19745aa9b7079f93a3673c0bba2e976f355a1a9469cbe536fcb9df620fc1",
+      "purpose": "Shared analysis scripts for the worker role; contributions MUST cite the digest they ran"
+    }
+  ],
+  "decisionPoints": {
+    "ACTIVATE": {
+      "description": "BOTH: the coordinator activates once the roster thresholds hold"
+    },
+    "ADMIT": {
+      "description": "Collective: the verifier council decides admissions 2-of-3 through the collective decision adapter; each decision snapshots the council roster as a policy version",
+      "policyId": "0x0f36cb699dafbdab0b08057665b6a716316e730409f5cbdfe53a5241f99ff279",
+      "adapter": "0x6666666666666666666666666666666666666666"
+    },
+    "REMOVE": {
+      "description": "Same council and policy as ADMIT",
+      "policyId": "0x0f36cb699dafbdab0b08057665b6a716316e730409f5cbdfe53a5241f99ff279",
+      "adapter": "0x6666666666666666666666666666666666666666"
+    },
+    "CONCLUDE": {
+      "description": "The swarm tender adapter (acceptance authority) concludes from the tender's record"
+    },
+    "AMEND": {
+      "description": "ADDRESS: the coordinator"
+    },
+    "SET_ACCOUNT": {
+      "description": "ADDRESS: the coordinator binds the swarm account once"
+    },
+    "REPRESENT": {
+      "description": "ROLE sai.role.coordinator: acts for the swarm through its account"
+    }
+  },
+  "prev": null
+}

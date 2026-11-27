@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "amm.layer.memory-skills/1",
+  "title": "Layer 1 state document: memory and skills",
+  "description": "Stable description of what the agent holds: its memory organization and digest, its skill inventory with versions and package hashes, and the harness configuration that manages them. The memory store itself may be any structure; only the digest the implementation chooses is committed.",
+  "type": "object",
+  "required": ["schema", "layer"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "amm.layer.memory-skills/1"},
+    "layer": {"const": 1},
+    "revision": {"type": "string"},
+    "memory": {
+      "type": "object",
+      "properties": {
+        "store": {"type": "string"},
+        "organization": {"type": "string"},
+        "digest": {"type": "string", "description": "Implementation-defined digest of the memory contents (for example a Merkle root or a database snapshot hash)."},
+        "entries": {"type": "integer", "minimum": 0}
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version"],
+        "properties": {
+          "id": {"type": "string"},
+          "version": {"type": "string"},
+          "packageHash": {"type": "string", "pattern": "^0x[0-9a-fA-F]{64}$"},
+          "source": {"type": "string", "description": "Where the skill package comes from, e.g. a token-bound skill package reference or 'local'."}
+        }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "properties": {
+        "configHash": {"type": "string", "pattern": "^0x[0-9a-fA-F]{64}$"},
+        "retrieval": {"type": "object"}
+      }
+    }
+  }
+}

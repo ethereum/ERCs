@@ -1676,4 +1676,49 @@ contract FinancialLeaseTest is Test {
 
         assertEq(lease.arrears(idA), lease.arrears(idB), "splitting a payment within the same timestamp must not change arrears()");
     }
+
+    // ─── Scope: down payment as installment t0 ─────────────
+    /// @dev Spec, "What the schedule covers": a down payment MAY be the first
+    ///      installment, due at origination. Paid in the same block it is
+    ///      settled with no arrears; left unpaid it is reported like any other
+    ///      installment. Timestamps are absolute (vm.getBlockTimestamp()).
+    function test_Scope_downPaymentAsFirstInstallment() public {
+        uint256 t0 = vm.getBlockTimestamp() + 10 days;
+        vm.warp(t0);
+        oracle.set(1e18);
+        uint64[] memory dueDates = new uint64[](3);
+        uint256[] memory unitAmounts = new uint256[](3);
+        dueDates[0] = uint64(t0); // down payment, due at origination
+        dueDates[1] = uint64(t0 + 30 days);
+        dueDates[2] = uint64(t0 + 60 days);
+        unitAmounts[0] = 50 * UNIT;
+        unitAmounts[1] = 100 * UNIT;
+        unitAmounts[2] = 100 * UNIT;
+
+        // At exactly its due date the down payment is not overdue.
+        uint256 a = _createLease(address(oracle), 7 days, dueDates, unitAmounts);
+        assertEq(lease.arrears(a), 0, "due at dueDate is not overdue");
+        assertEq(uint8(lease.status(a)), uint8(IFinancialLease.LeaseStatus.Active));
+        // Paid in the origination block: settled, nothing in arrears.
+        (uint256 owed, uint64 due) = lease.nextPayment(a);
+        assertEq(due, uint64(t0));
+        _pay(a, owed);
+        (, , bool paid) = lease.paymentAt(a, 0);
+        assertTrue(paid, "down payment settled");
+        assertEq(lease.arrears(a), 0);
+        assertEq(uint8(lease.status(a)), uint8(IFinancialLease.LeaseStatus.Active));
+        assertEq(lease.outstandingUnits(a), 200 * UNIT);
+
+        // Left unpaid: in arrears from the next second, like any installment.
+        uint256 b = _createLease(address(oracle), 7 days, dueDates, unitAmounts);
+        vm.warp(t0 + 1);
+        assertGt(lease.arrears(b), 0, "unpaid down payment accrues arrears");
+        assertEq(uint8(lease.status(b)), uint8(IFinancialLease.LeaseStatus.InArrears));
+        // In the reference, the next payment persists the arrears and emits
+        // ArrearsAccrued (the spec only requires the views above).
+        uint256 owedB = lease.arrears(b);
+        vm.expectEmit(true, false, false, true, address(lease));
+        emit IFinancialLease.ArrearsAccrued(b, owedB);
+        _pay(b, owedB);
+    }
 }
