@@ -56,7 +56,7 @@ audit before relying on any of it.
 | File | What it is |
 |------|------------|
 | `pq-key-binding-v1.canonicalization.json` | The facet's two admission bounds (member name 64 escaped bytes, statement 6208 bytes) and their derivation |
-| `pq-key-binding-v1.canonicalization-vectors.json` | 23 cases: the five published statements, an ML-DSA-87-sized binding, each bound at exactly the limit and one past it, and non-canonical inputs (whitespace, member order, top-level arrays, lone surrogates, deep nesting, integers at ±2^53) |
+| `pq-key-binding-v1.canonicalization-vectors.json` | 34 cases: the six published statements (including a per-agent statement with a nested subject), an ML-DSA-87-sized binding, each bound at exactly the limit and one past it, unsupported shapes (booleans, null, decimals, arrays, top-level arrays, nesting deeper than one level) kept separate from non-canonical inputs (whitespace, member order, lone surrogates, integers at ±2^53), and nested-member cases |
 | `canonicalization_check.py` | Stdlib admission check that reproduces the vectors |
 
 ```

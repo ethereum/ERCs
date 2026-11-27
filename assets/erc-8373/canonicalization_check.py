@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: CC0-1.0
 """pq_key_binding.v1/canonicalization -- admission check for a binding statement's raw bytes (stdlib only).
 
-Verdicts: admit | reject:size_exceeded | reject:name_too_long | reject:not_canonical
-Order: the size bound is checked first (it needs no parsing), then canonical form, then the member-name bound.
-Canonical form here is the flat-object JCS profile (RFC 8785) used by pq_key_binding statements: an object whose
-values are strings or integers with |n| <= 2^53 - 1, members ordered by UTF-16 code units, no whitespace,
-ECMAScript string escaping. Anything else is reject:not_canonical.
+Verdicts: admit | reject:size_exceeded | reject:unsupported_shape | reject:not_canonical | reject:name_too_long
+Order (the first failing check gives the verdict): (1) size, on the raw bytes before parsing; (2) shape: a JSON
+object whose member values are strings, integers, or objects whose member values are strings or integers (one level
+of nesting); (3) canonical form: the raw bytes are exactly JCS(statement) (RFC 8785: members ordered by UTF-16 code
+units, no whitespace, ECMAScript string escaping) and every integer is within +-(2^53 - 1); (4) member names, nested
+ones included, are at most 64 escaped bytes.
+Booleans, null, non-integer numbers, arrays and deeper nesting are valid RFC 8785 the profile does not admit:
+reject:unsupported_shape, kept separate from reject:not_canonical (broken or non-canonical JCS).
 
 usage: python3 canonicalization_check.py pq-key-binding-v1.canonicalization.json pq-key-binding-v1.canonicalization-vectors.json
 """
@@ -37,8 +40,13 @@ def jcs(obj):
     parts = []
     for k in keys:
         v = obj[k]
-        parts.append(jcs_string(k) + ':' + (jcs_string(v) if isinstance(v, str) else str(v)))
+        enc = jcs_string(v) if isinstance(v, str) else jcs(v) if isinstance(v, dict) else str(v)
+        parts.append(jcs_string(k) + ':' + enc)
     return '{' + ','.join(parts) + '}'
+
+
+def _scalar(v):
+    return isinstance(v, str) or (isinstance(v, int) and not isinstance(v, bool))
 
 
 class _ObjectPairs(list):
@@ -52,20 +60,36 @@ def check(raw: bytes, facet: dict) -> str:
     try:
         text = raw.decode('utf-8', errors='strict')
         pairs = json.loads(text, object_pairs_hook=_ObjectPairs)
-    except (UnicodeDecodeError, ValueError, RecursionError):
-        # deep nesting (e.g. "["*n + "]"*n) can stay under max_statement_bytes while
-        # exceeding the interpreter's parse-recursion depth; a crash there is not a
-        # verdict, so it is refused the same as any other malformed input.
+    except RecursionError:
+        # nesting deep enough to exhaust the parser is, whatever else it is, deeper than one level
+        return 'reject:unsupported_shape'
+    except (UnicodeDecodeError, ValueError):
         return 'reject:not_canonical'
-    if not isinstance(pairs, _ObjectPairs) or len({k for k, _ in pairs}) != len(pairs):
+    # (2) shape
+    if not isinstance(pairs, _ObjectPairs):
+        return 'reject:unsupported_shape'
+    for _, v in pairs:
+        if _scalar(v):
+            continue
+        if isinstance(v, _ObjectPairs) and all(_scalar(x) for _, x in v):
+            continue
+        return 'reject:unsupported_shape'
+    # (3) canonical form
+    def to_dict(ps):
+        if len({k for k, _ in ps}) != len(ps):
+            raise ValueError('duplicate member')
+        return {k: (to_dict(x) if isinstance(x, _ObjectPairs) else x) for k, x in ps}
+    try:
+        obj = to_dict(pairs)
+    except ValueError:
         return 'reject:not_canonical'
-    obj = dict(pairs)
-    for v in obj.values():
-        if isinstance(v, bool) or not (isinstance(v, str) or (isinstance(v, int) and abs(v) <= MAX_SAFE)):
-            return 'reject:not_canonical'
+    ints = [v for v in obj.values() if isinstance(v, int)] + [x for v in obj.values() if isinstance(v, dict) for x in v.values() if isinstance(x, int)]
+    if any(abs(n) > MAX_SAFE for n in ints):
+        return 'reject:not_canonical'
+    names = list(obj) + [k for v in obj.values() if isinstance(v, dict) for k in v]
     try:
         canonical = jcs(obj).encode('utf-8')
-        name_lens_ok = all(len(jcs_string(k).encode('utf-8')) - 2 <= facet['max_member_name_escaped_bytes'] for k in obj)
+        name_lens_ok = all(len(jcs_string(k).encode('utf-8')) - 2 <= facet['max_member_name_escaped_bytes'] for k in names)
     except UnicodeEncodeError:
         # a lone surrogate in a name or value: JCS (RFC 8785) has no encoding for it, so the
         # statement cannot be canonical, regardless of which side tripped the encoder first.
