@@ -54,7 +54,8 @@ enum PQReason {
     NoInForceBinding, // 3 — authority ended at or before the anchor time.
     NoBindingsInChain, // 4 — the chain loaded and this identity has none.
     ChainMalformed, // 5 — a binding claims activation before its own anchor.
-    BindingAnchorUnavailable // 6 — every declared binding lacks a readable anchor.
+    BindingAnchorUnavailable, // 6 — every declared binding lacks a readable anchor.
+    AnchorUnavailable // 7 — the artifact's own anchor could not be read. Nothing was classified.
 }
 
 /// @notice Which admission rule actually decided the verdict.
@@ -80,7 +81,8 @@ enum PQRule {
     NoBindingsInChain, // 8
     ChainUnavailable, // 9
     ChainMalformed, // 10
-    BindingAnchorUnavailable // 11
+    BindingAnchorUnavailable, // 11
+    AnchorUnavailable // 12 — the artifact's anchor is unproven; no temporal rule applied.
 }
 
 // ── Anchor substrate ─────────────────────────────────────────────────────────

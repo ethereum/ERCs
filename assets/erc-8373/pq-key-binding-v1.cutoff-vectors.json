@@ -693,6 +693,55 @@
     "evidence": "verified",
     "decision": "ADMIT"
    }
+  },
+  {
+   "name": "unproven artifact anchor, before the baseline and the cutoff: unverifiable, never pre_baseline admit",
+   "artifact": {
+    "anchor_time": 1785000000,
+    "anchored": false,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "anchor_unavailable",
+    "rule": "anchor_unavailable",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "unproven artifact anchor, in the in-force interval before the cutoff: unverifiable, never anchored_before_cutoff",
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": false,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "anchor_unavailable",
+    "rule": "anchor_unavailable",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "unproven artifact anchor, after the cutoff with a valid companion under the in-force key: unverifiable, the in-force key cannot be resolved without the anchor",
+   "artifact": {
+    "anchor_time": 1790000500,
+    "anchored": false,
+    "pq_companion": {
+     "present": true,
+     "valid": true,
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa"
+    }
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "anchor_unavailable",
+    "rule": "anchor_unavailable",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
   }
  ]
 }

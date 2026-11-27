@@ -307,8 +307,8 @@ contract PQCutoffEnforcer is IPQKeyBindingConsumer {
             return (
                 PQDecision.Refuse,
                 PQEvidence.Unverifiable,
-                PQReason.ChainUnavailable,
-                PQRule.PostCutoffAnchorStatusUnknown
+                PQReason.AnchorUnavailable,
+                PQRule.AnchorUnavailable
             );
         }
 

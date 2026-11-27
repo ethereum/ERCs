@@ -101,6 +101,13 @@ def project(evidence):
 
 def admit(bindings, consumer_cutoff, artifact):
     at = artifact["anchor_time"]
+    # UNPROVEN ARTIFACT ANCHOR. Every rule below is temporal, and anchor_time means nothing unless the
+    # anchor is proven. Without that proof no state is resolved and no cutoff applies: unverifiable,
+    # never verified. Checked first, as PQCutoffEnforcer.sol does (anchorTime == 0).
+    if artifact.get("anchored") is not True:
+        return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "anchor_unavailable",
+                "evidence": "unverifiable", "unverifiable_reason": "anchor_status_unknown",
+                "decision": project("unverifiable"), "rule": "anchor_unavailable"}
     # Fail-closed DEPENDENCY FAILURE: the chain could not be resolved (bindings is None / unavailable).
     # UNVERIFIABLE — never a silent admit. Distinct from a chain that resolved and is legitimately empty.
     if bindings is None:
@@ -161,7 +168,6 @@ def admit(bindings, consumer_cutoff, artifact):
 
     base = {"resolved": resolved["name"], "resolved_pq_pubkey": resolved["pq_pubkey"],
             "resolution_reason": reason}
-    anchor_known = isinstance(artifact.get("anchored"), bool)
     pre_cutoff = artifact.get("anchored") is True and at < consumer_cutoff
     c = artifact.get("pq_companion") or {}
     present = bool(c.get("present"))
@@ -177,9 +183,6 @@ def admit(bindings, consumer_cutoff, artifact):
     if present and not checked:
         return {**base, "evidence": "unverifiable", "unverifiable_reason": "companion_not_checked",
                 "decision": project("unverifiable"), "rule": "post_cutoff_companion_unchecked"}
-    if (not present) and (not anchor_known) and at < consumer_cutoff:
-        return {**base, "evidence": "unverifiable", "unverifiable_reason": "anchor_status_unknown",
-                "decision": project("unverifiable"), "rule": "post_cutoff_anchor_status_unknown"}
     if present and checked and c.get("valid") is True and not binds_key:
         return {**base, "evidence": "refuted", "decision": project("refuted"),
                 "rule": "post_cutoff_no_valid_companion", "refuted_because": "companion_under_wrong_key"}

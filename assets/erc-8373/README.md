@@ -23,7 +23,7 @@ them.
 forge test
 ```
 
-Reproduces all 32 published v1 cutoff cases on four fields: `decision`, `evidence`,
+Reproduces all 35 published v1 cutoff cases on four fields: `decision`, `evidence`,
 `resolution_reason` and `rule`. The runner builds each case's own chain, including the ones that
 declare an unavailable chain, an empty chain, an un-anchored binding, a delayed activation or their own consumer cutoff. A
 declared state the enforcer cannot be driven into fails the suite rather than being skipped.

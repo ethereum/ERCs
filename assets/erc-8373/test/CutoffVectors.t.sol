@@ -156,7 +156,11 @@ contract CutoffVectorsTest is Test {
         VectorAnchorSubstrate sub = VectorAnchorSubstrate(address(enf.anchorRegistry()));
         uint64 anchorTime = uint64(vm.parseJsonUint(json, string.concat(_case(i), ".artifact.anchor_time")));
         bytes32 artifact = keccak256(abi.encode("artifact", i));
-        sub.anchor(artifact, anchorTime, CLASSICAL);
+        // An artifact the vector declares unanchored is not given to the substrate, so the
+        // enforcer reads back a zero anchor time.
+        if (vm.parseJsonBool(json, string.concat(_case(i), ".artifact.anchored"))) {
+            sub.anchor(artifact, anchorTime, CLASSICAL);
+        }
 
         bytes memory companion = _configureCompanion(i, ver);
         (decision, evidence, reason, rule) = enf.verifyArtifact(artifact, companion);
@@ -219,6 +223,7 @@ contract CutoffVectorsTest is Test {
         if (h == keccak256("chain_unavailable")) return PQRule.ChainUnavailable;
         if (h == keccak256("chain_malformed")) return PQRule.ChainMalformed;
         if (h == keccak256("binding_anchor_unavailable")) return PQRule.BindingAnchorUnavailable;
+        if (h == keccak256("anchor_unavailable")) return PQRule.AnchorUnavailable;
         revert(string.concat("vector declares a rule this enum has no value for: ", r));
     }
 
@@ -231,6 +236,7 @@ contract CutoffVectorsTest is Test {
         if (h == keccak256("chain_malformed")) return PQReason.ChainMalformed;
         if (h == keccak256("binding_anchor_unavailable")) return PQReason.BindingAnchorUnavailable;
         if (h == keccak256("chain_unavailable")) return PQReason.ChainUnavailable;
+        if (h == keccak256("anchor_unavailable")) return PQReason.AnchorUnavailable;
         revert(string.concat("vector declares a reason this enum has no value for: ", r));
     }
 
@@ -251,7 +257,7 @@ contract CutoffVectorsTest is Test {
     function test_v1_vector_file_is_the_published_one() public view {
         assertEq(consumerCutoff, 1790000000);
         assertEq(uint64(vm.parseJsonUint(json, ".bindings[0].binding_anchor_time")), 1785423299);
-        assertEq(caseCount, 32, "the published v1 set has 32 cases; a different count means a stale copy");
+        assertEq(caseCount, 35, "the published v1 set has 35 cases; a different count means a stale copy");
     }
 
     /// The reason is the field ERC-8373 makes REQUIRED for an unverifiable and requires to be a
