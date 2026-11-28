@@ -1,0 +1,59 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+  },
+  "axis": "infrastructure",
+  "result": "satisfied",
+  "coverage": [
+    1,
+    3
+  ],
+  "dependencies": [
+    "intelligence",
+    "capability"
+  ],
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1807776000,
+  "findings": [
+    {
+      "baselineClass": "intelligence",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "capability",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "document",
+      "commitment": "0x34b025a08561adf1ff60003a8192f35b0cef88d127ac7a79c9058b8299eaa450",
+      "scope": "intelligence, capability",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null
+}

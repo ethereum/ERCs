@@ -1,0 +1,43 @@
+{
+  "rule": "Commitment of a document or of a manifest entry: keccak256 of the UTF-8 bytes of its RFC 8785 canonical form.",
+  "canonical": {
+    "document": {
+      "b": [
+        true,
+        null,
+        "x"
+      ],
+      "a": {
+        "z": 1,
+        "y": "quote \" backslash \\ tab \t"
+      },
+      "A": "12.50"
+    },
+    "form": "{\"A\":\"12.50\",\"a\":{\"y\":\"quote \\\" backslash \\\\ tab \\t\",\"z\":1},\"b\":[true,null,\"x\"]}",
+    "commitment": "0x896ee935f704f25c6c4d03f1d8d92fa2ebdb83c67e280db717368a20d2b5dbfe"
+  },
+  "documents": {
+    "profile": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2",
+    "policy": "0x4e346f1006cc61a1f055ec88dcc80a518f0a18bfd5565963abaa011185d7a00e",
+    "case-a/descriptor": "0x94e290649ed61d33c4e5a319eac993623b924440ac17568afef6fed68fdd6cdd",
+    "case-a/manifest": "0xe3deb942dc4a9953a93c328460c2a13008f5b2a9f1220fa38216fac8213662a0",
+    "case-a/manifest-upgraded": "0xc2c64f4897c2c73c8799b54aad7d43493f6279fef0b4b10014ebf0c5b67b24d4",
+    "case-a/statement-infrastructure": "0xafb4d7e1865594294db3950590829bde9157eb15739b9e7d5cccc825a4b0e6c1",
+    "case-a/statement-infrastructure-model": "0x515804e95685302b090ea839f8da64719a2d872d2eccb0bc914c4e91caf74d29",
+    "case-a/statement-protocol": "0x41b6c863d6f44d676a5e373147d2c28b763dda16f01480c2afa0bf9f25e8b95e",
+    "case-a/statement-protocol-safety": "0xe662f26754078e439e077bbe1e2f5d02589248ecf6ef71783d51433ee1360dba",
+    "case-a/statement-economic": "0x1b7d38873104e068e94239e8f286840f3873ccca0e7462deb286ffcfff77bd9d",
+    "case-a/statement-economic-model": "0xaacb85324b7a11f907066dadc5dced964f09513e40b836a534d2d7e949e81879",
+    "case-a/statement-economic-model-reassessed": "0x18802a3f30ada9753150819eb2da703503252d4f7bcd2c79974a2aaf9d2b6e28",
+    "case-a/transition-upgrade": "0xa2ec722f5a12c935a0ac593817fe9065c0c26d216ffdfe935b4014d280cda9e1",
+    "case-b/descriptor-child": "0xba743a83de29663e2396526afd2c86eddf754527b2c077f7b7ee004411dd6899",
+    "case-b/transition-derivation": "0xcd0eb22bcac5e7c64995aeb54c076d3ebfd255c56432e8a7307d192210d8ac21",
+    "case-b/transition-succession": "0xdb1f4780fed8c52cfecfc7351ddcbcaad25a60415010278e3f8ba62af8c86b5d",
+    "case-b/descriptor-successor": "0xc9821a24a4813bdfc6fd4ed182897cd1f9a1ffc1382714392aee2fd19c330f48",
+    "case-c/descriptor-group": "0x013384918a5de3fa22e744e738e804d89481a54580485bb3dfc8eb9ce9e94c15",
+    "case-c/descriptor-member-b": "0x84a5b713085964117baff0cf8f179178a43e5b25cde1a2eb5e1da58393b28bcb",
+    "case-c/membership-terms": "0x29714cc66d4d45687e5160219407b03edc30187eddc131f89ea7ee33e94c7981",
+    "case-c/statement-economic-group": "0x800766d7e14b760b0f585c86183237311aeebfdcce710f8d31d8f9dcc9479428",
+    "case-c/interaction-terms": "0xfe817f037b9f6e054fbafefa1027971dd96b3f36d11271be4ad781e659d92f3b"
+  }
+}

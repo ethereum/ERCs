@@ -1,0 +1,227 @@
+{
+  "subject": {
+    "type": "example",
+    "typeHash": "0x6fd43e7cffc31bb581d7421c8698e29aa2bd8e7186a394b85299908b4eb9b175",
+    "data": "alpha",
+    "dataHex": "0x616c706861",
+    "subjectKey": "0xabc43cf4e4eee4a7b57beb996daf300e798cdc9972c813f97ed56c67ee442144"
+  },
+  "unit": {
+    "controller": "0xa11ce00000000000000000000000000000000001",
+    "controlVersion": 1,
+    "boundaryVersion": 1,
+    "descriptorHash": "0x94e290649ed61d33c4e5a319eac993623b924440ac17568afef6fed68fdd6cdd"
+  },
+  "version1": {
+    "entries": [
+      {
+        "index": 0,
+        "commitment": "0x6125d6a63513ae55a056b833b028c657850baa02ab54eab5e9ff47eb0b5709ea"
+      },
+      {
+        "index": 1,
+        "commitment": "0xd75c7fd5c92cb0ce2874e20e7b9cbc0691d5536fee186ea6530ab7eabd50cf7c"
+      },
+      {
+        "index": 2,
+        "commitment": "0xfce830e7bc587ecf93b24024b3d670a1b8a71fa1839f032e0f7a973043f10d93"
+      },
+      {
+        "index": 3,
+        "commitment": "0x9b7351899340ac768aa8b2930db934252fe66afb3860d684d35bc682faf71291"
+      },
+      {
+        "index": 4,
+        "commitment": "0x69090fe3a7fd6ddd9858595d797560f953d704d3090782a4778d105c2ef4dffa"
+      },
+      {
+        "index": 5,
+        "commitment": "0x0a60cb26b3d64cdac7f3e3df0d0d7fa046dd2161642db001cf3f41d8c7fedfea"
+      },
+      {
+        "index": 6,
+        "commitment": "0x53348739ddeb8f949be012cda75f1d7880f76537046de298d04ad1aaa6f90225"
+      },
+      {
+        "index": 7,
+        "commitment": "0x5c100fdea3c89998d6abd98c934965a3d08d5a494b42240b8ba44aa5eec67084"
+      },
+      {
+        "index": 8,
+        "commitment": "0x706deed71eddcc2ffe6829b964bf9390025e36b6ddf8b3029a3afcd61246e605"
+      },
+      {
+        "index": 9,
+        "commitment": "0xbec3ed2846a59e4a1eef0407e25c67966f450e642f722f5b0ea6db0360afdcad"
+      },
+      {
+        "index": 10,
+        "commitment": "0x2872dcfce0e992980e9a3ff3a48659eccf9e3d0b6070f695762e7086e1355857"
+      },
+      {
+        "index": 11,
+        "commitment": "0x7644c21ddb6874f9b0bec66662356b19b5fce946fc7971b4d2fa18f17997af7b"
+      }
+    ],
+    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+  },
+  "version2": {
+    "entries": [
+      {
+        "index": 0,
+        "commitment": "0x6125d6a63513ae55a056b833b028c657850baa02ab54eab5e9ff47eb0b5709ea"
+      },
+      {
+        "index": 1,
+        "commitment": "0xcfc0b2ae9cd5237eab55e1716c50b75e1e1f958463988850325618c7b10a70df"
+      },
+      {
+        "index": 2,
+        "commitment": "0xfce830e7bc587ecf93b24024b3d670a1b8a71fa1839f032e0f7a973043f10d93"
+      },
+      {
+        "index": 3,
+        "commitment": "0x9b7351899340ac768aa8b2930db934252fe66afb3860d684d35bc682faf71291"
+      },
+      {
+        "index": 4,
+        "commitment": "0x69090fe3a7fd6ddd9858595d797560f953d704d3090782a4778d105c2ef4dffa"
+      },
+      {
+        "index": 5,
+        "commitment": "0x0a60cb26b3d64cdac7f3e3df0d0d7fa046dd2161642db001cf3f41d8c7fedfea"
+      },
+      {
+        "index": 6,
+        "commitment": "0x53348739ddeb8f949be012cda75f1d7880f76537046de298d04ad1aaa6f90225"
+      },
+      {
+        "index": 7,
+        "commitment": "0x5c100fdea3c89998d6abd98c934965a3d08d5a494b42240b8ba44aa5eec67084"
+      },
+      {
+        "index": 8,
+        "commitment": "0x706deed71eddcc2ffe6829b964bf9390025e36b6ddf8b3029a3afcd61246e605"
+      },
+      {
+        "index": 9,
+        "commitment": "0xbec3ed2846a59e4a1eef0407e25c67966f450e642f722f5b0ea6db0360afdcad"
+      },
+      {
+        "index": 10,
+        "commitment": "0x2872dcfce0e992980e9a3ff3a48659eccf9e3d0b6070f695762e7086e1355857"
+      },
+      {
+        "index": 11,
+        "commitment": "0x7644c21ddb6874f9b0bec66662356b19b5fce946fc7971b4d2fa18f17997af7b"
+      }
+    ],
+    "root": "0xd033a2193a892609a9d4b5bbe247c1c6de94a5b1dde67b01d8f93f704f5cba7e",
+    "changed": [
+      1
+    ]
+  },
+  "digests": [
+    {
+      "name": "one entry",
+      "dependencies": [
+        "economic"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000040",
+      "version1": "0xa9b11dce7e6c65d43e6e0152476f26ce7986a8f86888aa62913b6244713cb195",
+      "version2": "0xa9b11dce7e6c65d43e6e0152476f26ce7986a8f86888aa62913b6244713cb195"
+    },
+    {
+      "name": "two entries",
+      "dependencies": [
+        "execution",
+        "economic"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000041",
+      "version1": "0x346b27b0c6a91ce07d49e43a8a6397b749801d8b568f8298e5179f2bd8cf16c5",
+      "version2": "0x346b27b0c6a91ce07d49e43a8a6397b749801d8b568f8298e5179f2bd8cf16c5"
+    },
+    {
+      "name": "model-bound",
+      "dependencies": [
+        "intelligence",
+        "capability"
+      ],
+      "mask": "0x000000000000000000000000000000000000000000000000000000000000000a",
+      "version1": "0xa9330a552f265adcfdc6e90f5419942815aa6d15e844706231d0c181bcc9b3b4",
+      "version2": "0x83ed0c203ee6738902c71eb8d2409d2bc9cdd08ee0196343e3cbc005faf67007"
+    },
+    {
+      "name": "a scheme",
+      "dependencies": [
+        "scheme:lineage",
+        "protocol",
+        "relation:control"
+      ],
+      "mask": "0x4000000000000000000000000000000000000000000000000000000000000120",
+      "version1": "0xfb806f006c311a904e9bf7e4bc4fcc525e45cd67885dc56c5ea184bee31c8fd2",
+      "version2": "0xfb806f006c311a904e9bf7e4bc4fcc525e45cd67885dc56c5ea184bee31c8fd2"
+    },
+    {
+      "name": "boundary only",
+      "dependencies": [
+        "boundary"
+      ],
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000000",
+      "version1": "0xee8ec7c18fa61f213914098508b92f9e66121e27c1c7633a8be481152ea305c4",
+      "version2": "0xee8ec7c18fa61f213914098508b92f9e66121e27c1c7633a8be481152ea305c4"
+    },
+    {
+      "name": "control only",
+      "dependencies": [
+        "relation:control"
+      ],
+      "mask": "0x4000000000000000000000000000000000000000000000000000000000000000",
+      "version1": "0x81b074afc79c0fbc691ab4358782e7d0dece71830cd96aadb945d0907ff118f2",
+      "version2": "0x81b074afc79c0fbc691ab4358782e7d0dece71830cd96aadb945d0907ff118f2"
+    },
+    {
+      "name": "boundary and control",
+      "dependencies": [
+        "economic",
+        "boundary",
+        "relation:control"
+      ],
+      "mask": "0xc000000000000000000000000000000000000000000000000000000000000040",
+      "version1": "0xa5591d029c12e31987e2ec537c1a8a75950e19cfba7ebc909392a6c79c21a3c1",
+      "version2": "0xa5591d029c12e31987e2ec537c1a8a75950e19cfba7ebc909392a6c79c21a3c1"
+    },
+    {
+      "name": "an absent extension entry",
+      "dependencies": [
+        "extension:40",
+        "execution"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000010000000001",
+      "version1": "0x354d38266da5ba70383e8c68f56c2ca4a7a906db7b8236be22f4f55c207b72a3",
+      "version2": "0x354d38266da5ba70383e8c68f56c2ca4a7a906db7b8236be22f4f55c207b72a3"
+    },
+    {
+      "name": "everything committed",
+      "dependencies": [
+        "execution",
+        "intelligence",
+        "state",
+        "capability",
+        "maintenance",
+        "protocol",
+        "economic",
+        "control",
+        "scheme:lineage",
+        "scheme:interaction",
+        "scheme:maintenance",
+        "scheme:composition",
+        "boundary",
+        "relation:control"
+      ],
+      "mask": "0xc000000000000000000000000000000000000000000000000000000000000fff",
+      "version1": "0xc527714f65c340761e117f2f98b8dd7f3ec85a33ee9230537993d18795b493cc",
+      "version2": "0x2988a749ee945ba81cbe11a07898de1938e348213e90686a3e054357be36b20e"
+    }
+  ]
+}

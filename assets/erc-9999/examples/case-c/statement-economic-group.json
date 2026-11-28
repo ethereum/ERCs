@@ -1,0 +1,126 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "group"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+  },
+  "axis": "economic",
+  "result": "satisfied",
+  "coverage": [
+    20,
+    26
+  ],
+  "dependencies": [
+    "economic",
+    "execution",
+    "intelligence",
+    "boundary",
+    "scheme:composition"
+  ],
+  "boundaryVersion": 3,
+  "manifest": {
+    "version": 1,
+    "root": "0x7b9bcecf79f6d4f2a3a72774b4456661f396b7c8347353b7ba3f55d5c06b64b6"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1803888000,
+  "findings": [
+    {
+      "baselineClass": "surplus",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "composition-resources",
+      "result": "satisfied",
+      "basis": "allocations add up to the capacity; the internal fee is eliminated"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "document",
+      "commitment": "0xf7c75dbf406d927b25e8fe212e3608c4a6a6bec5d04c25e92836874c890a93ca",
+      "scope": "surplus, composition-resources",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null,
+  "economic": {
+    "denomination": "USD",
+    "inflows": [
+      {
+        "class": "service-revenue",
+        "amount": "2400.00",
+        "basis": "6 accepted document sets"
+      },
+      {
+        "class": "service-revenue",
+        "amount": "300.00",
+        "basis": "fee paid by member-a for glossary access",
+        "internal": true
+      }
+    ],
+    "costs": [
+      {
+        "class": "inference",
+        "amount": "900.00"
+      },
+      {
+        "class": "compute-and-hosting",
+        "amount": "150.00"
+      },
+      {
+        "class": "network-fees",
+        "amount": "40.00"
+      },
+      {
+        "class": "maintenance",
+        "amount": "80.00"
+      },
+      {
+        "class": "labor",
+        "amount": "200.00"
+      },
+      {
+        "class": "obligations",
+        "amount": "760.00"
+      }
+    ],
+    "noCost": {
+      "depreciation": "no owned equipment"
+    },
+    "activityInflow": "2400",
+    "fullCost": "2130",
+    "surplus": "270",
+    "sharedResources": [
+      {
+        "key": "shared inference entitlement",
+        "capacity": "100",
+        "allocations": [
+          {
+            "member": "member-a",
+            "amount": "60"
+          },
+          {
+            "member": "member-b",
+            "amount": "40"
+          }
+        ]
+      }
+    ]
+  }
+}

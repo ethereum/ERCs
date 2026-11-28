@@ -1,0 +1,94 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+  },
+  "axis": "economic",
+  "result": "satisfied",
+  "coverage": [
+    19,
+    21,
+    23,
+    24,
+    25,
+    26
+  ],
+  "dependencies": [
+    "economic",
+    "boundary",
+    "relation:control",
+    "scheme:lineage",
+    "scheme:interaction",
+    "scheme:maintenance",
+    "scheme:composition"
+  ],
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1803888000,
+  "findings": [
+    {
+      "baselineClass": "accounting",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "solvency",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "lineage-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "interaction-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "maintenance-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "composition-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "document",
+      "commitment": "0xe9984fba9d157d09f562855ebb88da45f85f3f4012feec42d4c5731b5e1ca5d1",
+      "scope": "accounting, solvency, lineage-resources, interaction-resources, maintenance-resources, composition-resources",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null,
+  "economic": {
+    "denomination": "USD",
+    "disposable": "880.00",
+    "due": "310.00",
+    "minimumReplenishment": "505.00"
+  }
+}

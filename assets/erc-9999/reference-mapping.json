@@ -1,0 +1,115 @@
+{
+  "note": "Informative. The twelve proposals below are one set of mechanisms that can fill the functions the Baseline Requirements ask for. Another mechanism that meets the same requirement can take the place of any of them. A row says what a record under the proposal supports and what it does not.",
+  "functions": [
+    "identity, authorization and verifiable claims",
+    "supply and demand",
+    "discovery and information",
+    "order",
+    "composition",
+    "self-maintenance"
+  ],
+  "authorization": "Authorization is a required function of its own. In this mapping it is carried by account, delegation or execution-gating mechanisms of the deployment; none of the twelve proposals is by itself a source of authorization.",
+  "proposals": [
+    {
+      "erc": 8338,
+      "title": "Token-Bound Executable Skills",
+      "function": "supply and demand",
+      "supports": "Which skill package, in which version and with which integrity commitment, a unit uses or offers.",
+      "boundary": "Says nothing about whether the skill can be executed in the unit's current environment.",
+      "adapter": false
+    },
+    {
+      "erc": 8414,
+      "title": "Token-Bound Task Tenders",
+      "function": "supply and demand",
+      "supports": "Tasks, acceptance rules, escrowed reward, delivery and settlement: the link between demand, work and income.",
+      "boundary": "A settled task shows income from one task, not a surplus over a period.",
+      "adapter": false
+    },
+    {
+      "erc": 8419,
+      "title": "Know-Your-Agent (KYA) Framework",
+      "function": "identity, authorization and verifiable claims",
+      "supports": "Scheme-based assertions about a subject with evidence, validity, revocation and binding to the current controller.",
+      "boundary": "An assertion is what its issuer states under its scheme; it grants no permission.",
+      "adapter": true
+    },
+    {
+      "erc": 8436,
+      "title": "Agent Collective Decision Framework",
+      "function": "order",
+      "supports": "Collective decisions under explicit authorization, with procedure, finality and result.",
+      "boundary": "A decision has effect only through an authorization and an execution path bound to it.",
+      "adapter": false
+    },
+    {
+      "erc": 8444,
+      "title": "Agentic Resource Discovery (ARD) Onchain",
+      "function": "discovery and information",
+      "supports": "Discovery, anchoring and publication control of agents, skills, tasks and other resources.",
+      "boundary": "Being discoverable says nothing about being available or authorized.",
+      "adapter": false
+    },
+    {
+      "erc": 8447,
+      "title": "Swarm AI Framework",
+      "function": "composition",
+      "supports": "Group boundary, charter, members, collaboration structure and life cycle.",
+      "boundary": "A swarm record does not make the swarm complete; the group is assessed on its own boundary.",
+      "adapter": false
+    },
+    {
+      "erc": 8468,
+      "title": "Agent Safety Framework (ASF)",
+      "function": "order",
+      "supports": "Adoption of a pinned safety specification for a subject and a scope, with enforcement locations and interveners.",
+      "boundary": "Records the adoption and its state; does not show that the arrangement is enforced on every execution path, and is not a source of authorization.",
+      "adapter": true
+    },
+    {
+      "erc": 8471,
+      "title": "AI Dispute Resolution Framework (ADRF)",
+      "function": "order",
+      "supports": "Admission, evidence method, bounded ruling and procedure for disputes about existing obligations.",
+      "boundary": "A bound dispute path closes exceptions; it does not show that obligations are met.",
+      "adapter": false
+    },
+    {
+      "erc": 8489,
+      "title": "Agent Information Flow Paradigm",
+      "function": "discovery and information",
+      "supports": "Rules of an information channel: roles, observation, provision and redistribution.",
+      "boundary": "Channel rules do not show what was actually disclosed off chain.",
+      "adapter": false
+    },
+    {
+      "erc": 8490,
+      "title": "Agent Meditation Mechanism",
+      "function": "self-maintenance",
+      "supports": "Attributable, versioned self-maintenance records across runtime, memory and skills, tasks and roles, and cognition, with timeliness.",
+      "boundary": "A record shows that maintenance was registered on time, not that the described maintenance took place.",
+      "adapter": true
+    },
+    {
+      "erc": 8501,
+      "title": "Generative Engine Optimization Framework",
+      "function": "discovery and information",
+      "supports": "Declarations, observation commitments and profiles of how generative engines represent an object.",
+      "boundary": "Applies to units whose duties include being found through generative engines; not a condition of completeness for others.",
+      "adapter": false
+    },
+    {
+      "erc": 8506,
+      "title": "AI Inference Token Onchain",
+      "function": "supply and demand",
+      "supports": "Specification, metering, authorized consumption and settlement of entitlements to inference supply.",
+      "boundary": "Fixes no price and no conversion between suppliers; an entitlement held is not a cost covered.",
+      "adapter": false
+    }
+  ],
+  "reserved": [
+    "an agent identity profile, when one is available as a published proposal",
+    "an economic unit framework for boundary, classification and valuation statements",
+    "an allow and deny list framework for admission to scopes"
+  ]
+}

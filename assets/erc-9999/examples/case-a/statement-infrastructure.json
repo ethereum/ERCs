@@ -1,0 +1,103 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+  },
+  "axis": "infrastructure",
+  "result": "satisfied",
+  "coverage": [
+    0,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "dependencies": [
+    "execution",
+    "state",
+    "maintenance",
+    "control",
+    "relation:control",
+    "scheme:lineage",
+    "capability",
+    "scheme:interaction",
+    "scheme:maintenance",
+    "scheme:composition"
+  ],
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1807776000,
+  "findings": [
+    {
+      "baselineClass": "execution",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "state",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "maintenance",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "control",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "lineage-mechanism",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "interaction-mechanism",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "maintenance-mechanism",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "composition-mechanism",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "document",
+      "commitment": "0x34b025a08561adf1ff60003a8192f35b0cef88d127ac7a79c9058b8299eaa450",
+      "scope": "execution, state, maintenance, control, lineage-mechanism, interaction-mechanism, maintenance-mechanism, composition-mechanism",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null
+}

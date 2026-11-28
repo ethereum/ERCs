@@ -1,0 +1,798 @@
+{
+  "rule": "activity income minus full cost has to be above zero; missing figures are never read as zero",
+  "activityClasses": [
+    "service-revenue",
+    "work-reward"
+  ],
+  "supportClasses": [
+    "controller-top-up",
+    "loan-principal",
+    "gift",
+    "subsidy",
+    "self-issued-token"
+  ],
+  "costClasses": [
+    "inference",
+    "compute-and-hosting",
+    "network-fees",
+    "maintenance",
+    "labor",
+    "depreciation",
+    "obligations"
+  ],
+  "cases": [
+    {
+      "name": "healthy",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "1180.00",
+            "basis": "42 accepted translation tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00",
+            "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "1240",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "497.5",
+        "surplusResult": "satisfied",
+        "surplusLabel": "positive surplus",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "automatic renewal on the controller's money",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "400.00",
+            "basis": "14 accepted tasks"
+          },
+          {
+            "class": "controller-top-up",
+            "amount": "800.00"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "900.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "400",
+        "supportInflow": "800",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "-342.5",
+        "surplusResult": "not-satisfied",
+        "surplusLabel": "cost coverage not achieved",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "break-even",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "742.50",
+            "basis": "25 accepted tasks"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "742.5",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "0",
+        "surplusResult": "not-satisfied",
+        "surplusLabel": "break-even",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "profit on paper and nothing to pay with",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "1180.00",
+            "basis": "42 accepted translation tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00",
+            "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "50.00",
+        "due": "300.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "1240",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "497.5",
+        "surplusResult": "satisfied",
+        "surplusLabel": "positive surplus",
+        "solvencyResult": "not-satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "only the inference bill counted",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "1180.00",
+            "basis": "42 accepted translation tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00",
+            "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          }
+        ],
+        "noCost": {},
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [
+          "cost classes not addressed: compute-and-hosting, network-fees, maintenance, labor, depreciation, obligations"
+        ],
+        "activityInflow": "1240",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "410",
+        "surplus": "830",
+        "surplusResult": "undetermined",
+        "surplusLabel": "cost basis incomplete",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "income in a self-issued token",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "self-issued-token",
+            "amount": "5000.00",
+            "basis": "priced by the unit"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "0",
+        "supportInflow": "5000",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "-742.5",
+        "surplusResult": "not-satisfied",
+        "surplusLabel": "cost coverage not achieved",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "work reward without a basis",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "700.00",
+            "basis": "24 accepted tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [
+          "a work reward without a stated basis is not counted"
+        ],
+        "activityInflow": "700",
+        "supportInflow": "60",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "-42.5",
+        "surplusResult": "not-satisfied",
+        "surplusLabel": "cost coverage not achieved",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "no cost at all",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "10.00",
+            "basis": "1 accepted task"
+          }
+        ],
+        "costs": [],
+        "noCost": {
+          "inference": "donated capacity, disclosed",
+          "compute-and-hosting": "donated capacity, disclosed",
+          "network-fees": "donated capacity, disclosed",
+          "maintenance": "donated capacity, disclosed",
+          "labor": "donated capacity, disclosed",
+          "depreciation": "donated capacity, disclosed",
+          "obligations": "donated capacity, disclosed"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "10",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "0",
+        "surplus": "10",
+        "surplusResult": "satisfied",
+        "surplusLabel": "positive surplus",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "replenishment at somebody's discretion",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "1180.00",
+            "basis": "42 accepted translation tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00",
+            "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "controller-discretion",
+          "authorization": "",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "1240",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "497.5",
+        "surplusResult": "satisfied",
+        "surplusLabel": "positive surplus",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "not-satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "replenishment by an authorized fiduciary",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "1180.00",
+            "basis": "42 accepted translation tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00",
+            "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "fiduciary",
+          "authorization": "procurement mandate of 1 September, renewable",
+          "fundedFrom": "unit"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "1240",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "497.5",
+        "surplusResult": "satisfied",
+        "surplusLabel": "positive surplus",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "satisfied"
+      }
+    },
+    {
+      "name": "group counting an internal fee and a capacity twice",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "600.00",
+            "basis": "2 accepted document sets"
+          },
+          {
+            "class": "service-revenue",
+            "amount": "300.00",
+            "basis": "fee paid by a member",
+            "internal": true
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        },
+        "disposable": "880.00",
+        "due": "310.00",
+        "minimumReplenishment": "505.00",
+        "replenishment": {
+          "executor": "unit",
+          "authorization": "spending limit of 600 USD per month set by the controller",
+          "fundedFrom": "unit"
+        },
+        "sharedResources": [
+          {
+            "key": "shared inference entitlement",
+            "capacity": "100",
+            "allocations": [
+              {
+                "member": "member-a",
+                "amount": "60"
+              },
+              {
+                "member": "member-b",
+                "amount": "60"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "notes": [
+          "resource shared inference entitlement: allocations 120 exceed capacity 100"
+        ],
+        "activityInflow": "600",
+        "supportInflow": "0",
+        "eliminated": "300",
+        "fullCost": "742.5",
+        "surplus": "-142.5",
+        "surplusResult": "not-satisfied",
+        "surplusLabel": "cost coverage not achieved",
+        "solvencyResult": "satisfied",
+        "replenishmentResult": "satisfied",
+        "sharingResult": "not-satisfied"
+      }
+    },
+    {
+      "name": "figures missing",
+      "input": {
+        "denomination": "USD",
+        "inflows": [
+          {
+            "class": "service-revenue",
+            "amount": "1180.00",
+            "basis": "42 accepted translation tasks"
+          },
+          {
+            "class": "work-reward",
+            "amount": "60.00",
+            "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+          }
+        ],
+        "costs": [
+          {
+            "class": "inference",
+            "amount": "410.00"
+          },
+          {
+            "class": "compute-and-hosting",
+            "amount": "95.00"
+          },
+          {
+            "class": "network-fees",
+            "amount": "22.50"
+          },
+          {
+            "class": "maintenance",
+            "amount": "60.00"
+          },
+          {
+            "class": "labor",
+            "amount": "120.00"
+          },
+          {
+            "class": "obligations",
+            "amount": "35.00"
+          }
+        ],
+        "noCost": {
+          "depreciation": "no owned equipment; the host is leased"
+        }
+      },
+      "expected": {
+        "notes": [],
+        "activityInflow": "1240",
+        "supportInflow": "0",
+        "eliminated": "0",
+        "fullCost": "742.5",
+        "surplus": "497.5",
+        "surplusResult": "satisfied",
+        "surplusLabel": "positive surplus",
+        "solvencyResult": "undetermined",
+        "replenishmentResult": "undetermined",
+        "sharingResult": "satisfied"
+      }
+    }
+  ]
+}

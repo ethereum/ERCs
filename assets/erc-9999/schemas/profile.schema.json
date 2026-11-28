@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ethereum/ERCs/blob/master/assets/erc-9999/schemas/profile.schema.json",
+  "title": "ACCF Completeness Profile",
+  "description": "A versioned set of requirements on the three axes. A profile that claims the Baseline Requirements implements every Baseline class without weakening it.",
+  "type": "object",
+  "required": [
+    "accf",
+    "name",
+    "version",
+    "baseline",
+    "requirements"
+  ],
+  "properties": {
+    "accf": {
+      "const": "profile/1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseline": {
+      "type": "object",
+      "required": [
+        "version",
+        "claimed"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "claimed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "applicability": {
+      "type": "string"
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": [
+          "index",
+          "axis",
+          "conditional",
+          "statement",
+          "dependencies"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "axis": {
+            "enum": [
+              "infrastructure",
+              "protocol",
+              "economic"
+            ]
+          },
+          "baselineClass": {
+            "enum": [
+              "execution",
+              "intelligence",
+              "state",
+              "capability",
+              "maintenance",
+              "control",
+              "lineage-mechanism",
+              "interaction-mechanism",
+              "maintenance-mechanism",
+              "composition-mechanism",
+              "identity",
+              "authority",
+              "rules",
+              "safety",
+              "continuity",
+              "lineage-rules",
+              "interaction-rules",
+              "maintenance-rules",
+              "composition-rules",
+              "accounting",
+              "surplus",
+              "solvency",
+              "replenishment",
+              "lineage-resources",
+              "interaction-resources",
+              "maintenance-resources",
+              "composition-resources",
+              null
+            ]
+          },
+          "conditional": {
+            "type": "boolean"
+          },
+          "applicability": {
+            "type": "string",
+            "description": "Required for a conditional requirement: the rule that decides when it applies."
+          },
+          "title": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dependencies": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control)$"
+            }
+          },
+          "method": {
+            "type": "string"
+          },
+          "maxValidity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "if": {
+          "properties": {
+            "conditional": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "applicability"
+          ]
+        }
+      }
+    }
+  }
+}

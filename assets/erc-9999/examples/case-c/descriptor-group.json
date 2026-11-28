@@ -1,0 +1,39 @@
+{
+  "accf": "unit-descriptor/1",
+  "subject": {
+    "type": "example",
+    "data": "group"
+  },
+  "kind": "composite",
+  "duties": [
+    "Deliver multi-language document sets as one party",
+    "Assign parts to members and answer for the whole"
+  ],
+  "environment": "Hosted runtime, public network access, EVM chain 11155111",
+  "boundary": {
+    "accounts": [
+      "0x6A0b000000000000000000000000000000000001"
+    ],
+    "resources": [],
+    "obligations": [
+      "accepted group tasks until delivery"
+    ],
+    "members": [
+      "member-a",
+      "member-b"
+    ]
+  },
+  "control": {
+    "mechanism": "group controller account acting on recorded member decisions",
+    "controller": "0x6A0b000000000000000000000000000000000001",
+    "intervention": {
+      "restrict": "The controller, or an operator holding the state scope, suspends the unit; no new obligation is taken while suspended.",
+      "resume": "The controller resumes the unit after the conditions named in the suspension record are met.",
+      "exit": "Open tasks are completed or handed over under the succession scheme before retirement."
+    }
+  },
+  "lineage": {
+    "parent": null,
+    "disclosure": "public"
+  }
+}

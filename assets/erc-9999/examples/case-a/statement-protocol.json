@@ -1,0 +1,115 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+  },
+  "axis": "protocol",
+  "result": "satisfied",
+  "coverage": [
+    10,
+    11,
+    12,
+    14,
+    15,
+    16,
+    17,
+    18
+  ],
+  "dependencies": [
+    "protocol",
+    "boundary",
+    "relation:control",
+    "control",
+    "capability",
+    "scheme:lineage",
+    "scheme:interaction",
+    "scheme:maintenance",
+    "scheme:composition"
+  ],
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1807776000,
+  "findings": [
+    {
+      "baselineClass": "identity",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "authority",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "rules",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "continuity",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "lineage-rules",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "interaction-rules",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "maintenance-rules",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "composition-rules",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "record",
+      "standard": "ERC-8419",
+      "namespace": "eip155:11155111",
+      "registry": "assertion registry",
+      "record": "assertion of the operator verification scheme",
+      "method": "ACCF adapter: ERC-8419 assertion, version 1",
+      "asOf": 1800000000,
+      "scope": "identity",
+      "premises": [
+        "the scheme fits the declared duties"
+      ]
+    },
+    {
+      "type": "document",
+      "commitment": "0x0b4ce1ca5af348d9775fb42b4b32f3189b45092660038ffaeb9ace935a454af3",
+      "scope": "identity, authority, rules, continuity, lineage-rules, interaction-rules, maintenance-rules, composition-rules",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null
+}

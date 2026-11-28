@@ -1,0 +1,106 @@
+{
+  "manifestDomain": {
+    "text": "ACCF manifest root v1",
+    "value": "0x35228bc22275a8e8e02ad568a05cbf5fc782f9e223479251d15fb8e1cf050909"
+  },
+  "entries": {
+    "execution": 0,
+    "intelligence": 1,
+    "state": 2,
+    "capability": 3,
+    "maintenance": 4,
+    "protocol": 5,
+    "economic": 6,
+    "control": 7,
+    "scheme:lineage": 8,
+    "scheme:interaction": 9,
+    "scheme:maintenance": 10,
+    "scheme:composition": 11
+  },
+  "dependencyBits": {
+    "control": "0x4000000000000000000000000000000000000000000000000000000000000000",
+    "boundary": "0x8000000000000000000000000000000000000000000000000000000000000000",
+    "entryMask": "0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "axes": {
+    "infrastructure": 0,
+    "protocol": 1,
+    "economic": 2
+  },
+  "results": {
+    "undetermined": 0,
+    "satisfied": 1,
+    "not-satisfied": 2,
+    "not-applicable": 3
+  },
+  "operatingStates": {
+    "none": 0,
+    "active": 1,
+    "degraded": 2,
+    "suspended": 3,
+    "maintenance": 4,
+    "retired": 5
+  },
+  "probeStatus": {
+    "undetermined": 0,
+    "supported": 1,
+    "not-supported": 2
+  },
+  "transitionKinds": {
+    "registration": 0,
+    "derivation": 1,
+    "migration": 2,
+    "succession": 3,
+    "repair": 4,
+    "upgrade": 5,
+    "composition": 6,
+    "decomposition": 7,
+    "control-change": 8,
+    "retirement": 9,
+    "suspension": 10,
+    "resumption": 11,
+    "boundary-change": 12,
+    "firstExtension": 128
+  },
+  "scopes": {
+    "manifest": 1,
+    "state": 2,
+    "boundary": 4,
+    "derive": 8,
+    "succeed": 16,
+    "compose": 32,
+    "claim": 64,
+    "firstApplication": "0x0000000000000000000000000000000100000000000000000000000000000000"
+  },
+  "flags": {
+    "conflict": 1,
+    "adapterError": 2,
+    "stale": 4,
+    "revoked": 8,
+    "inapplicable": 16,
+    "evidenceLapsed": 32,
+    "method": 64,
+    "probeUndetermined": 128,
+    "state": 256,
+    "notBaseline": 512,
+    "profileDeprecated": 1024
+  },
+  "methods": {
+    "example": {
+      "text": "example assessment method, version 1",
+      "value": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4"
+    },
+    "adapter8419": {
+      "text": "ACCF adapter: ERC-8419 assertion, version 1",
+      "value": "0xf7c0f7b9aca6070914f35d803971b7f3bb481bfd9c0efbc9915d5ad5de849539"
+    },
+    "adapter8468": {
+      "text": "ACCF adapter: ERC-8468 binding, version 1",
+      "value": "0x4ccd16e059ea1f6836378959ccd0dc59c8ad7e0bc9397b0ae0775d53589ed13d"
+    },
+    "adapter8490": {
+      "text": "ACCF adapter: ERC-8490 maintenance record, version 1",
+      "value": "0x35971c7fa31e791c5f02a87815f3cc2aa7d71efdb28c9c8d87ad7a53e9b0f764"
+    }
+  }
+}

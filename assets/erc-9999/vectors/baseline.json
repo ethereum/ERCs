@@ -1,0 +1,316 @@
+{
+  "version": 1,
+  "classes": [
+    {
+      "id": 1,
+      "axis": 0,
+      "key": "execution",
+      "title": "Execution and resource supply",
+      "dependencies": [
+        "execution"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "id": 2,
+      "axis": 0,
+      "key": "intelligence",
+      "title": "Intelligence supply",
+      "dependencies": [
+        "intelligence"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000002"
+    },
+    {
+      "id": 3,
+      "axis": 0,
+      "key": "state",
+      "title": "State and memory continuity",
+      "dependencies": [
+        "state"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000004"
+    },
+    {
+      "id": 4,
+      "axis": 0,
+      "key": "capability",
+      "title": "Capability execution environment",
+      "dependencies": [
+        "capability",
+        "intelligence"
+      ],
+      "mask": "0x000000000000000000000000000000000000000000000000000000000000000a"
+    },
+    {
+      "id": 5,
+      "axis": 0,
+      "key": "maintenance",
+      "title": "Maintenance and recovery",
+      "dependencies": [
+        "maintenance",
+        "state"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000014"
+    },
+    {
+      "id": 6,
+      "axis": 0,
+      "key": "control",
+      "title": "Control relation and authorization credentials",
+      "dependencies": [
+        "control",
+        "relation:control"
+      ],
+      "mask": "0x4000000000000000000000000000000000000000000000000000000000000080"
+    },
+    {
+      "id": 7,
+      "axis": 0,
+      "key": "lineage-mechanism",
+      "title": "Lineage capability: mechanism",
+      "dependencies": [
+        "scheme:lineage",
+        "execution",
+        "state",
+        "capability",
+        "maintenance"
+      ],
+      "mask": "0x000000000000000000000000000000000000000000000000000000000000011d"
+    },
+    {
+      "id": 8,
+      "axis": 0,
+      "key": "interaction-mechanism",
+      "title": "Interaction capability: mechanism",
+      "dependencies": [
+        "scheme:interaction",
+        "execution",
+        "capability"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000209"
+    },
+    {
+      "id": 9,
+      "axis": 0,
+      "key": "maintenance-mechanism",
+      "title": "Maintenance capability: mechanism",
+      "dependencies": [
+        "scheme:maintenance",
+        "maintenance"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000410"
+    },
+    {
+      "id": 10,
+      "axis": 0,
+      "key": "composition-mechanism",
+      "title": "Composition capability: mechanism",
+      "dependencies": [
+        "scheme:composition",
+        "capability"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000808"
+    },
+    {
+      "id": 11,
+      "axis": 1,
+      "key": "identity",
+      "title": "Subject identification and attribution of conduct",
+      "dependencies": [
+        "protocol",
+        "boundary",
+        "relation:control"
+      ],
+      "mask": "0xc000000000000000000000000000000000000000000000000000000000000020"
+    },
+    {
+      "id": 12,
+      "axis": 1,
+      "key": "authority",
+      "title": "Effective permissions and authorization relations",
+      "dependencies": [
+        "protocol",
+        "control",
+        "relation:control"
+      ],
+      "mask": "0x40000000000000000000000000000000000000000000000000000000000000a0"
+    },
+    {
+      "id": 13,
+      "axis": 1,
+      "key": "rules",
+      "title": "Binding, compatibility and enforcement of applicable rules",
+      "dependencies": [
+        "protocol",
+        "capability"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000028"
+    },
+    {
+      "id": 14,
+      "axis": 1,
+      "key": "safety",
+      "title": "Safety constraints",
+      "dependencies": [
+        "protocol",
+        "intelligence",
+        "capability"
+      ],
+      "mask": "0x000000000000000000000000000000000000000000000000000000000000002a"
+    },
+    {
+      "id": 15,
+      "axis": 1,
+      "key": "continuity",
+      "title": "Commitments, obligations, exception and exit handling",
+      "dependencies": [
+        "protocol",
+        "boundary"
+      ],
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000020"
+    },
+    {
+      "id": 16,
+      "axis": 1,
+      "key": "lineage-rules",
+      "title": "Lineage capability: rules",
+      "dependencies": [
+        "scheme:lineage",
+        "protocol",
+        "relation:control"
+      ],
+      "mask": "0x4000000000000000000000000000000000000000000000000000000000000120"
+    },
+    {
+      "id": 17,
+      "axis": 1,
+      "key": "interaction-rules",
+      "title": "Interaction capability: rules",
+      "dependencies": [
+        "scheme:interaction",
+        "protocol"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000220"
+    },
+    {
+      "id": 18,
+      "axis": 1,
+      "key": "maintenance-rules",
+      "title": "Maintenance capability: rules",
+      "dependencies": [
+        "scheme:maintenance",
+        "protocol",
+        "relation:control"
+      ],
+      "mask": "0x4000000000000000000000000000000000000000000000000000000000000420"
+    },
+    {
+      "id": 19,
+      "axis": 1,
+      "key": "composition-rules",
+      "title": "Composition capability: rules",
+      "dependencies": [
+        "scheme:composition",
+        "protocol"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000820"
+    },
+    {
+      "id": 20,
+      "axis": 2,
+      "key": "accounting",
+      "title": "Accounting boundary, measurement method and observation window",
+      "dependencies": [
+        "economic",
+        "boundary"
+      ],
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000040"
+    },
+    {
+      "id": 21,
+      "axis": 2,
+      "key": "surplus",
+      "title": "Full cost and strictly positive surplus",
+      "dependencies": [
+        "economic",
+        "execution",
+        "intelligence",
+        "boundary"
+      ],
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000043"
+    },
+    {
+      "id": 22,
+      "axis": 2,
+      "key": "solvency",
+      "title": "Current ability to meet obligations",
+      "dependencies": [
+        "economic",
+        "boundary",
+        "relation:control"
+      ],
+      "mask": "0xc000000000000000000000000000000000000000000000000000000000000040"
+    },
+    {
+      "id": 23,
+      "axis": 2,
+      "key": "replenishment",
+      "title": "Executable replenishment path",
+      "dependencies": [
+        "economic",
+        "execution",
+        "intelligence",
+        "control",
+        "relation:control"
+      ],
+      "mask": "0x40000000000000000000000000000000000000000000000000000000000000c3"
+    },
+    {
+      "id": 24,
+      "axis": 2,
+      "key": "lineage-resources",
+      "title": "Lineage capability: resources",
+      "dependencies": [
+        "scheme:lineage",
+        "economic",
+        "boundary"
+      ],
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000140"
+    },
+    {
+      "id": 25,
+      "axis": 2,
+      "key": "interaction-resources",
+      "title": "Interaction capability: resources",
+      "dependencies": [
+        "scheme:interaction",
+        "economic"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000240"
+    },
+    {
+      "id": 26,
+      "axis": 2,
+      "key": "maintenance-resources",
+      "title": "Maintenance capability: resources",
+      "dependencies": [
+        "scheme:maintenance",
+        "economic"
+      ],
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000440"
+    },
+    {
+      "id": 27,
+      "axis": 2,
+      "key": "composition-resources",
+      "title": "Composition capability: resources",
+      "dependencies": [
+        "scheme:composition",
+        "economic",
+        "boundary"
+      ],
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000840"
+    }
+  ]
+}
