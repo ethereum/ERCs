@@ -1,0 +1,41 @@
+{
+  "accf": "unit-descriptor/1",
+  "subject": {
+    "type": "example",
+    "data": "member-b"
+  },
+  "kind": "agent",
+  "duties": [
+    "Review translated documents on accepted task tenders",
+    "Finish the open tasks taken over from alpha-child-1"
+  ],
+  "environment": "Hosted runtime, public network access, EVM chain 11155111",
+  "boundary": {
+    "accounts": [],
+    "resources": [
+      "capacity entitlement 1"
+    ],
+    "obligations": [
+      "accepted reviews until delivery",
+      "open tasks taken over in the succession"
+    ],
+    "members": []
+  },
+  "control": {
+    "mechanism": "single controller account",
+    "controller": "0xC0450000000000000000000000000000000000C1",
+    "intervention": {
+      "restrict": "The controller, or an operator holding the state scope, suspends the unit; no new obligation is taken while suspended.",
+      "resume": "The controller resumes the unit after the conditions named in the suspension record are met.",
+      "exit": "Open tasks are completed or handed over under the succession scheme before retirement."
+    }
+  },
+  "lineage": {
+    "parent": null,
+    "disclosure": "public"
+  },
+  "metadata": {
+    "name": "member-b",
+    "note": "Not committed: the descriptor commitment leaves this member out."
+  }
+}

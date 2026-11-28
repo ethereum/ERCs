@@ -1,0 +1,43 @@
+{
+  "accf": "transition/1",
+  "kind": "succession",
+  "unit": "alpha",
+  "counterpart": "beta",
+  "authorization": {
+    "source": "controller of the predecessor; acceptance by the controller of the successor",
+    "actor": "0xa11ce00000000000000000000000000000000001",
+    "rule": "lineage scheme"
+  },
+  "reason": "The operator of the predecessor leaves the business.",
+  "source": {
+    "state": "active"
+  },
+  "target": {
+    "predecessor": "retired",
+    "successor": "active, boundary restated"
+  },
+  "transferred": {
+    "claims": [
+      "unit account",
+      "capacity entitlement 1"
+    ],
+    "duties": [
+      "open translation tasks 0x21, 0x22"
+    ],
+    "rights": [
+      "fees due on those tasks"
+    ]
+  },
+  "notTransferred": [
+    "the predecessor's statements",
+    "the predecessor's assertions"
+  ],
+  "obligations": "Every open task of the predecessor is named and taken over; counterparties are notified through the task contract.",
+  "recovery": {
+    "rollback": "none after acceptance",
+    "termination": "the predecessor's record stays"
+  },
+  "postConditions": [
+    "the successor's boundary-bound requirements are assessed again"
+  ]
+}

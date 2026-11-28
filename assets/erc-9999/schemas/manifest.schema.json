@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ethereum/ERCs/blob/master/assets/erc-9999/schemas/manifest.schema.json",
+  "title": "ACCF Cell Manifest",
+  "description": "The configuration, state materials, dependencies and authorizations needed to deploy, restore, maintain and derive the unit, in separately committed entries. The metadata member is not committed. A manifest carries no secret.",
+  "type": "object",
+  "required": [
+    "accf",
+    "entries"
+  ],
+  "properties": {
+    "accf": {
+      "const": "manifest/1"
+    },
+    "entries": {
+      "type": "object",
+      "properties": {
+        "execution": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "intelligence": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "state": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "capability": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "maintenance": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "protocol": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "economic": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        },
+        "control": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "schemes": {
+      "type": "object",
+      "properties": {
+        "lineage": {
+          "type": "object",
+          "required": [
+            "capability",
+            "authorization",
+            "resources",
+            "postChecks",
+            "feasibility"
+          ],
+          "properties": {
+            "capability": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preconditions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "authorization": {
+              "type": "object",
+              "required": [
+                "source"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "resources": {
+              "type": "object",
+              "minProperties": 1
+            },
+            "mechanism": {
+              "type": [
+                "string",
+                "object"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "postChecks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "feasibility": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "commitment"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "commitment": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          },
+          "description": "One scheme ties the infrastructure, protocol and economic part of a lifecycle capability together: preconditions, authorization and resource conditions, mechanism, target state, checks afterwards, and evidence that it works end to end."
+        },
+        "interaction": {
+          "type": "object",
+          "required": [
+            "capability",
+            "authorization",
+            "resources",
+            "postChecks",
+            "feasibility"
+          ],
+          "properties": {
+            "capability": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preconditions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "authorization": {
+              "type": "object",
+              "required": [
+                "source"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "resources": {
+              "type": "object",
+              "minProperties": 1
+            },
+            "mechanism": {
+              "type": [
+                "string",
+                "object"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "postChecks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "feasibility": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "commitment"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "commitment": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          },
+          "description": "One scheme ties the infrastructure, protocol and economic part of a lifecycle capability together: preconditions, authorization and resource conditions, mechanism, target state, checks afterwards, and evidence that it works end to end."
+        },
+        "maintenance": {
+          "type": "object",
+          "required": [
+            "capability",
+            "authorization",
+            "resources",
+            "postChecks",
+            "feasibility"
+          ],
+          "properties": {
+            "capability": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preconditions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "authorization": {
+              "type": "object",
+              "required": [
+                "source"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "resources": {
+              "type": "object",
+              "minProperties": 1
+            },
+            "mechanism": {
+              "type": [
+                "string",
+                "object"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "postChecks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "feasibility": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "commitment"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "commitment": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          },
+          "description": "One scheme ties the infrastructure, protocol and economic part of a lifecycle capability together: preconditions, authorization and resource conditions, mechanism, target state, checks afterwards, and evidence that it works end to end."
+        },
+        "composition": {
+          "type": "object",
+          "required": [
+            "capability",
+            "authorization",
+            "resources",
+            "postChecks",
+            "feasibility"
+          ],
+          "properties": {
+            "capability": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preconditions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "authorization": {
+              "type": "object",
+              "required": [
+                "source"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "resources": {
+              "type": "object",
+              "minProperties": 1
+            },
+            "mechanism": {
+              "type": [
+                "string",
+                "object"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "postChecks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "feasibility": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "commitment"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "commitment": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+              },
+              "uniqueItems": true,
+              "description": "What this entry depends on beyond itself. A statement that depends on the entry depends on these as well, transitively; the registry records the same relation as a dependency mask."
+            }
+          },
+          "description": "One scheme ties the infrastructure, protocol and economic part of a lifecycle capability together: preconditions, authorization and resource conditions, mechanism, target state, checks afterwards, and evidence that it works end to end."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A scheme is the common object the three parts of a capability are assessed on; it does not by itself show that the capability works, and what it relies on (model, permissions, resources, recovery) is declared in its dependsOn member."
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(1[2-9]|[2-9][0-9]|1[0-9]{2}|2[0-3][0-9])$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

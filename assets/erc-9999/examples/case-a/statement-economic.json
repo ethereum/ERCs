@@ -1,0 +1,89 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
+  },
+  "axis": "economic",
+  "result": "satisfied",
+  "coverage": [
+    19,
+    21,
+    24,
+    25,
+    26
+  ],
+  "dependencies": [
+    "economic",
+    "boundary",
+    "relation:control",
+    "scheme:interaction",
+    "scheme:maintenance",
+    "scheme:composition"
+  ],
+  "dependencyDigest": "0xc1d3aa0c2fe55da8004df915b6409d9a70498a1763d92e34080700e1528145f2",
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1803888000,
+  "findings": [
+    {
+      "baselineClass": "accounting",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "solvency",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "interaction-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "maintenance-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "composition-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "document",
+      "commitment": "0xe9984fba9d157d09f562855ebb88da45f85f3f4012feec42d4c5731b5e1ca5d1",
+      "scope": "accounting, solvency, interaction-resources, maintenance-resources, composition-resources",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null,
+  "economic": {
+    "denomination": "USD",
+    "disposable": "880.00",
+    "due": "310.00",
+    "minimumReplenishment": "505.00",
+    "sharedResources": []
+  }
+}

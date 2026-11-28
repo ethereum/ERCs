@@ -1,0 +1,40 @@
+{
+  "accf": "unit-descriptor/1",
+  "subject": {
+    "type": "example",
+    "data": "alpha"
+  },
+  "kind": "agent",
+  "duties": [
+    "Translate documents between English and Chinese on accepted task tenders",
+    "Keep delivered work available for 30 days"
+  ],
+  "environment": "Hosted runtime, public network access, EVM chain 11155111",
+  "boundary": {
+    "accounts": [
+      "0xA11CE00000000000000000000000000000000002"
+    ],
+    "resources": [],
+    "obligations": [
+      "accepted tasks until delivery or handover"
+    ],
+    "members": []
+  },
+  "control": {
+    "mechanism": "single controller account",
+    "controller": "0xa11ce00000000000000000000000000000000001",
+    "intervention": {
+      "restrict": "The controller, or an operator holding the state scope, suspends the unit; no new obligation is taken while suspended.",
+      "resume": "The controller resumes the unit after the conditions named in the suspension record are met.",
+      "exit": "Open tasks are completed or handed over under the succession scheme before retirement."
+    }
+  },
+  "lineage": {
+    "parent": null,
+    "disclosure": "public"
+  },
+  "metadata": {
+    "name": "alpha",
+    "note": "Not committed: the descriptor commitment leaves this member out."
+  }
+}

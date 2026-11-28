@@ -1,0 +1,27 @@
+{
+  "accf": "policy/1",
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
+  },
+  "assessors": [
+    {
+      "assessor": "0xa55e550000000000000000000000000000000001",
+      "axes": [
+        "infrastructure",
+        "protocol",
+        "economic"
+      ]
+    }
+  ],
+  "methods": [],
+  "maxAge": 0,
+  "mixing": "single-assessor",
+  "conflictRule": "undetermined",
+  "acceptedStates": [
+    "active"
+  ],
+  "liveEvidence": true,
+  "note": "One assessor has to support all three axes. A statement whose referenced record lapsed does not support. A relying party fixes the policy identifier before it relies on an evaluation; accepting a state other than active is not readiness."
+}

@@ -1,0 +1,46 @@
+{
+  "accf": "transition/1",
+  "kind": "upgrade",
+  "unit": "alpha",
+  "authorization": {
+    "source": "controller",
+    "actor": "0xa11ce00000000000000000000000000000000001",
+    "rule": "maintenance scheme"
+  },
+  "reason": "The supplier retires the model in use.",
+  "source": {
+    "manifestVersion": 1,
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2",
+    "state": "active"
+  },
+  "target": {
+    "manifestVersion": 2,
+    "root": "0x5dfd2d7bf46ed84d681b29c17f558d88644881ba472172485ca3f873fd5611f5",
+    "state": "active"
+  },
+  "changed": [
+    "intelligence"
+  ],
+  "retained": [
+    "statements whose dependencies, closed under the declared relations, do not reach the intelligence supply section"
+  ],
+  "invalidated": [
+    "Intelligence supply",
+    "Capability execution environment",
+    "Lineage capability: mechanism",
+    "Safety constraints",
+    "Lineage capability: rules",
+    "Full cost and strictly positive surplus",
+    "Executable replenishment path",
+    "Lineage capability: resources"
+  ],
+  "obligations": "Accepted tasks keep their deadlines; work in progress finishes on the previous model, which stays available for 7 days.",
+  "recovery": {
+    "rollback": "previous entitlement kept for 7 days; a rollback is a new revision and revives no earlier conclusion",
+    "termination": "not applicable"
+  },
+  "postConditions": [
+    "self-check passes on the new model",
+    "the 8 affected requirements are assessed again before the unit is presented as complete"
+  ]
+}

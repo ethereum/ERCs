@@ -1,0 +1,128 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
+  },
+  "axis": "economic",
+  "result": "satisfied",
+  "coverage": [
+    20,
+    22,
+    23
+  ],
+  "dependencies": [
+    "economic",
+    "execution",
+    "intelligence",
+    "boundary",
+    "control",
+    "relation:control",
+    "relation:authorization",
+    "scheme:lineage"
+  ],
+  "dependencyDigest": "0xc1502cf5c6fb31265ffc1ff421ad161d03f2e3517496ea78d7744c0b8831fbed",
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1803888000,
+  "findings": [
+    {
+      "baselineClass": "surplus",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "replenishment",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "lineage-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "document",
+      "commitment": "0xe9984fba9d157d09f562855ebb88da45f85f3f4012feec42d4c5731b5e1ca5d1",
+      "scope": "surplus, replenishment, lineage-resources",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null,
+  "economic": {
+    "denomination": "USD",
+    "inflows": [
+      {
+        "class": "service-revenue",
+        "amount": "1180.00",
+        "basis": "42 accepted translation tasks"
+      },
+      {
+        "class": "work-reward",
+        "amount": "60.00",
+        "basis": "protocol work receipts 0x01 to 0x06, redeemable on issue"
+      }
+    ],
+    "costs": [
+      {
+        "class": "inference",
+        "amount": "410.00"
+      },
+      {
+        "class": "compute-and-hosting",
+        "amount": "95.00"
+      },
+      {
+        "class": "network-fees",
+        "amount": "22.50"
+      },
+      {
+        "class": "maintenance",
+        "amount": "60.00"
+      },
+      {
+        "class": "labor",
+        "amount": "120.00"
+      },
+      {
+        "class": "obligations",
+        "amount": "35.00"
+      }
+    ],
+    "noCost": {
+      "depreciation": "no owned equipment; the host is leased"
+    },
+    "activityInflow": "1240",
+    "fullCost": "742.5",
+    "surplus": "497.5",
+    "disposable": "880.00",
+    "due": "310.00",
+    "minimumReplenishment": "505.00",
+    "replenishment": {
+      "executor": "unit",
+      "authorization": "spending limit of 600 USD per month set by the controller",
+      "fundedFrom": "unit"
+    },
+    "sharedResources": []
+  }
+}

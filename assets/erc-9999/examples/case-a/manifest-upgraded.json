@@ -1,0 +1,297 @@
+{
+  "accf": "manifest/1",
+  "entries": {
+    "execution": {
+      "configuration": {
+        "compute": "2 vCPU, 4 GiB, container runtime",
+        "storage": "20 GiB volume",
+        "network": "public HTTPS egress"
+      },
+      "supply": {
+        "provider": "leased",
+        "contract": "monthly",
+        "substitute": "any OCI-compatible host",
+        "exit": "state export within 24 hours"
+      }
+    },
+    "intelligence": {
+      "configuration": {
+        "model": "example-model-large-2026-11",
+        "interface": "chat completions",
+        "contextWindow": 200000
+      },
+      "supply": {
+        "entitlement": "prepaid inference entitlement, renewed monthly",
+        "capacity": "40000000 inference tokens per month",
+        "substitute": "second supplier under the same interface",
+        "degraded": "smaller model for non-critical work"
+      }
+    },
+    "state": {
+      "mode": "persistent working memory with daily checkpoints",
+      "materials": [
+        {
+          "kind": "checkpoint",
+          "commitment": "0x853ae5d27016a51c156a8e6bc7bea3a8fe14e4b2b5335f471f18b109416af300",
+          "access": "controller key, encrypted at rest"
+        }
+      ],
+      "continuity": "identity keys, task ledger and memory restore from the latest checkpoint"
+    },
+    "capability": {
+      "runtime": {
+        "package": "example-agent-runtime",
+        "version": "1.4.2",
+        "digest": "0x523b6ae0039796322a7ebb151becfd73979eb45a7c9014926226a1e5073c8928"
+      },
+      "skills": [
+        {
+          "name": "translate-document",
+          "version": "2.0.0",
+          "digest": "0x225a55e6cb62f0797c2a2f1f5f03dc14fe4f0e4886a799499c9810620ef662cc"
+        }
+      ],
+      "tools": [
+        {
+          "name": "glossary-lookup",
+          "permission": "read"
+        }
+      ]
+    },
+    "maintenance": {
+      "monitoring": "health probe every 60 seconds; self-check of runtime, memory and skills daily",
+      "recovery": {
+        "checkpointInterval": "24 hours",
+        "restoreTarget": "4 hours",
+        "rollback": "previous runtime version kept"
+      },
+      "termination": "tasks drained, state exported, entitlements released"
+    },
+    "protocol": {
+      "bindings": [
+        {
+          "function": "identity, authorization and verifiable claims",
+          "standard": "ERC-8419",
+          "version": "1",
+          "role": "subject",
+          "scope": "all duties",
+          "enforcement": "relying parties",
+          "exceptions": "assertion revoked: stop accepting tasks that require it"
+        },
+        {
+          "function": "identity, authorization and verifiable claims",
+          "standard": "account-level delegation",
+          "version": "1",
+          "role": "principal",
+          "scope": "registry operations and interaction paths",
+          "enforcement": "unit registry and consumer contracts",
+          "exceptions": "grant expired or control changed: actions refused"
+        },
+        {
+          "function": "supply and demand",
+          "standard": "ERC-8414",
+          "version": "1",
+          "role": "fulfiller",
+          "scope": "translation tasks",
+          "enforcement": "task contract",
+          "exceptions": "dispute under the bound dispute rules"
+        },
+        {
+          "function": "order",
+          "standard": "ERC-8468",
+          "version": "1",
+          "role": "adopter",
+          "scope": "all duties",
+          "enforcement": "account and runtime",
+          "exceptions": "suspension: no new risk"
+        },
+        {
+          "function": "order",
+          "standard": "ERC-8471",
+          "version": "1",
+          "role": "party",
+          "scope": "task disputes",
+          "enforcement": "dispute registry",
+          "exceptions": "ruling executed by the task contract"
+        },
+        {
+          "function": "self-maintenance",
+          "standard": "ERC-8490",
+          "version": "1",
+          "role": "subject",
+          "scope": "runtime, memory and skills",
+          "enforcement": "self",
+          "exceptions": "overdue layer: reported as degraded"
+        }
+      ]
+    },
+    "economic": {
+      "denomination": "USD",
+      "accounts": [
+        "0xA11CE00000000000000000000000000000000002"
+      ],
+      "method": "accrual of delivered and accepted work; costs when incurred",
+      "window": "30 days",
+      "activityClasses": [
+        "service-revenue",
+        "work-reward"
+      ],
+      "costClasses": [
+        "inference",
+        "compute-and-hosting",
+        "network-fees",
+        "maintenance",
+        "labor",
+        "depreciation",
+        "obligations"
+      ],
+      "selfSustenance": "self-sustaining",
+      "paymentAutonomy": "pre-authorized",
+      "supplyControl": "purchased",
+      "replenishment": {
+        "executor": "unit",
+        "authorization": "spending limit of 600 USD per month set by the controller",
+        "path": "settled revenue is used to renew the inference entitlement and the host"
+      }
+    },
+    "control": {
+      "credentials": [
+        {
+          "purpose": "transaction signing",
+          "holder": "runtime keystore",
+          "rotation": "90 days",
+          "recovery": "controller re-issues the grant"
+        }
+      ],
+      "grants": [
+        {
+          "operator": "0xA11CE00000000000000000000000000000000002",
+          "scopes": [
+            "interaction"
+          ],
+          "validity": "30 days, renewable"
+        }
+      ],
+      "revocation": "the controller revokes a grant on chain; every grant ends with a control change"
+    }
+  },
+  "schemes": {
+    "lineage": {
+      "capability": "derivation, migration and succession",
+      "preconditions": [
+        "parent operating",
+        "checkpoint not older than 24 hours"
+      ],
+      "authorization": {
+        "source": "controller",
+        "rule": "at most 2 children, generation 1 only, total budget 100 USD",
+        "perOperation": "within the declared allowance"
+      },
+      "resources": {
+        "allocation": "budget granted from the parent's allowance; no account is shared",
+        "cost": "borne by the parent until the child's first settled revenue"
+      },
+      "mechanism": {
+        "derivation": "new identity and keys; runtime and skills installed from pinned packages; memory copied where licensed",
+        "migration": "export state, import on the new host, verify, switch",
+        "succession": "offer, acceptance, transfer of claims, retirement or new boundary"
+      },
+      "target": "a registered unit with its own descriptor and manifest, without any conclusion of the parent",
+      "dependsOn": [
+        "intelligence"
+      ],
+      "postChecks": [
+        "child self-check passes",
+        "no credential of the parent present in the child",
+        "parent boundary restated"
+      ],
+      "feasibility": [
+        {
+          "kind": "rehearsal",
+          "commitment": "0x62ee034c7cb9ca84be36cf42b909ba4142a2994f7b484bb544d6c09a92b59fac"
+        }
+      ]
+    },
+    "interaction": {
+      "capability": "communication, exchange and transaction",
+      "stages": [
+        "discovery and identification",
+        "negotiation of capability and rules",
+        "authorization and acceptance",
+        "performance and delivery",
+        "receipt and settlement",
+        "exceptions and disputes"
+      ],
+      "authorization": {
+        "source": "controller grant with the interaction scope",
+        "check": "the consumer contract on every step"
+      },
+      "resources": {
+        "settlement": "task escrow; fees from the unit account"
+      },
+      "refusal": "a step that cannot go ahead is refused with a recorded ground",
+      "postChecks": [
+        "receipt recorded",
+        "open obligations listed"
+      ],
+      "feasibility": [
+        {
+          "kind": "completed interaction",
+          "commitment": "0xed939914a6503c6db36a0654cbf1c2b80e7e27d333a367fda0e879350ac0908d"
+        }
+      ]
+    },
+    "maintenance": {
+      "capability": "repair and upgrade",
+      "preconditions": [
+        "change described",
+        "rollback target available"
+      ],
+      "authorization": {
+        "source": "controller or operator with the manifest scope"
+      },
+      "resources": {
+        "funding": "maintenance budget inside the monthly cost"
+      },
+      "mechanism": "suspend or degrade, apply, self-check, resume; an upgrade commits the changed manifest entries",
+      "duringChange": "accepted tasks keep their deadlines or are handed over; no new task is accepted",
+      "postChecks": [
+        "self-check passes",
+        "affected conclusions assessed again before resuming the affected service"
+      ],
+      "feasibility": [
+        {
+          "kind": "rehearsal",
+          "commitment": "0xd1f0c5ffd0b3ca0663f1a8c3fd7934c6277a1587b51d6e5b8ca02f4d1a0a8d9e"
+        }
+      ]
+    },
+    "composition": {
+      "capability": "joining, role, exit",
+      "preconditions": [
+        "group charter read",
+        "role compatible with declared duties"
+      ],
+      "authorization": {
+        "source": "controller or operator with the composition scope"
+      },
+      "resources": {
+        "contribution": "declared in the membership terms; own accounts stay own"
+      },
+      "mechanism": "proposal by either side, acceptance by the other, exit by either side",
+      "postChecks": [
+        "member boundary restated when duties or resources changed"
+      ],
+      "feasibility": [
+        {
+          "kind": "rehearsal",
+          "commitment": "0xfdb58d4d1a55a3f252fc558704f4d4724384260f94794124a7578dc29062318e"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "name": "alpha",
+    "note": "Second version: the model changed, nothing else."
+  }
+}

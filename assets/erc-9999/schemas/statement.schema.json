@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ethereum/ERCs/blob/master/assets/erc-9999/schemas/statement.schema.json",
+  "title": "ACCF Completeness Statement",
+  "description": "An attributable conclusion about requirements of one axis of one unit under one profile, with what it covered, what it depended on, the method, the observation window, the evidence and its limits.",
+  "type": "object",
+  "required": [
+    "accf",
+    "unit",
+    "profile",
+    "axis",
+    "result",
+    "coverage",
+    "dependencies",
+    "boundaryVersion",
+    "manifest",
+    "method",
+    "window",
+    "validUntil",
+    "findings",
+    "evidence",
+    "premises",
+    "dependencyDigest"
+  ],
+  "properties": {
+    "accf": {
+      "const": "statement/1"
+    },
+    "unit": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "registry": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "commitment"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "commitment": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      }
+    },
+    "axis": {
+      "enum": [
+        "infrastructure",
+        "protocol",
+        "economic"
+      ]
+    },
+    "result": {
+      "enum": [
+        "satisfied",
+        "not-satisfied",
+        "undetermined",
+        "not-applicable"
+      ]
+    },
+    "coverage": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
+      }
+    },
+    "boundaryVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "manifest": {
+      "type": "object",
+      "required": [
+        "version",
+        "root"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "root": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      }
+    },
+    "method": {
+      "type": "object",
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "integer"
+        },
+        "to": {
+          "type": "integer"
+        }
+      }
+    },
+    "validUntil": {
+      "type": "integer"
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "result",
+          "basis"
+        ],
+        "properties": {
+          "baselineClass": {
+            "enum": [
+              "execution",
+              "intelligence",
+              "state",
+              "capability",
+              "maintenance",
+              "control",
+              "lineage-mechanism",
+              "interaction-mechanism",
+              "maintenance-mechanism",
+              "composition-mechanism",
+              "identity",
+              "authority",
+              "rules",
+              "safety",
+              "continuity",
+              "lineage-rules",
+              "interaction-rules",
+              "maintenance-rules",
+              "composition-rules",
+              "accounting",
+              "surplus",
+              "solvency",
+              "replenishment",
+              "lineage-resources",
+              "interaction-resources",
+              "maintenance-resources",
+              "composition-resources"
+            ]
+          },
+          "requirement": {
+            "type": "integer"
+          },
+          "result": {
+            "enum": [
+              "satisfied",
+              "not-satisfied",
+              "undetermined",
+              "not-applicable"
+            ]
+          },
+          "basis": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "scope",
+          "premises"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "document",
+              "record"
+            ]
+          },
+          "commitment": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "standard": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "registry": {
+            "type": "string"
+          },
+          "record": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "premises": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the reference was not checked for."
+          },
+          "dynamic": {
+            "type": "boolean",
+            "description": "The referenced record has to remain valid for the statement to support a current judgment. A dynamic record that an evaluation does not read leaves a snapshot, which is not reported as cell-complete."
+          }
+        },
+        "if": {
+          "properties": {
+            "type": {
+              "const": "record"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "standard",
+            "namespace",
+            "registry",
+            "record",
+            "method",
+            "asOf"
+          ]
+        },
+        "else": {
+          "required": [
+            "commitment"
+          ]
+        }
+      }
+    },
+    "premises": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "supersedes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "economic": {
+      "type": "object",
+      "required": [
+        "denomination"
+      ],
+      "properties": {
+        "denomination": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "class",
+              "amount"
+            ],
+            "properties": {
+              "class": {
+                "type": "string",
+                "minLength": 1
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+              },
+              "basis": {
+                "type": "string"
+              },
+              "internal": {
+                "type": "boolean",
+                "description": "The counterparty is inside the assessed boundary; the item is eliminated."
+              }
+            }
+          },
+          "description": "Inflows in the window. An empty list states that there were none; an absent member states nothing, and the surplus result is then undetermined."
+        },
+        "costs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "class",
+              "amount"
+            ],
+            "properties": {
+              "class": {
+                "type": "string",
+                "minLength": 1
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+              },
+              "basis": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "noCost": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Cost classes with no cost in the window, each with the reason and the dependency it discloses."
+        },
+        "activityInflow": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "fullCost": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "surplus": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "disposable": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "due": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "minimumReplenishment": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "replenishment": {
+          "type": "object",
+          "required": [
+            "executor",
+            "authorization",
+            "fundedFrom"
+          ],
+          "properties": {
+            "executor": {
+              "enum": [
+                "unit",
+                "fiduciary",
+                "controller-discretion"
+              ]
+            },
+            "authorization": {
+              "type": "string"
+            },
+            "fundedFrom": {
+              "enum": [
+                "unit",
+                "external"
+              ]
+            }
+          }
+        },
+        "sharedResources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "capacity",
+              "allocations"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "capacity": {
+                "type": "string",
+                "pattern": "^[0-9]+(\\.[0-9]{1,6})?$",
+                "description": "A capacity is not negative."
+              },
+              "allocations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "member",
+                    "amount"
+                  ],
+                  "properties": {
+                    "member": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(\\.[0-9]{1,6})?$",
+                      "description": "An allocation is not negative; a negative entry cannot offset an allocation above capacity."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Shared resources of the group and their allocations. An empty list states that there are none; an absent member states nothing, and the sharing result is then undetermined."
+        }
+      }
+    },
+    "dependencyDigest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "description": "Dependency digest of the state the assessor assessed. The registry records the statement only while the current digest is this one."
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "accf": "transition/1",
+  "kind": "derivation",
+  "unit": "alpha",
+  "counterpart": "alpha-child-1",
+  "authorization": {
+    "source": "controller",
+    "actor": "0xa11ce00000000000000000000000000000000001",
+    "rule": "lineage scheme: at most 2 children, generation 1, total budget 100 USD"
+  },
+  "reason": "Demand for a second language pair.",
+  "source": {
+    "state": "active"
+  },
+  "target": {
+    "state": "active",
+    "child": "registered, without statements"
+  },
+  "granted": {
+    "budget": "60.00 USD of 100.00",
+    "claims": [],
+    "copied": [
+      "runtime and skill packages",
+      "glossary memory licensed for copies"
+    ]
+  },
+  "notGranted": [
+    "the parent's account",
+    "the parent's assertions and statements",
+    "the parent's task history as the child's own",
+    "the parent's credentials"
+  ],
+  "obligations": "The parent keeps every open task. The child starts with none.",
+  "recovery": {
+    "rollback": "the child is retired and the unused budget returns to the parent's allowance by a new declaration",
+    "termination": "retirement of the child"
+  },
+  "postConditions": [
+    "the child's own self-check passes",
+    "the parent's boundary-bound requirements are assessed again",
+    "the child is assessed on its own period before it is presented as complete"
+  ]
+}

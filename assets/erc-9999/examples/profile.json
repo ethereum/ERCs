@@ -1,0 +1,404 @@
+{
+  "accf": "profile/1",
+  "name": "Ethereum reference profile",
+  "version": "1.0.0",
+  "baseline": {
+    "version": 1,
+    "claimed": true
+  },
+  "applicability": "Every requirement applies to every unit. Duties declared in the Unit Descriptor decide the content of a requirement, never whether it applies.",
+  "requirements": [
+    {
+      "index": 0,
+      "axis": "infrastructure",
+      "baselineClass": "execution",
+      "conditional": false,
+      "title": "Execution and resource supply",
+      "statement": "The unit holds or can keep obtaining the compute, storage, network, energy and, for an embodied unit, the sensors, actuators and working environment its declared duties need.",
+      "dependencies": [
+        "execution",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 1,
+      "axis": "infrastructure",
+      "baselineClass": "intelligence",
+      "conditional": false,
+      "title": "Intelligence supply",
+      "statement": "The model or other inference mechanism is available in the capacity and capability the declared duties need, under stated supply conditions and with a stated path for substitution, degradation or orderly exit.",
+      "dependencies": [
+        "intelligence",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 2,
+      "axis": "infrastructure",
+      "baselineClass": "state",
+      "conditional": false,
+      "title": "State and memory continuity",
+      "statement": "Identity-related state, working state and memory are intact, accessible, persisted as the declared state mode says, restorable and migratable.",
+      "dependencies": [
+        "state",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 3,
+      "axis": "infrastructure",
+      "baselineClass": "capability",
+      "conditional": false,
+      "title": "Capability execution environment",
+      "statement": "Runtime, harness, skills and tools are present in the committed versions, usable under the current permissions and environment, and actually executable.",
+      "dependencies": [
+        "capability",
+        "intelligence",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 4,
+      "axis": "infrastructure",
+      "baselineClass": "maintenance",
+      "conditional": false,
+      "title": "Maintenance and recovery",
+      "statement": "Monitoring, diagnosis, checkpoints, repair, upgrade, rollback, degradation and termination mechanisms exist and work.",
+      "dependencies": [
+        "maintenance",
+        "state",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 5,
+      "axis": "infrastructure",
+      "baselineClass": "control",
+      "conditional": false,
+      "title": "Control relation and authorization credentials",
+      "statement": "The technical means to use, protect, change, revoke and recover the control relation and the authorization credentials exist, work and can be restored.",
+      "dependencies": [
+        "control",
+        "relation:control",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 6,
+      "axis": "infrastructure",
+      "baselineClass": "lineage-mechanism",
+      "conditional": false,
+      "title": "Lineage capability: mechanism",
+      "statement": "The lineage scheme's mechanism is feasible end to end: configuration rebuild, checkpoint restore, continuity-preserving migration and derivation of a new subject, each with its materials available.",
+      "dependencies": [
+        "scheme:lineage",
+        "execution",
+        "state",
+        "capability",
+        "maintenance",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 7,
+      "axis": "infrastructure",
+      "baselineClass": "interaction-mechanism",
+      "conditional": false,
+      "title": "Interaction capability: mechanism",
+      "statement": "The interaction scheme's mechanism is feasible end to end: the unit can reach, be reached, sign, deliver and record.",
+      "dependencies": [
+        "scheme:interaction",
+        "execution",
+        "capability",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 8,
+      "axis": "infrastructure",
+      "baselineClass": "maintenance-mechanism",
+      "conditional": false,
+      "title": "Maintenance capability: mechanism",
+      "statement": "The maintenance scheme's mechanism is feasible end to end: the unit can be suspended or degraded, changed, checked and resumed.",
+      "dependencies": [
+        "scheme:maintenance",
+        "maintenance",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 9,
+      "axis": "infrastructure",
+      "baselineClass": "composition-mechanism",
+      "conditional": false,
+      "title": "Composition capability: mechanism",
+      "statement": "The composition scheme's mechanism is feasible end to end: the unit can take a role in a group and leave it.",
+      "dependencies": [
+        "scheme:composition",
+        "capability",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 10,
+      "axis": "protocol",
+      "baselineClass": "identity",
+      "conditional": false,
+      "title": "Subject identification and attribution of conduct",
+      "statement": "The unit can be identified by others, and its conduct can be attributed to it within its declared boundary.",
+      "dependencies": [
+        "protocol",
+        "boundary",
+        "relation:control"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 11,
+      "axis": "protocol",
+      "baselineClass": "authority",
+      "conditional": false,
+      "title": "Effective permissions and authorization relations",
+      "statement": "For every kind of action the unit takes, the source of authorization, the authorized party, the resources and actions covered, the scope, limits, validity and revocation conditions, and the place of the check on the execution path are identifiable.",
+      "dependencies": [
+        "protocol",
+        "control",
+        "relation:control",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 12,
+      "axis": "protocol",
+      "baselineClass": "rules",
+      "conditional": false,
+      "title": "Binding, compatibility and enforcement of applicable rules",
+      "statement": "Every rule set the declared activities call for is bound in a stated version, the bound rule sets are compatible in subject, version, time, authorization and result semantics, and they are enforced on the execution paths they govern.",
+      "dependencies": [
+        "protocol",
+        "capability",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 13,
+      "axis": "protocol",
+      "baselineClass": "safety",
+      "conditional": false,
+      "title": "Safety constraints",
+      "statement": "Safety constraints applicable to the declared duties are adopted, in force and bound to the states they apply in.",
+      "dependencies": [
+        "protocol",
+        "intelligence",
+        "capability",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 14,
+      "axis": "protocol",
+      "baselineClass": "continuity",
+      "conditional": false,
+      "title": "Commitments, obligations, exception and exit handling",
+      "statement": "Commitments and obligations stay identifiable through refusal, breach, dispute, suspension, exit and succession, and each has a stated handling.",
+      "dependencies": [
+        "protocol",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 15,
+      "axis": "protocol",
+      "baselineClass": "lineage-rules",
+      "conditional": false,
+      "title": "Lineage capability: rules",
+      "statement": "The lineage scheme states an applicable authorization for derivation, migration and succession, the identity rules of the result, and what happens to open obligations.",
+      "dependencies": [
+        "scheme:lineage",
+        "protocol",
+        "relation:control",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 16,
+      "axis": "protocol",
+      "baselineClass": "interaction-rules",
+      "conditional": false,
+      "title": "Interaction capability: rules",
+      "statement": "The interaction scheme states the rules of each stage it uses, including refusal and dispute.",
+      "dependencies": [
+        "scheme:interaction",
+        "protocol",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 17,
+      "axis": "protocol",
+      "baselineClass": "maintenance-rules",
+      "conditional": false,
+      "title": "Maintenance capability: rules",
+      "statement": "The maintenance scheme states who authorizes a change, how it is recorded, and which obligations hold while it lasts.",
+      "dependencies": [
+        "scheme:maintenance",
+        "protocol",
+        "relation:control",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 18,
+      "axis": "protocol",
+      "baselineClass": "composition-rules",
+      "conditional": false,
+      "title": "Composition capability: rules",
+      "statement": "The composition scheme states how the unit joins, which role and representation it accepts, and how it exits.",
+      "dependencies": [
+        "scheme:composition",
+        "protocol",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 7776000
+    },
+    {
+      "index": 19,
+      "axis": "economic",
+      "baselineClass": "accounting",
+      "conditional": false,
+      "title": "Accounting boundary, measurement method and observation window",
+      "statement": "The accounts, resources and obligations inside the boundary, the measurement method and the observation window are stated and can be checked.",
+      "dependencies": [
+        "economic",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 20,
+      "axis": "economic",
+      "baselineClass": "surplus",
+      "conditional": false,
+      "title": "Full cost and strictly positive surplus",
+      "statement": "Over the observation window, income from attributable activity exceeds the full cost of existing, working and meeting obligations.",
+      "dependencies": [
+        "economic",
+        "execution",
+        "intelligence",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 21,
+      "axis": "economic",
+      "baselineClass": "solvency",
+      "conditional": false,
+      "title": "Current ability to meet obligations",
+      "statement": "Disposable resources cover the obligations falling due in the stated period and the minimum replenishment.",
+      "dependencies": [
+        "economic",
+        "boundary",
+        "relation:control"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 22,
+      "axis": "economic",
+      "baselineClass": "replenishment",
+      "conditional": false,
+      "title": "Executable replenishment path",
+      "statement": "Income can be turned into the next period's resources through a settlement, retention, payment and procurement path that is authorized and can be carried out.",
+      "dependencies": [
+        "economic",
+        "execution",
+        "intelligence",
+        "control",
+        "relation:control",
+        "relation:authorization",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 23,
+      "axis": "economic",
+      "baselineClass": "lineage-resources",
+      "conditional": false,
+      "title": "Lineage capability: resources",
+      "statement": "The lineage scheme states which resources a derived or succeeding unit receives, who bears the cost, and who answers for what.",
+      "dependencies": [
+        "scheme:lineage",
+        "economic",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 24,
+      "axis": "economic",
+      "baselineClass": "interaction-resources",
+      "conditional": false,
+      "title": "Interaction capability: resources",
+      "statement": "The unit can settle what the interaction scheme commits it to.",
+      "dependencies": [
+        "scheme:interaction",
+        "economic",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 25,
+      "axis": "economic",
+      "baselineClass": "maintenance-resources",
+      "conditional": false,
+      "title": "Maintenance capability: resources",
+      "statement": "The cost of maintenance under the maintenance scheme is funded.",
+      "dependencies": [
+        "scheme:maintenance",
+        "economic",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    },
+    {
+      "index": 26,
+      "axis": "economic",
+      "baselineClass": "composition-resources",
+      "conditional": false,
+      "title": "Composition capability: resources",
+      "statement": "Contributions, allocations of shared resources and internal transfers under the composition scheme are stated, and shared resources are not counted twice.",
+      "dependencies": [
+        "scheme:composition",
+        "economic",
+        "boundary"
+      ],
+      "maxValidity": 3888000
+    }
+  ]
+}

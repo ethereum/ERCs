@@ -1,0 +1,15 @@
+{
+  "accf": "interaction-terms/1",
+  "function": "supply and demand",
+  "ruleSet": {
+    "standard": "ERC-8414",
+    "version": "1"
+  },
+  "initiator": "member-a",
+  "responder": "member-b",
+  "subject": "Review of a translated contract, 12 pages",
+  "price": "18.00 USD",
+  "deadline": 1800172800,
+  "acceptance": "by an account holding the interaction scope for the responder",
+  "refusal": "recorded with its ground; a refusal creates no obligation"
+}

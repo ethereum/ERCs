@@ -1,0 +1,50 @@
+{
+  "rule": "Commitment of a document or of a manifest entry: keccak256 of the UTF-8 bytes of its RFC 8785 canonical form. A Unit Descriptor is committed without its metadata member.",
+  "canonical": {
+    "document": {
+      "b": [
+        true,
+        null,
+        "x"
+      ],
+      "a": {
+        "z": 1,
+        "y": "quote \" backslash \\ tab \t"
+      },
+      "A": "12.50"
+    },
+    "form": "{\"A\":\"12.50\",\"a\":{\"y\":\"quote \\\" backslash \\\\ tab \\t\",\"z\":1},\"b\":[true,null,\"x\"]}",
+    "commitment": "0x896ee935f704f25c6c4d03f1d8d92fa2ebdb83c67e280db717368a20d2b5dbfe"
+  },
+  "documents": {
+    "profile": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34",
+    "policy": "0x00e210c24499cea1a501b468d4d69d19cc81cc32c7e0476e82da1a3afe59302a",
+    "case-a/descriptor": "0x4c6c98cc763833c63f18920c11c31f039606435d59eecb5df9fa932d45b44a6d",
+    "case-a/manifest": "0x197bedf4bca41ee9dad17309e0ee3b874dbbeef26b257ae7b484749f64bf9299",
+    "case-a/manifest-upgraded": "0xc6bf4df4294dabf77aace726c756c74b18dd929e62f339bc6fa8482113827fd2",
+    "case-a/statement-infrastructure": "0x6e41e98264440496d2594d7a5594fe448b2cea0666f07c8d3ec5010de90b54b1",
+    "case-a/statement-infrastructure-model": "0x83c96f554b92ae3bdc7a5740e4f91e31dfe14dca4f353eec2400ae9793d4b742",
+    "case-a/statement-protocol": "0x5ceae9e3b81f7f8455a6a484a0c52a498d978e7bb8dbc651e1006030ec90c33f",
+    "case-a/statement-protocol-model": "0x85c2c2d7032ca8b257d12f37e7cf72c448ed629bec39deebfe02796f1024712a",
+    "case-a/statement-economic": "0x7384c097c2ebb5ebc274a0dff4fce9f3c8affb77afd8098ec237d30723df91d1",
+    "case-a/statement-economic-model": "0x17cedc5170da31fc1b691d944406a0271e4f9b3cc4a545c4331782737865efb6",
+    "case-a/statement-economic-model-reassessed": "0xbbfc5dad0a2c88fbd2104977640433994c13d39614532615a24acf1764152da4",
+    "case-a/transition-upgrade": "0x3aa06b87da2f83123e0e50c7801d8fa28a4fddde564c78287c233a6c442a273c",
+    "case-b/descriptor-child": "0xfb4d6057992e9ceada48396219fae571ae433a195cb5cc0d14c3913f57508604",
+    "case-b/transition-derivation": "0xcd0eb22bcac5e7c64995aeb54c076d3ebfd255c56432e8a7307d192210d8ac21",
+    "case-b/transition-succession": "0xdb1f4780fed8c52cfecfc7351ddcbcaad25a60415010278e3f8ba62af8c86b5d",
+    "case-b/descriptor-successor": "0xea922085a215e9ed6a4ebf0ab672dc8b6b1a06d2106220f3d3d2aa3024b9fb83",
+    "case-c/descriptor-group": "0xe9a924127211307f95b4f671cd0333d63fa842c4ce5607bcf1c313745d5088e7",
+    "case-c/descriptor-member-b": "0x31528ec28bc3b0c9e81e54feb42c1b96d99bebc8365a38b2f1f21f88e4bf1fa4",
+    "case-c/membership-terms": "0xba845b1fa3a0c35063774c20ebb1d75407fbd0cc36b14b29ad079497240dc947",
+    "case-c/statement-economic-group": "0xe178d9e469c71adf51b2173beb490f8f8b281409170237cf16dfaa0f68bcf69a",
+    "case-c/interaction-terms": "0xfe817f037b9f6e054fbafefa1027971dd96b3f36d11271be4ad781e659d92f3b"
+  },
+  "descriptors": {
+    "case-a/descriptor": "0x94e290649ed61d33c4e5a319eac993623b924440ac17568afef6fed68fdd6cdd",
+    "case-b/descriptor-child": "0xba743a83de29663e2396526afd2c86eddf754527b2c077f7b7ee004411dd6899",
+    "case-b/descriptor-successor": "0xc9821a24a4813bdfc6fd4ed182897cd1f9a1ffc1382714392aee2fd19c330f48",
+    "case-c/descriptor-group": "0x013384918a5de3fa22e744e738e804d89481a54580485bb3dfc8eb9ce9e94c15",
+    "case-c/descriptor-member-b": "0x84a5b713085964117baff0cf8f179178a43e5b25cde1a2eb5e1da58393b28bcb"
+  }
+}
