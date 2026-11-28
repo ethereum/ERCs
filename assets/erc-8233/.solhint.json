@@ -1,0 +1,13 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "compiler-version": ["warn", "^0.8.0"],
+    "func-visibility": ["warn", {"ignoreConstructors": true}],
+    "private-vars-leading-underscore": ["warn", { "strict": true }],
+    "not-rely-on-time": "off",
+    "no-global-import": "off",
+    "explicit-types": "off",
+    "immutable-vars-naming": "off",
+    "one-contract-per-file": "off"
+  }
+}
