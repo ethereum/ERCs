@@ -1,0 +1,48 @@
+{
+  "aaf": "1",
+  "kind": "binding",
+  "name": "The gateway serves partners that are neither barred nor sanctioned",
+  "adoption": {
+    "consumer": "The service contract",
+    "authority": "The account the service named as its adopter"
+  },
+  "scopeDocument": "0xee657f675a1ea862d87a7a85d4e2dfa023a6a326041d17c8e5190c2e80cbf133",
+  "role": "ACTOR",
+  "actions": [
+    {
+      "action": "aaf.action.invoke",
+      "reuse": "WHILE_CURRENT",
+      "effect": "Proceeding serves the call. Refusing and deferring do not."
+    }
+  ],
+  "lists": {
+    "allow": [
+      {
+        "list": "Partners (ALLOW, ENUMERATED)",
+        "follows": "latest"
+      }
+    ],
+    "allowThreshold": 1,
+    "deny": [
+      {
+        "list": "Barred (DENY, ENUMERATED)",
+        "follows": "latest"
+      },
+      {
+        "list": "Sanctioned accounts (DENY, COMMITTED)",
+        "follows": "latest",
+        "why": "The caller presents a proof of absence."
+      }
+    ],
+    "denyThreshold": 1
+  },
+  "rules": {
+    "onConflict": "DENY",
+    "onNoMatch": "DENY",
+    "onIndeterminate": "DEFER",
+    "onNotApplicable": "PROCEED"
+  },
+  "standing": "The caller is the account.",
+  "updates": "Follows all three lists. Amended by the adopter.",
+  "workInProgress": "The service may rely on a decision again for the same caller while the binding and its three lists are unchanged, and establishes standing at every call. A call already served is not undone."
+}

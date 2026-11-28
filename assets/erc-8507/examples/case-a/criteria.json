@@ -1,0 +1,57 @@
+{
+  "aaf": "1",
+  "kind": "criteria",
+  "name": "Qualified bidders",
+  "version": "1",
+  "statement": "A registered agent identity is a member while an accepted issuer asserts delivery capability of level 2 or higher for it, and its current controller shows two accepted task deliveries made within the last ninety days.",
+  "subjects": {
+    "kinds": [
+      "aaf.subject.entry"
+    ],
+    "bindsTo": "controller",
+    "onChange": "reverify",
+    "note": "The credential and the history are both tied to the controller. A new controller qualifies on its own evidence."
+  },
+  "dimensions": [
+    {
+      "dimension": "aaf.credential",
+      "proposition": "An accepted issuer asserts at least the required level under the named scheme",
+      "source": "The assertion registry the evaluator is configured with, restricted to the accepted issuers",
+      "method": "onchain-read",
+      "observation": {
+        "kind": "current"
+      },
+      "revocation": "Read at every evaluation; expiry, revocation and a changed controller remove the assertion",
+      "onMissing": "NO_MATCH",
+      "onUnavailable": "UNDETERMINED",
+      "disclosure": "Nothing beyond the level the registry already shows"
+    },
+    {
+      "dimension": "aaf.performance",
+      "proposition": "The current controller made at least the required number of accepted deliveries within the window",
+      "source": "The task ledger the evaluator is configured with",
+      "method": "presented-and-checked",
+      "observation": {
+        "kind": "interval",
+        "window": 7776000
+      },
+      "onMissing": "NO_MATCH",
+      "onUnavailable": "UNDETERMINED",
+      "disclosure": "The requester names the deliveries it relies on"
+    }
+  ],
+  "combination": "all",
+  "evaluation": {
+    "evidenceFormat": "abi.encode((uint256 tokenId,uint256 submissionId)[]) in strictly ascending order, at most sixteen",
+    "parameters": {
+      "schemeId": "0x9edb4d61772bc27d071da0fc0a446ca0a01c2bef23cc96de6f710c45aa60e2e5",
+      "minLevel": 2,
+      "issuers": [
+        "eip155:1:0xE23B4966B3470b43D695608a19B4EDD345ac2CEc"
+      ],
+      "minAccepted": 2,
+      "window": 7776000
+    },
+    "resultValidity": "call: the credential can be revoked before it expires and no list changes when it is, so a result is for the request it was computed for and is not used again"
+  }
+}

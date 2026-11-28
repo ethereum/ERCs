@@ -1,0 +1,43 @@
+{
+  "aaf": "1",
+  "kind": "binding",
+  "name": "Swarm alpha refuses barred identities and their anchors",
+  "adoption": {
+    "consumer": "The group's membership contract",
+    "authority": "The account the membership contract named as its adopter"
+  },
+  "scopeDocument": "0x9f5a4b4c966a9af97d7a5821a0ece4311c96dbfe52c6d172ce5623785ea9fd36",
+  "role": "ACTOR",
+  "actions": [
+    {
+      "action": "aaf.action.join",
+      "reuse": "NONE",
+      "effect": "Proceeding makes the subject a member. Refusing does not."
+    }
+  ],
+  "lists": {
+    "allow": [],
+    "allowThreshold": 0,
+    "deny": [
+      {
+        "list": "Barred from swarm alpha (DENY, ENUMERATED)",
+        "follows": "latest"
+      },
+      {
+        "list": "Anchors of identities barred from swarm alpha (DENY, DERIVED)",
+        "follows": "latest",
+        "why": "The group decided that the refusal of an identity reaches the account bound to it."
+      }
+    ],
+    "denyThreshold": 1
+  },
+  "rules": {
+    "onConflict": "DENY",
+    "onNoMatch": "ALLOW",
+    "onIndeterminate": "DEFER",
+    "onNotApplicable": "PROCEED"
+  },
+  "standing": "The caller is the account, or owns the agent identity or is approved for it.",
+  "updates": "Follows both lists. Amended by the adopter.",
+  "workInProgress": "Joining is decided every time. Membership already held, and anything a member has earned, is not touched by this binding."
+}

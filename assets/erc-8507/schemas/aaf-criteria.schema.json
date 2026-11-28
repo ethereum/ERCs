@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aaf-criteria.schema.json",
+  "title": "Agent Allowlist Framework: criteria document",
+  "description": "One version of the rules a list applies. Its keccak256 over the RFC 8785 form is Criteria.documentHash",
+  "type": "object",
+  "required": ["aaf", "kind", "name", "version", "statement", "subjects", "dimensions", "combination"],
+  "additionalProperties": false,
+  "properties": {
+    "aaf": { "const": "1" },
+    "kind": { "const": "criteria" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "statement": { "description": "The rule in words", "type": "string" },
+    "subjects": { "$ref": "aaf-defs.schema.json#/$defs/subjects" },
+    "dimensions": {
+      "description": "The dimensions the rule looks at. Empty for a list that rests on designation alone",
+      "type": "array",
+      "items": { "$ref": "aaf-defs.schema.json#/$defs/evidenceRule" }
+    },
+    "combination": { "description": "How the dimensions combine", "enum": ["all", "any", "see statement", "not used"] },
+    "evaluation": {
+      "description": "PREDICATE: how the rule is computed",
+      "type": "object",
+      "required": ["evidenceFormat", "parameters", "resultValidity"],
+      "additionalProperties": false,
+      "properties": {
+        "evidenceFormat": { "description": "What the requester presents, as an ABI type or a description", "type": "string" },
+        "parameters": { "description": "The values the evaluator is configured with; they are covered by its configHash", "type": "object" },
+        "resultValidity": { "description": "Until when a result holds. 'call' wherever the result rests on anything that can be revoked or can otherwise change at a time that cannot be read in advance; otherwise how the time is derived", "type": "string" }
+      }
+    },
+    "extension": {
+      "description": "DERIVED with a relation: which objects related to a listed one the list reaches",
+      "type": "object",
+      "required": ["relation", "direction", "evidence", "time", "fanout", "hops"],
+      "additionalProperties": false,
+      "properties": {
+        "relation": { "$ref": "aaf-defs.schema.json#/$defs/name" },
+        "direction": { "description": "From the listed object to the object reached", "type": "string" },
+        "evidence": { "description": "What establishes the relation, and by whose acts", "type": "string" },
+        "time": { "description": "When the relation has to hold", "enum": ["current"] },
+        "fanout": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "hops": { "const": 1 }
+      }
+    }
+  }
+}

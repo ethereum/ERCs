@@ -1,0 +1,39 @@
+{
+  "aaf": "1",
+  "kind": "list",
+  "name": "Qualified bidders",
+  "polarity": "ALLOW",
+  "mode": "PREDICATE",
+  "management": {
+    "manager": "eip155:1:0x5bb689C451967B6bdf8D0fAa4F388257C25709aF",
+    "authority": "A single account. It chooses the criteria version; it does not choose members."
+  },
+  "purpose": {
+    "statement": "Agents that may bid for tenders which require proven delivery capability",
+    "scopeDocument": "0xaa558bb5b650a04e8a9f57c9de5ddcc07a44b5e4e5863e54fb437976e9a63f51"
+  },
+  "subjects": {
+    "kinds": [
+      "aaf.subject.entry"
+    ],
+    "bindsTo": "controller",
+    "onChange": "reverify",
+    "note": "The credential and the history are both tied to the controller. A new controller qualifies on its own evidence."
+  },
+  "basis": {
+    "statement": "Membership follows from the criteria alone and is computed when asked.",
+    "designation": false,
+    "criteriaDocument": "0x021e650e387ebf2b39e9ce1f7f767e1aa8170e051bd878cefefb851603d28b97"
+  },
+  "time": {
+    "noticePeriod": 0,
+    "validity": "A subject is a member while the credential is valid and the counted deliveries are inside their window; each result holds for its request only",
+    "review": "At every request"
+  },
+  "dueProcess": {
+    "notice": "not used",
+    "objection": "not used",
+    "appeal": "not used",
+    "effectDuringObjection": "not used"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aaf-basis.schema.json",
+  "title": "Agent Allowlist Framework: basis document of an entry",
+  "description": "What one entry rests on. Its keccak256 over the RFC 8785 form is Entry.basisHash",
+  "type": "object",
+  "required": ["aaf", "kind", "basis", "statement"],
+  "additionalProperties": false,
+  "properties": {
+    "aaf": { "const": "1" },
+    "kind": { "const": "basis" },
+    "subject": { "description": "The object the entry is about. May be left out: the entry itself identifies it", "$ref": "aaf-defs.schema.json#/$defs/subjectRef" },
+    "basis": {
+      "description": "DESIGNATION: the manager's own choice, which asserts nothing about the subject. EVIDENCED: a statement of fact about the subject",
+      "enum": ["DESIGNATION", "EVIDENCED"]
+    },
+    "statement": { "type": "string" },
+    "status": {
+      "description": "EVIDENCED: how settled the stated fact is",
+      "enum": ["alleged", "under investigation", "interim measure", "final finding"]
+    },
+    "evidence": { "type": "array", "items": { "$ref": "aaf-defs.schema.json#/$defs/evidenceItem" } }
+  },
+  "if": { "properties": { "basis": { "const": "EVIDENCED" } } },
+  "then": { "required": ["status", "evidence"], "properties": { "status": {}, "evidence": { "type": "array", "minItems": 1 } } }
+}

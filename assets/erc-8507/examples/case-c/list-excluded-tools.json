@@ -1,0 +1,38 @@
+{
+  "aaf": "1",
+  "kind": "list",
+  "name": "Excluded tool versions",
+  "polarity": "DENY",
+  "mode": "ENUMERATED",
+  "management": {
+    "manager": "eip155:1:0x5bb689C451967B6bdf8D0fAa4F388257C25709aF",
+    "authority": "A single account"
+  },
+  "purpose": {
+    "statement": "Tool packages the service must not run, named by the digest of the package",
+    "scopeDocument": "0xee657f675a1ea862d87a7a85d4e2dfa023a6a326041d17c8e5190c2e80cbf133"
+  },
+  "subjects": {
+    "kinds": [
+      "aaf.subject.digest"
+    ],
+    "bindsTo": "version",
+    "onChange": "lapse",
+    "note": "An entry names one package. Another version has another digest and is another object."
+  },
+  "basis": {
+    "statement": "The manager's own choice, usually after a defect report.",
+    "designation": true
+  },
+  "time": {
+    "noticePeriod": 0,
+    "validity": "Until revoked",
+    "review": "not used"
+  },
+  "dueProcess": {
+    "notice": "not used",
+    "objection": "not used",
+    "appeal": "not used",
+    "effectDuringObjection": "not used"
+  }
+}
