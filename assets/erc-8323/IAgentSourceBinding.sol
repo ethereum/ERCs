@@ -64,8 +64,8 @@ interface IAgentSourceBinding is IERC165 {
     ///      A bare `ownerOf(sourceToken) == ownerOf(agentId)` check is non-conformant —
     ///      it force-fails the TBA / binding-custody (sovereignty) patterns.
     ///      MUST NOT rely on cached ownership. Reverts for a non-existent `agentId`
-    ///      (per ERC-721 `ownerOf`); returns false (not revert) when the source token
-    ///      no longer exists.
+    ///      (per ERC-721 `ownerOf`) and for an agent with no source binding (as
+    ///      `getSourceNFT`); returns false (not revert) when the source token no longer exists.
     function isSourceNFTOwnershipValid(uint256 agentId) external view returns (bool);
 }
 
