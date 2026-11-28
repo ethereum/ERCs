@@ -1,0 +1,196 @@
+{
+  "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+  "state": 1,
+  "binding": {
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "agentId": 10387,
+    "boundAt": 1790000000
+  },
+  "lastSeen": 1790000000,
+  "livenessWindow": 7776000,
+  "successor": null,
+  "documentDigest": "0xbef7618c3c73aad815f6a1f1aac6b75c093fb56c864c5a5c28ab852eb415c2bf",
+  "document": {
+    "version": "aid-document/v1",
+    "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+    "binding": {
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 10387
+    },
+    "facets": [
+      {
+        "facetType": "aid:tasks/erc8414/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x6161616161616161616161616161616161616161616161616161616161616161",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "provisional",
+        "finalizeBy": 1791500000,
+        "finalizationRef": "req-61"
+      },
+      {
+        "facetType": "aid:review/erc8004/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x6262626262626262626262626262626262626262626262626262626262626262",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "provisional",
+        "finalizeBy": 1791100000,
+        "finalizationRef": "req-62"
+      },
+      {
+        "facetType": "aid:behavior/core/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x6363636363636363636363636363636363636363636363636363636363636363",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "provisional",
+        "finalizeBy": 1791100000,
+        "finalizationRef": "req-63"
+      },
+      {
+        "facetType": "aid:finance/observed/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x6464646464646464646464646464646464646464646464646464646464646464",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "final"
+      }
+    ]
+  },
+  "onChainFacets": {},
+  "registrationFile": {
+    "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+    "name": "demo-agent",
+    "description": "fixture",
+    "image": "",
+    "active": true
+  },
+  "trustedTimestamps": {
+    "0x6161616161616161616161616161616161616161616161616161616161616161": 1790600000,
+    "0x6262626262626262626262626262626262626262626262626262626262626262": 1790600000,
+    "0x6363636363636363636363636363636363636363636363636363636363636363": 1790600000,
+    "0x6464646464646464646464646464646464646464646464646464646464646464": 1790600000
+  },
+  "issuerLogs": {
+    "eip155:11155111:0x4444444444444444444444444444444444444444": {
+      "uri": "https://issuer.example.invalid/commitments",
+      "declaredAt": 1789000000
+    }
+  },
+  "logEntries": {
+    "https://issuer.example.invalid/commitments": [
+      {
+        "tag": "0x9f6d1bdeb1f8894d1883453faaa8f4b9e2bd12c49cb66a8cf9d7cf2ef9414d36",
+        "content": "0x6161616161616161616161616161616161616161616161616161616161616161"
+      },
+      {
+        "tag": "0x192888676de69d668d54ea3c3be2e7d40bd45ec624e1abb11f6e5c5c48518d56",
+        "content": "0x6262626262626262626262626262626262626262626262626262626262626262"
+      },
+      {
+        "tag": "0x2c84c20a9d6b51385e5c1f4c141448d5b619fb0b82d7eb9168690f7bf4011c9a",
+        "content": "0x6363636363636363636363636363636363636363636363636363636363636363"
+      },
+      {
+        "tag": "0xfb0a873d5514ef880c0c535dc16a88bf21ff9033f16c4bc074c9da39b0902c85",
+        "content": "0x6464646464646464646464646464646464646464646464646464646464646464"
+      },
+      {
+        "tag": "0x2c84c20a9d6b51385e5c1f4c141448d5b619fb0b82d7eb9168690f7bf4011c9a",
+        "content": "0x7373737373737373737373737373737373737373737373737373737373737373",
+        "supersedes": "0x6363636363636363636363636363636363636363636363636363636363636363",
+        "provenAt": 1791050000,
+        "anchor": "ots"
+      }
+    ]
+  }
+}
