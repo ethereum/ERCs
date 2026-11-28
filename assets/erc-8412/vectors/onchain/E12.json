@@ -1,0 +1,344 @@
+[
+  {
+    "name": "supersede-unknown-prior",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "Superseding an unknown preregistrationId reverts.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x7888beda87451d1856f6fd577c0b8da40f7cff6d24f3983f06086e56332c147f"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "supersede-by-other-author",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "Only the same author may supersede.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author2",
+        "timestamp": 1100,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "supersede-other-task",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "The superseding preregistration must share taskRef.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1100,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0x36dc41127e2a8440bc08763f20a1d312ed807ead087add9b286bbb0ef719cea6",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "supersede-twice",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "A preregistration can be superseded only once.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1100,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p2"
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1200,
+        "args": {
+          "criteriaDigest": "0xecc3e0d55e02eb23a42704f7f086fc4c0d4cc548cce7a2487cf4fb1663472d10",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "supersede-after-satisfied",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "A Satisfied verdict cannot be superseded.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "attestOutcome",
+        "from": "verifier",
+        "timestamp": 1200,
+        "args": {
+          "preregistrationId": "$p1",
+          "bundleDigest": "0xa756cae0ef6a0b6531305b24d364448a4b2637b6bd5b8b1f918ce1cfaa11271c",
+          "attestationDigest": "0xa2e73eb835e4b74aaee074442d0fc621373da297cecf0a7468eed5353d7f784b",
+          "verdict": "Satisfied",
+          "obligationOutcomes": "0x60"
+        },
+        "expect": {
+          "ok": true
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1300,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "supersede-after-not-satisfied",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "A NotSatisfied verdict cannot be superseded.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "attestOutcome",
+        "from": "verifier",
+        "timestamp": 1200,
+        "args": {
+          "preregistrationId": "$p1",
+          "bundleDigest": "0xa756cae0ef6a0b6531305b24d364448a4b2637b6bd5b8b1f918ce1cfaa11271c",
+          "attestationDigest": "0xa2e73eb835e4b74aaee074442d0fc621373da297cecf0a7468eed5353d7f784b",
+          "verdict": "NotSatisfied",
+          "obligationOutcomes": "0x14"
+        },
+        "expect": {
+          "ok": true
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1300,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  },
+  {
+    "name": "supersede-after-expired",
+    "invariant": "E12",
+    "level": "MUST",
+    "description": "ExpiredUnresolved cannot be superseded.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "resolveExpired",
+        "from": "stranger",
+        "timestamp": 2001,
+        "args": {
+          "preregistrationId": "$p1"
+        },
+        "expect": {
+          "ok": true
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 2002,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 9000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "revert": "E12"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "name": "zero-verifier",
+    "invariant": "E14",
+    "level": "MUST",
+    "description": "verifier == address(0) is rejected.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "zero",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "revert": "E14"
+        }
+      }
+    ]
+  },
+  {
+    "name": "author-is-verifier",
+    "invariant": "E14",
+    "level": "SHOULD",
+    "description": "verifier == msg.sender SHOULD be rejected.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "author",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "revert": "E14"
+        }
+      }
+    ]
+  }
+]
