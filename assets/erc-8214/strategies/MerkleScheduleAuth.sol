@@ -57,6 +57,11 @@ contract MerkleScheduleAuth is IPaymentAuth, ReentrancyGuard {
 
     bytes4 public constant AUTH_TYPE_ID = bytes4(keccak256("MerkleScheduleAuth"));
 
+    // ============ Immutables ============
+
+    /// @notice The BNPL contract authorized to register schedules.
+    address public immutable bnplContract;
+
     // ============ Storage ============
 
     /// @notice Merkle root committed for each order.
@@ -85,17 +90,24 @@ contract MerkleScheduleAuth is IPaymentAuth, ReentrancyGuard {
         bytes32 leafHash
     );
 
+    // ============ Constructor ============
+
+    constructor(address _bnplContract) {
+        bnplContract = _bnplContract;
+    }
+
     // ============ Registration ============
 
     /**
      * @notice Register a variable payment schedule for an order.
      *
-     * @dev MUST be called by the merchant in the same transaction as
-     *      BNPLManager.createOrder() — use a multicall wrapper.
-     *      The orderId is deterministic and can be pre-computed before
-     *      createOrder is submitted.
+     * @dev MUST only be callable by the BNPL contract. This prevents race
+     *      conditions where an attacker front-runs schedule registration
+     *      with a malicious merkle root. The BNPL contract calls this
+     *      atomically inside createOrder.
      *
      *      Reverts if:
+     *        - Caller is not the BNPL contract
      *        - A schedule is already registered for this orderId
      *        - merkleRoot is bytes32(0)
      *        - dataCID is empty
@@ -103,7 +115,7 @@ contract MerkleScheduleAuth is IPaymentAuth, ReentrancyGuard {
      *      Publishing the leaf set to the referenced dataCID location
      *      is the merchant's responsibility.
      *
-     * @param orderId     The IBNPL order identifier (pre-computable).
+     * @param orderId     The IBNPL order identifier.
      * @param merkleRoot  Root of the (installmentIndex, amount, dueDate) tree.
      * @param dataCID     IPFS CID or other content-addressed reference to the
      *                    full leaf set. MUST be non-empty.
@@ -113,6 +125,10 @@ contract MerkleScheduleAuth is IPaymentAuth, ReentrancyGuard {
         bytes32 merkleRoot,
         bytes calldata dataCID
     ) external {
+        require(
+            msg.sender == bnplContract,
+            "MerkleScheduleAuth: only BNPL contract"
+        );
         require(
             scheduleRoots[orderId] == bytes32(0),
             "MerkleScheduleAuth: schedule already registered"
