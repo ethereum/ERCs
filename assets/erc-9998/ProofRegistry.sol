@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
 import {IERCXXXX} from "./IERCXXXX.sol";
 interface IERC165 { function supportsInterface(bytes4 interfaceId) external view returns (bool); }
 
-/// @title ProofRegistry — MIT reference implementation of ERC-XXXX (B-hybrid).
+/// @title ProofRegistry — Reference implementation of ERC-XXXX (B-hybrid).
 /// @notice Normative text is `EIP-XXXX.md`. A satellite IERCXXXX registry:
 ///         attach, flags, B-hybrid reads. Authorization is implementation-defined.
 /// @dev Authorization model (implementation-defined, satisfies EIP-XXXX § Authorization):
