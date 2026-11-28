@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.0;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+/// @notice ERC-165 standard interface detection, defined inline so this file needs no external package.
+interface IERC165 {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
 
 /// @title IAgentSourceBinding — Source-Token Agent Binding for ERC-8004
 /// @notice Minimal interface for an ERC-8004 agent identity registry bound to a
