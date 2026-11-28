@@ -1,0 +1,68 @@
+{
+  "identifiers": {
+    "fheif.evaluation.homomorphic": "0x99b27d5d8d71037d0ce2464deafa1e7cc6926750d89422b5aaa242bc7cf5cd4c",
+    "fheif.evaluation.mixed": "0xfc9fe000986a9eace9282dd58b9284a6a817916f6f81d1a3df2aba49074dd3fd",
+    "fheif.evaluation.test-only": "0x8b17b2aa51950da47a5c7ebf2ed2f08110e6da542ea274eb25410a6f6febf449",
+    "fheif.record.open": "0xad8211dc97da3c708acfad0a353f0b329afc67d662f31da7d5fb732aed91ec96",
+    "fheif.record.committed": "0x016793a6a230872889fcf1f68b6703faf63e770aeba48049e6a870e9c0df0fb8",
+    "fheif.capability.submit-input": "0xfa6845a78208cde5051c67c3538231a3d0488992caaeed611b141d2ba976447d",
+    "fheif.capability.request-operation": "0xcc3acc671c624a5a8d05ee86fc31fd485cdfcf1efcc8783c4d5429deb31e77c4",
+    "fheif.capability.execute-operation": "0x1db0dee6176a194e60ea048bf3248ad56d81b2c496026f9b1a2065de76c6990f",
+    "fheif.capability.accept-result": "0xe874d9661b47eefa946552f074efc90ec420059f3c1dd7e2dd35edde03150cc4",
+    "fheif.capability.request-disclosure": "0x1f6d7443457ee8bded32d67cae04766f6b42ba4518bbda775a7602c9a7873323",
+    "fheif.capability.receive-view": "0xb527c0fbe9032fa6ecd0e964a59c3e653aa2e4a630e4b927026eacc107d7c2a0",
+    "fheif.capability.approve-disclosure": "0x533f51358dac5c812c4365c214ef92b45e4297a26a7bc3cdb6774e39f52ccbde",
+    "fheif.capability.anchor-record": "0x28830fc50938ea27b76b50da907027dedfeb59f6293f18516c6e14463308095d",
+    "fheif.program.identity": "0x7d186de62dfe10c334edcbf708513a0223f5c87c48b84c1d1b438ad79105bff0",
+    "fheif.proposition.input-well-formed": "0x52945416baa3089895216f8d8fea8230bbe7fbb3806e990e91358bf63d1194ce",
+    "fheif.proposition.input-constraint": "0x24d9497f9057a089562e2093f9828ae4e46cf81b5eb7f7b02d697b42e4f617d9",
+    "fheif.proposition.operation-correct": "0x397cc438a372665cd6f67b22ca22c92d66e899846c12bf7bf2711fac50ec2eb5",
+    "fheif.proposition.decryption-correct": "0x270ea010eb643317af14848caaae6ebe77b2edf81dc6ede1598b6cce7114174a",
+    "fheif.proposition.disclosure-authorized": "0xc2abca58d1e999246e41aa1fdee53b5a4d76a818eb65d2daa7c8af8f8db4f2a9",
+    "fheif.proposition.business-accepted": "0x1bdd1341ab7d7e519961ba29db8a4ebbf4d6f6a7c90e255578ef3910e44cb4bd",
+    "fheif.mechanism.none": "0x33373e84e27b5746f0796b8adb5ba14af871d428cb7b7508b08db2f6bca14947",
+    "fheif.mechanism.self-declared": "0x93c9a6133ef24519d0d12974040237ce91f7be8de71e83a231de6ecc544d02ab",
+    "fheif.mechanism.re-execution": "0x3d1495cd201bd1e60d4c602b37a88cead3536f8f91062f8de5588bbbc9ed7dfa",
+    "fheif.mechanism.committee": "0x2fef02b33f8131cc8af99e4215f2839f283300f27bafa14724ffda1a75033787",
+    "fheif.mechanism.zk-proof": "0xd25d27ea1a7f46ce766ff1a8423f0c609fd3bb16acedff24124495b43e7cd620",
+    "fheif.mechanism.tee-attestation": "0x74961fe726905adfebe4def52301f9a48e2a29d00e76f375dd50445a8fb14be4",
+    "fheif.mechanism.optimistic-challenge": "0x97b8c429bdc0e913223c1f7f024550743e332fbb43eca261bfa221f469c982c7",
+    "fheif.mechanism.designated-verifier": "0x4f0993066b2f78f993c200096d02d1759796bbb6d55e6cd61ab4afc0799eda12",
+    "fheif.mechanism.ledger-state": "0xc5477f4a9b6c3ec3ad5a94a27774e1fb8cc0c289fa6836f158076fd284238bc9",
+    "fheif.reason.unsupported": "0x6541e855b2cb8dfca6e4d61bf4f424dd8bb1cd43cc6b08acbc91612a815cb9d5",
+    "fheif.reason.incompatible": "0x205dd04acf4788f2de697a99a2b53490c9169a4246c30d4b7c52a71105bd8df9",
+    "fheif.reason.undeterminable": "0x2980aec824bb5fa7ac610149cfcd20b62b61c93c1441601a46da84fda3b901b9",
+    "fheif.reason.resource": "0xd71fa39e8283e25effe4a146fafa2e41391416f2e55556a3f56b3c9966752e2a",
+    "fheif.reason.expired": "0xac5cabf6167fe1902fac0686957f320c722dd8451f382a829c491853d4cc7ef4",
+    "fheif.reason.not-yet-valid": "0xa2ade463ad4988cd84fe2369ed4ca2e38dc913374e54dcebf7062a3aa0418a05",
+    "fheif.reason.scope-paused": "0x0c60d7685fce5794d6b8e194b77a5eea475961b39cd4b0a9e6f9c8f6d2b21fb5",
+    "fheif.reason.scope-closed": "0xf6f4ff64cfa9caaeebf1ad73f4ef556a85b0bc92c26c4fbc8dff760be840c07d",
+    "fheif.reason.policy-superseded": "0x119061d828fe8cbb847b20e69bfc0e5b2a284dfc7b83d16bf23ed10d9c7a1640",
+    "fheif.reason.epoch-not-usable": "0x958eed76d73c7edbe12851ecfc08509b9a6d36edc422a1f7bfd7ce6116835366",
+    "fheif.reason.view-retired": "0x5a6a4048de5e9857b501fc7ab7c6e2a857d2a9f4b1f03a87062fae15548e24b4",
+    "fheif.reason.not-authorized": "0x0f364e0bd1f799cb78bf57bfee6eb92099255b6853134969860f401db7e5ea97",
+    "fheif.record-kind.disclosure": "0xc9673be361674d899dbb8a2c7cca1860a3482d4d27aea2c2a8b180ddcacbca8a",
+    "fheif.record-kind.batch-root": "0x72313916d89eccd96565b86e9bc1b5c25c8b73dfee3a103bd97368bcca4fc2a5"
+  },
+  "audiencePublic": "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF",
+  "domain": {
+    "name": "FHE Interaction Framework",
+    "version": "1"
+  },
+  "typeStrings": {
+    "EIP712Domain": "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
+    "OperationRequest": "OperationRequest(bytes32 scopeId,uint64 policyVersion,bytes32 keyContextId,uint32 inputEpoch,uint32 outputEpoch,bytes32 programHash,bytes32 viewId,bytes32 outputClass,bytes32[] inputs,address requester,address executor,uint256 nonce,uint64 validUntil)",
+    "DisclosureRequest": "DisclosureRequest(bytes32 scopeId,bytes32 objectId,bytes32 viewId,bytes32 keyContextId,uint32 keyEpoch,uint64 policyVersion,address audience,bytes32 deliveryKeyHash,address requester,uint256 nonce,uint64 validAfter,uint64 validUntil)"
+  },
+  "typeHashes": {
+    "EIP712Domain": "0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f",
+    "OperationRequest": "0x7f2ecb849b15b324d91dde4d87dd2b9149e51384017428d8e6a6fd74282c2bab",
+    "DisclosureRequest": "0x2b16dcd95d3a74f6c1bbc7d4f2cf55443d2d462d3a740c0acf0b1d6eadaf4751"
+  },
+  "interfaceIds": {
+    "IFHEIFRegistry": "0x2b46110f",
+    "IFHEIFLedger": "0x037b2205",
+    "IFHEIFAuthorizer": "0xb293c9c5"
+  },
+  "erc1271Magic": "0x1626ba7e"
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-program.schema.json",
+  "title": "FHEIF program",
+  "description": "A program an operation carries out. Its canonical form is hashed into the program hash.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "program/1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bits": {
+      "type": "integer"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layout": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "class",
+        "layout"
+      ]
+    },
+    "semantics": {
+      "type": "string",
+      "minLength": 1
+    },
+    "depth": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "fheif",
+    "name",
+    "version",
+    "profile",
+    "inputs",
+    "output",
+    "semantics"
+  ]
+}

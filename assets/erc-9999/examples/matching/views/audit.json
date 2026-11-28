@@ -1,0 +1,16 @@
+{
+  "fheif": "view-output/1",
+  "name": "audit",
+  "program": "fheif.program.identity",
+  "inputClasses": [
+    "fheif.example.class.state.match"
+  ],
+  "layout": [
+    "deal",
+    "aIsLower",
+    "lower[0..16)"
+  ],
+  "contains": "the match state as it is: whether a deal was made, which quote was lower, and the lower quote",
+  "excludes": "the higher quote; the cap",
+  "form": "the object as accepted"
+}

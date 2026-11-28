@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-key-material.schema.json",
+  "title": "FHEIF key material of an epoch",
+  "description": "The public material of one key epoch, by hash. Its canonical form is hashed into the material hash of the epoch.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "key-material/1"
+    },
+    "context": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "jointPublicKey": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "evaluationKey": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "fheif",
+    "jointPublicKey"
+  ]
+}

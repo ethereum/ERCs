@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-policy.schema.json",
+  "title": "FHEIF policy version",
+  "description": "The rules of one policy version, as a document. The authorizer named on the ledger answers by them.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "policy/1"
+    },
+    "authorizer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "successorRight": {
+      "enum": [
+        "NARROW_ONLY",
+        "GOVERN"
+      ]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "properties": {
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "proposition": {
+                "type": "string",
+                "pattern": "^[a-z0-9.-]+$"
+              },
+              "mechanism": {
+                "type": "string",
+                "pattern": "^[a-z0-9.-]+$"
+              },
+              "by": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "proposition",
+              "mechanism"
+            ]
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object"
+    },
+    "inFlight": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revocation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "note": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "fheif",
+    "authorizer",
+    "successorRight"
+  ]
+}

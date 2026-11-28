@@ -1,0 +1,30 @@
+{
+  "fheif": "policy/1",
+  "authorizer": "table of grants",
+  "successorRight": "NARROW_ONLY",
+  "capabilities": {
+    "submit-input": "each supplier for quotes, the client for the cap",
+    "request-operation": "the client",
+    "execute-operation": "the executor, which holds no share and receives no view",
+    "accept-result": "the client",
+    "request-disclosure and receive-view": "per view: the client for the client view, each supplier for its own view, anybody for the public view, the auditor for the state as it is",
+    "approve-disclosure": "the controller of the scope and the client"
+  },
+  "acceptance": {
+    "requires": [
+      {
+        "proposition": "fheif.proposition.operation-correct",
+        "mechanism": "fheif.mechanism.re-execution",
+        "by": "an account other than the executor"
+      }
+    ]
+  },
+  "release": {
+    "approvals": {
+      "state as it is": 2
+    },
+    "recheck": "every holder asks the ledger whether the release stands immediately before it contributes"
+  },
+  "inFlight": "a request names a policy version and ends when that version is superseded",
+  "revocation": "ends requests not yet released; what was released stays released"
+}

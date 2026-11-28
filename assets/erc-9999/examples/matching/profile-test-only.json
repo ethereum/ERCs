@@ -1,0 +1,70 @@
+{
+  "fheif": "profile/1",
+  "name": "test-only-plain-bits",
+  "evaluationClass": "fheif.evaluation.test-only",
+  "warning": "TEST ONLY. NOT CONFIDENTIAL. Objects of this profile are plain bits. It exists to exercise the flow of requests and records and protects nothing.",
+  "scheme": {
+    "family": "none",
+    "variant": "plain",
+    "library": "none",
+    "libraryVersion": "0"
+  },
+  "data": {
+    "semantics": "exact",
+    "type": "unsigned integer",
+    "encoding": "plain bits, least significant bit first",
+    "plaintextModulus": 2,
+    "range": {
+      "bits": 16
+    },
+    "outOfRange": "refused"
+  },
+  "operations": {
+    "gates": [
+      "xor",
+      "and",
+      "not",
+      "pack"
+    ],
+    "programs": "the same program documents as the homomorphic profile"
+  },
+  "correctness": {
+    "relation": "an output equals the program applied to the inputs",
+    "conditions": [],
+    "failure": "none",
+    "undetected": "not applicable"
+  },
+  "limits": {
+    "multiplicativeDepth": 0,
+    "refresh": "none",
+    "conversion": "none"
+  },
+  "security": {
+    "parameters": {},
+    "ciphertexts": "none",
+    "decryptionRelease": "none",
+    "inputProofs": "none",
+    "circuitPrivacy": "none"
+  },
+  "compatibility": {
+    "keyModes": [
+      "none"
+    ],
+    "objectFormat": "FHEIF-TEST-ONLY-NOT-CONFIDENTIAL",
+    "combines": "objects of this profile only",
+    "unknown": "refused"
+  },
+  "evidence": {
+    "operationCorrect": {
+      "mechanism": "fheif.mechanism.re-execution",
+      "comparison": "the object bytes",
+      "equivalence": "identical bytes"
+    },
+    "decryptionCorrect": {
+      "mechanism": "fheif.mechanism.none"
+    },
+    "inputWellFormed": {
+      "mechanism": "fheif.mechanism.none"
+    }
+  }
+}

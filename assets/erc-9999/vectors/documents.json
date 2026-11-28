@@ -1,0 +1,24 @@
+{
+  "rule": "keccak256 of the canonical form (RFC 8785) of the document",
+  "hashes": {
+    "conformance.json": "0xfe753e7b30187c236fa4af93bcb480e076d8e304d7e63847878defc3c005ace0",
+    "key-access-epoch-1.json": "0xa82bc2fd78d80a4e2ed10b49671ef3617df71f719d482ea74db9c962b1eabc09",
+    "key-context.json": "0xf4944718b16daa2612ca3527fc7932333defaec889e4fa3b4901344b96e790c6",
+    "key-material-epoch-1.json": "0xf6b2336afc16d809e9858eea2d594a664c522b02ed1aaf0de8df368c307c0d08",
+    "policy.json": "0xc52493a8c55dae5b2cc5dc909c411aff6b9f279941417dcd50aa69fc367a7e81",
+    "profile-test-only.json": "0x5397276e99bb1e8a9dd3880e530d5f066f8ba20b5ce6cd96a13a5e4a161636ac",
+    "profile.json": "0xe9f93760de55b6b04ea2f095b84e59ef5a3c6f0e36ddae6cc92e7d8cd2bc24c3",
+    "programs/best-quote.json": "0x6bb5f4a885175d5aa9b5eaffdfed8d19908e36768c52b3df1fc53a64b4d022b3",
+    "programs/cap-check.json": "0x60ff933a43a378c6f49d21f1d98c649eea5324559f3a0a14284d4ebb0b45397a",
+    "programs/view-client.json": "0x863e95e727af36908f2a262ba35da378e8ff41a2e996c614c78892a2c6719e82",
+    "programs/view-public.json": "0xf385faa4ed4cfae4e3f002de11e430ba8979d1f211e258d6c5f2dd854d065e05",
+    "programs/view-supplier-a.json": "0xc291c9fba43d4b7698fb6c136aa38dbe6a6acc3a5d9452545b73a3967acbcd7e",
+    "programs/view-supplier-b.json": "0x57b9ca700846bc7093460e0e9ffdd1cb41d443ecf0b7150c9f11cf12f4a7d164",
+    "scope.json": "0x2d31f1091cf43a9b3678f3a629e4d9759055cb7929674556ae9b456c0325bda4",
+    "views/audit.json": "0xa0fcbdbe75e14c0902f512986203445888d6d49be1b288df89dff00b506b5837",
+    "views/client.json": "0xec46efdbab66844fc629ddfb648046c965542ba29ab76d92465844d96edbc6d3",
+    "views/public.json": "0x413b577c345d6e9741e4f4229829ace6c71bdd94d970d5f5f91db79190aef745",
+    "views/supplier-a.json": "0x26340659ded8f98f00f179812f5e8059a7d90f964d0ad43312c96ffbfe1151b5",
+    "views/supplier-b.json": "0x35d5a36f85b1d794647bbe8efbc18d6aec80fab818ad1629206acf5897a4c4e8"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "fheif": "program/1",
+  "name": "best-quote",
+  "version": "1",
+  "profile": "openfhe-threshold-bfv-bits",
+  "bits": 16,
+  "inputs": [
+    "fheif.example.class.quote",
+    "fheif.example.class.quote"
+  ],
+  "output": {
+    "class": "fheif.example.class.state.best-quote",
+    "layout": [
+      "aIsLower",
+      "lower[0..16)"
+    ]
+  },
+  "semantics": "aIsLower = 1 if a < b else 0; lower = a if aIsLower else b; a tie goes to b",
+  "depth": 6
+}
