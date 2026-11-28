@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uddf xmlns="http://www.streit.cc/uddf/3.2/" version="3.2.3">
+    <generator>
+        <name>ERC-8260 test fixture</name>
+        <type>logbook</type>
+        <manufacturer id="erc8260-test">
+            <name>ERC-8260</name>
+        </manufacturer>
+        <version>3</version>
+        <datetime>2026-11-20T12:00:00Z</datetime>
+    </generator>
+    <divesite>
+        <site id="site1">
+            <name>Minimal Test Site</name>
+            <geography>
+                <location>test basin</location>
+            </geography>
+        </site>
+    </divesite>
+    <gasdefinitions>
+        <mix id="air">
+            <name>air</name>
+            <o2>0.21</o2>
+            <he>0.0</he>
+        </mix>
+    </gasdefinitions>
+    <profiledata>
+        <repetitiongroup id="rg1">
+            <dive id="dive1">
+                <informationbeforedive>
+                    <link ref="site1"/>
+                    <datetime>2026-05-14T13:00:00Z</datetime>
+                    <surfaceintervalbeforedive>
+                        <passedtime>3600</passedtime>
+                    </surfaceintervalbeforedive>
+                    <apparatus>open-scuba</apparatus>
+                </informationbeforedive>
+                <samples>
+                    <waypoint><depth>0.0</depth><divetime>0.0</divetime><switchmix ref="air"/><divemode type="opencircuit"/></waypoint>
+                    <waypoint><depth>18.2</depth><divetime>120.0</divetime></waypoint>
+                    <waypoint><depth>18.2</depth><divetime>1500.0</divetime></waypoint>
+                    <waypoint><depth>0.0</depth><divetime>1860.0</divetime></waypoint>
+                </samples>
+                <informationafterdive>
+                    <greatestdepth>18.2</greatestdepth>
+                    <averagedepth>11.4</averagedepth>
+                    <diveduration>1860.0</diveduration>
+                    <divetable>US-Navy</divetable>
+                    <notes><para>ERC-8260 tableSchedule: USN 60/40; repetitiveGroupAfterSI: C; repetitiveGroup: F</para></notes>
+                </informationafterdive>
+            </dive>
+        </repetitiongroup>
+    </profiledata>
+</uddf>
