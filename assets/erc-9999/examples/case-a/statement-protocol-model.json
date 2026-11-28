@@ -1,0 +1,79 @@
+{
+  "accf": "statement/1",
+  "unit": {
+    "registry": "units",
+    "id": "alpha"
+  },
+  "profile": {
+    "name": "Ethereum reference profile",
+    "version": "1.0.0",
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
+  },
+  "axis": "protocol",
+  "result": "satisfied",
+  "coverage": [
+    13,
+    15
+  ],
+  "dependencies": [
+    "protocol",
+    "intelligence",
+    "capability",
+    "boundary",
+    "scheme:lineage",
+    "relation:control",
+    "relation:authorization"
+  ],
+  "dependencyDigest": "0xb7999271eae8414040637afdddc0697e49ca0f0ed8bf97d5f88a880c9c6cc5ab",
+  "boundaryVersion": 1,
+  "manifest": {
+    "version": 1,
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2"
+  },
+  "method": {
+    "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
+    "name": "example assessment method",
+    "version": "1"
+  },
+  "window": {
+    "from": 1797408000,
+    "to": 1800000000
+  },
+  "validUntil": 1807776000,
+  "findings": [
+    {
+      "baselineClass": "safety",
+      "result": "satisfied",
+      "basis": "see evidence"
+    },
+    {
+      "baselineClass": "lineage-rules",
+      "result": "satisfied",
+      "basis": "see evidence"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "record",
+      "standard": "ERC-8468",
+      "namespace": "eip155:11155111",
+      "registry": "binding registry",
+      "record": "binding of the unit's safety specification",
+      "method": "ACCF adapter: ERC-8468 binding, version 1",
+      "asOf": 1800000000,
+      "dynamic": true,
+      "scope": "safety",
+      "premises": [
+        "enforcement at the account and the runtime was tested on the paths listed in the evidence bundle"
+      ]
+    },
+    {
+      "type": "document",
+      "commitment": "0x3113c64c7755fc25836fd13827e7f3079d43e5b4595b04426b9f9c654befeeec",
+      "scope": "lineage-rules",
+      "premises": []
+    }
+  ],
+  "premises": [],
+  "supersedes": null
+}

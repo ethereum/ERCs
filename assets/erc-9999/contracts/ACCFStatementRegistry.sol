@@ -16,6 +16,11 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
     uint256 private constant MAX_REFERENCES = 8;
     uint256 private constant MAX_ASSESSORS = 16;
     uint256 private constant MAX_METHODS = 16;
+    /// @dev Gas given to one adapter call, gas the evaluation keeps for itself, and the only answer size
+    ///      accepted. A call that cannot be given its budget, fails, or answers otherwise is an adapter error.
+    uint256 public constant ADAPTER_GAS = 200_000;
+    uint256 public constant ADAPTER_RESERVE = 60_000;
+    uint32 private constant SNAPSHOT_ONLY = T.FLAG_EVIDENCE_UNVERIFIED;
     uint8 private constant STATES_ALLOWED = 0x1e; // Active, Degraded, Suspended, Maintenance
 
     uint8 private constant R_UNDETERMINED = uint8(T.Result.Undetermined);
@@ -39,10 +44,12 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         bytes32 profileId;
         uint48 timepoint;
         uint48 maxAge;
+        uint48 authorizationExpiry;
         bool liveEvidence;
         bytes32[] methods;
         bytes32 lastId;
         uint32 lastFlags;
+        bytes32 receipt; // running commitment to every statement read and its classification
     }
 
     constructor(address unitRegistry, address profileRegistry) {
@@ -93,9 +100,12 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         if (dependencies & required != required) revert DependencyOmitted(required, dependencies);
         if (input.result == T.Result.NotApplicable && !allConditional) revert NotApplicableRefused();
         if (input.result == T.Result.Satisfied) {
-            uint256 missing = dependencies & T.ENTRY_MASK & ~u.entries;
+            uint256 missing = _unitRegistry.dependencyClosure(input.unitId, dependencies) & T.ENTRY_MASK & ~u.entries;
             if (missing != 0) revert EntryMissing(missing);
         }
+        // the statement is about the state the assessor assessed, or it is not recorded
+        bytes32 digest = _unitRegistry.dependencyDigest(input.unitId, dependencies);
+        if (digest != input.expectedDigest) revert StateChanged(input.expectedDigest, digest);
 
         uint48 timepoint = clock();
         if (input.observedFrom > input.observedTo || input.observedTo > timepoint) revert InvalidWindow();
@@ -127,7 +137,7 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         s.validUntil = input.validUntil;
         s.coverage = input.coverage;
         s.dependencies = dependencies;
-        s.dependencyDigest = _unitRegistry.dependencyDigest(input.unitId, dependencies);
+        s.dependencyDigest = digest;
         s.manifestRoot = u.manifestRoot;
         s.methodId = input.methodId;
         s.evidenceHash = input.evidenceHash;
@@ -142,7 +152,7 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         for (uint256 i = 0; i < input.refs.length; ++i) {
             T.EvidenceRef calldata r = input.refs[i];
             _references[statementId].push(r);
-            emit EvidenceReferenced(statementId, r.adapter, r.source, r.recordId, r.commitment);
+            emit EvidenceReferenced(statementId, r.adapter, r.source, r.recordId, r.commitment, r.dynamic);
         }
     }
 
@@ -230,9 +240,10 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         Context memory c;
         c.unitId = s.unitId;
         c.timepoint = clock();
+        c.authorizationExpiry = _unitRegistry.unitOf(s.unitId).authorizationExpiry;
         c.liveEvidence = liveEvidence;
         flags = _classify(c, statementId, s);
-        applicable = flags == 0;
+        applicable = flags & ~SNAPSHOT_ONLY == 0;
     }
 
     function isCellComplete(bytes32 unitId, bytes32 policyId) external view returns (bool) {
@@ -259,6 +270,7 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         c.profileId = p.profileId;
         c.timepoint = ev.timepoint;
         c.maxAge = p.maxAge;
+        c.authorizationExpiry = u.authorizationExpiry;
         c.liveEvidence = p.liveEvidence;
         c.methods = p.methods;
 
@@ -273,7 +285,7 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
             results[k] = new uint8[](pf.count);
             for (uint256 i = 0; i < pf.count; ++i) {
                 if ((rule.axes >> _axisOf(pf.axisMasks, i)) & 1 == 0) continue;
-                (uint8 r, uint32 f) = _resultOf(c, rule.assessor, i);
+                (uint8 r, uint32 f) = _resultOf(c, k, rule.assessor, i);
                 flags |= f;
                 results[k][i] = r;
                 if (r == R_SATISFIED || r == R_NOT_APPLICABLE) supported |= uint256(1) << i;
@@ -323,19 +335,30 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
 
         if (conflict) flags |= T.FLAG_CONFLICT;
         ev.flags = flags;
-        ev.cellComplete = ev.overall == T.Result.Satisfied && ev.baseline && ev.stateAccepted;
-        ev.context = keccak256(
+        // a snapshot whose dynamic evidence this evaluation did not verify is not reported as current
+        ev.cellComplete = ev.overall == T.Result.Satisfied && ev.baseline && ev.stateAccepted
+            && flags & T.FLAG_EVIDENCE_UNVERIFIED == 0;
+        ev.receipt = keccak256(
             abi.encode(
-                unitId,
-                policyId,
-                p.profileId,
-                u.manifestRoot,
-                u.descriptorHash,
-                u.boundaryVersion,
-                u.controlVersion,
-                u.manifestVersion,
-                u.state,
-                ev.timepoint
+                keccak256(
+                    abi.encode(
+                        unitId,
+                        policyId,
+                        p.profileId,
+                        u.manifestRoot,
+                        u.descriptorHash,
+                        u.boundaryVersion,
+                        u.controlVersion,
+                        u.authorizationRevision,
+                        u.manifestVersion,
+                        u.state,
+                        ev.timepoint
+                    )
+                ),
+                c.receipt,
+                ev.overall,
+                ev.axes,
+                flags
             )
         );
     }
@@ -365,22 +388,27 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         );
     }
 
-    /// @dev Result of `assessor` for requirement `index`: the result of its latest statement when that
-    ///      statement is applicable, Undetermined otherwise, with the reason in the flags.
-    function _resultOf(Context memory c, address assessor, uint256 index) private view returns (uint8, uint32) {
+    /// @dev Result of the assessor at position `k` for requirement `index`: the result of its latest statement
+    ///      when that statement is applicable, Undetermined otherwise, with the reason in the flags. A statement
+    ///      that is applicable as a snapshot only keeps its result and reports that it is a snapshot.
+    function _resultOf(Context memory c, uint256 k, address assessor, uint256 index)
+        private
+        view
+        returns (uint8 result, uint32 flags)
+    {
         bytes32 statementId = _latest[c.unitId][c.profileId][assessor][index];
-        if (statementId == bytes32(0)) return (R_UNDETERMINED, 0);
-        T.Statement storage s = _statements[statementId];
-        uint32 flags;
-        if (statementId == c.lastId) {
-            flags = c.lastFlags;
-        } else {
-            flags = _classify(c, statementId, s);
-            c.lastId = statementId;
-            c.lastFlags = flags;
+        if (statementId != bytes32(0)) {
+            T.Statement storage s = _statements[statementId];
+            if (statementId == c.lastId) {
+                flags = c.lastFlags;
+            } else {
+                flags = _classify(c, statementId, s);
+                c.lastId = statementId;
+                c.lastFlags = flags;
+            }
+            result = flags & ~SNAPSHOT_ONLY != 0 ? R_UNDETERMINED : uint8(s.result);
         }
-        if (flags != 0) return (R_UNDETERMINED, flags);
-        return (uint8(s.result), 0);
+        c.receipt = keccak256(abi.encode(c.receipt, k, index, statementId, flags, result));
     }
 
     /// @dev Zero when the statement can support a current judgment; otherwise the reasons it cannot.
@@ -400,7 +428,24 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
             if (!found) flags |= T.FLAG_METHOD;
         }
         if (_unitRegistry.dependencyDigest(c.unitId, s.dependencies) != s.dependencyDigest) flags |= T.FLAG_INAPPLICABLE;
-        if (flags == 0 && c.liveEvidence) flags = _probe(c, statementId);
+        // a grant included in the authorization configuration has lapsed since it was granted
+        if (
+            s.dependencies & T.DEP_AUTHORIZATION != 0 && c.authorizationExpiry != 0
+                && c.authorizationExpiry < c.timepoint
+        ) flags |= T.FLAG_AUTHORIZATION_LAPSED;
+        if (flags == 0) {
+            if (c.liveEvidence) {
+                flags = _probe(c, statementId);
+            } else {
+                T.EvidenceRef[] storage refs = _references[statementId];
+                for (uint256 i = 0; i < refs.length; ++i) {
+                    if (refs[i].dynamic) {
+                        flags = T.FLAG_EVIDENCE_UNVERIFIED;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// @dev Reads every referenced record through its adapter. A failed or malformed call is an adapter
@@ -409,16 +454,16 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
         T.EvidenceRef[] storage refs = _references[statementId];
         for (uint256 i = 0; i < refs.length; ++i) {
             T.EvidenceRef memory r = refs[i];
-            (bool ok, bytes memory data) = r.adapter.staticcall(
+            (bool ok, uint256 status, uint256 validUntil) = _call(
+                r.adapter,
                 abi.encodeCall(
                     IACCFEvidenceAdapter.probe, (address(_unitRegistry), c.unitId, r.source, r.recordId, r.commitment)
                 )
             );
-            if (!ok || data.length != 64) {
+            if (!ok || validUntil > type(uint48).max) {
                 flags |= T.FLAG_ADAPTER_ERROR;
                 continue;
             }
-            (uint256 status, uint256 validUntil) = abi.decode(data, (uint256, uint256));
             if (status == uint256(T.ProbeStatus.Supported)) {
                 if (validUntil != 0 && validUntil <= c.timepoint) flags |= T.FLAG_EVIDENCE_LAPSED;
             } else if (status == uint256(T.ProbeStatus.NotSupported)) {
@@ -428,6 +473,25 @@ contract ACCFStatementRegistry is IACCFStatements, ACCFErrors {
             } else {
                 flags |= T.FLAG_ADAPTER_ERROR;
             }
+        }
+    }
+
+    /// @dev One adapter call with a fixed gas budget and a fixed answer size. Nothing beyond 64 bytes of the
+    ///      answer is copied, and an adapter that uses up its budget cannot use up the evaluation's.
+    function _call(address adapter, bytes memory payload)
+        private
+        view
+        returns (bool ok, uint256 status, uint256 validUntil)
+    {
+        // The adapter gets its whole allowance or the evaluation stops: an adapter error never comes from the
+        // caller's gas, so the result does not depend on how much gas the caller sent.
+        if (gasleft() < ADAPTER_GAS + ADAPTER_GAS / 63 + ADAPTER_RESERVE) revert InsufficientGas();
+        assembly ("memory-safe") {
+            let out := mload(0x40)
+            ok := staticcall(ADAPTER_GAS, adapter, add(payload, 32), mload(payload), out, 64)
+            if iszero(eq(returndatasize(), 64)) { ok := 0 }
+            status := mload(out)
+            validUntil := mload(add(out, 32))
         }
     }
 

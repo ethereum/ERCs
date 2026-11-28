@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "note": "A minimum is what every deployment depends on. A unit's declared relations extend it; a statement depends on the closure.",
   "classes": [
     {
       "id": 1,
@@ -7,9 +8,10 @@
       "key": "execution",
       "title": "Execution and resource supply",
       "dependencies": [
-        "execution"
+        "execution",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000001"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000001"
     },
     {
       "id": 2,
@@ -17,9 +19,10 @@
       "key": "intelligence",
       "title": "Intelligence supply",
       "dependencies": [
-        "intelligence"
+        "intelligence",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000002"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000002"
     },
     {
       "id": 3,
@@ -27,9 +30,10 @@
       "key": "state",
       "title": "State and memory continuity",
       "dependencies": [
-        "state"
+        "state",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000004"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000004"
     },
     {
       "id": 4,
@@ -38,9 +42,10 @@
       "title": "Capability execution environment",
       "dependencies": [
         "capability",
-        "intelligence"
+        "intelligence",
+        "boundary"
       ],
-      "mask": "0x000000000000000000000000000000000000000000000000000000000000000a"
+      "mask": "0x800000000000000000000000000000000000000000000000000000000000000a"
     },
     {
       "id": 5,
@@ -49,9 +54,10 @@
       "title": "Maintenance and recovery",
       "dependencies": [
         "maintenance",
-        "state"
+        "state",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000014"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000014"
     },
     {
       "id": 6,
@@ -60,9 +66,11 @@
       "title": "Control relation and authorization credentials",
       "dependencies": [
         "control",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x4000000000000000000000000000000000000000000000000000000000000080"
+      "mask": "0xe000000000000000000000000000000000000000000000000000000000000080"
     },
     {
       "id": 7,
@@ -74,9 +82,10 @@
         "execution",
         "state",
         "capability",
-        "maintenance"
+        "maintenance",
+        "boundary"
       ],
-      "mask": "0x000000000000000000000000000000000000000000000000000000000000011d"
+      "mask": "0x800000000000000000000000000000000000000000000000000000000000011d"
     },
     {
       "id": 8,
@@ -86,9 +95,10 @@
       "dependencies": [
         "scheme:interaction",
         "execution",
-        "capability"
+        "capability",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000209"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000209"
     },
     {
       "id": 9,
@@ -97,9 +107,10 @@
       "title": "Maintenance capability: mechanism",
       "dependencies": [
         "scheme:maintenance",
-        "maintenance"
+        "maintenance",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000410"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000410"
     },
     {
       "id": 10,
@@ -108,9 +119,10 @@
       "title": "Composition capability: mechanism",
       "dependencies": [
         "scheme:composition",
-        "capability"
+        "capability",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000808"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000808"
     },
     {
       "id": 11,
@@ -132,9 +144,11 @@
       "dependencies": [
         "protocol",
         "control",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x40000000000000000000000000000000000000000000000000000000000000a0"
+      "mask": "0xe0000000000000000000000000000000000000000000000000000000000000a0"
     },
     {
       "id": 13,
@@ -143,9 +157,10 @@
       "title": "Binding, compatibility and enforcement of applicable rules",
       "dependencies": [
         "protocol",
-        "capability"
+        "capability",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000028"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000028"
     },
     {
       "id": 14,
@@ -155,9 +170,10 @@
       "dependencies": [
         "protocol",
         "intelligence",
-        "capability"
+        "capability",
+        "boundary"
       ],
-      "mask": "0x000000000000000000000000000000000000000000000000000000000000002a"
+      "mask": "0x800000000000000000000000000000000000000000000000000000000000002a"
     },
     {
       "id": 15,
@@ -178,9 +194,11 @@
       "dependencies": [
         "scheme:lineage",
         "protocol",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x4000000000000000000000000000000000000000000000000000000000000120"
+      "mask": "0xe000000000000000000000000000000000000000000000000000000000000120"
     },
     {
       "id": 17,
@@ -189,9 +207,11 @@
       "title": "Interaction capability: rules",
       "dependencies": [
         "scheme:interaction",
-        "protocol"
+        "protocol",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000220"
+      "mask": "0xa000000000000000000000000000000000000000000000000000000000000220"
     },
     {
       "id": 18,
@@ -201,9 +221,11 @@
       "dependencies": [
         "scheme:maintenance",
         "protocol",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x4000000000000000000000000000000000000000000000000000000000000420"
+      "mask": "0xe000000000000000000000000000000000000000000000000000000000000420"
     },
     {
       "id": 19,
@@ -212,9 +234,11 @@
       "title": "Composition capability: rules",
       "dependencies": [
         "scheme:composition",
-        "protocol"
+        "protocol",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000820"
+      "mask": "0xa000000000000000000000000000000000000000000000000000000000000820"
     },
     {
       "id": 20,
@@ -262,9 +286,11 @@
         "execution",
         "intelligence",
         "control",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
-      "mask": "0x40000000000000000000000000000000000000000000000000000000000000c3"
+      "mask": "0xe0000000000000000000000000000000000000000000000000000000000000c3"
     },
     {
       "id": 24,
@@ -285,9 +311,10 @@
       "title": "Interaction capability: resources",
       "dependencies": [
         "scheme:interaction",
-        "economic"
+        "economic",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000240"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000240"
     },
     {
       "id": 26,
@@ -296,9 +323,10 @@
       "title": "Maintenance capability: resources",
       "dependencies": [
         "scheme:maintenance",
-        "economic"
+        "economic",
+        "boundary"
       ],
-      "mask": "0x0000000000000000000000000000000000000000000000000000000000000440"
+      "mask": "0x8000000000000000000000000000000000000000000000000000000000000440"
     },
     {
       "id": 27,

@@ -7,7 +7,7 @@
   "profile": {
     "name": "Ethereum reference profile",
     "version": "1.0.0",
-    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
   },
   "axis": "infrastructure",
   "result": "satisfied",
@@ -16,27 +16,28 @@
     2,
     4,
     5,
-    6,
     7,
     8,
     9
   ],
   "dependencies": [
     "execution",
+    "boundary",
     "state",
     "maintenance",
     "control",
     "relation:control",
-    "scheme:lineage",
-    "capability",
+    "relation:authorization",
     "scheme:interaction",
+    "capability",
     "scheme:maintenance",
     "scheme:composition"
   ],
+  "dependencyDigest": "0x732d8af0f59380601845616a9e43eb3f38d3a2243b3c8ce4c730b9a11f702294",
   "boundaryVersion": 1,
   "manifest": {
     "version": 1,
-    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2"
   },
   "method": {
     "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
@@ -70,11 +71,6 @@
       "basis": "see evidence"
     },
     {
-      "baselineClass": "lineage-mechanism",
-      "result": "satisfied",
-      "basis": "see evidence"
-    },
-    {
       "baselineClass": "interaction-mechanism",
       "result": "satisfied",
       "basis": "see evidence"
@@ -94,7 +90,7 @@
     {
       "type": "document",
       "commitment": "0x34b025a08561adf1ff60003a8192f35b0cef88d127ac7a79c9058b8299eaa450",
-      "scope": "execution, state, maintenance, control, lineage-mechanism, interaction-mechanism, maintenance-mechanism, composition-mechanism",
+      "scope": "execution, state, maintenance, control, interaction-mechanism, maintenance-mechanism, composition-mechanism",
       "premises": []
     }
   ],

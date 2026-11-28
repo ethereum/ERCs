@@ -10,5 +10,6 @@
   },
   "obligations": "Assigned parts by their deadlines; handover of unfinished parts on exit.",
   "exit": "Either side, with 7 days notice; assigned parts are finished or handed over first.",
-  "memberAffected": true
+  "memberAffected": true,
+  "note": "Declared by the member on chain; ending the membership by either side then changes the member's boundary, and the member can change the declaration, which reopens its boundary-bound conclusions."
 }

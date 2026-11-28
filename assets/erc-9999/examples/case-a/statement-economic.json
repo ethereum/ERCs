@@ -7,14 +7,13 @@
   "profile": {
     "name": "Ethereum reference profile",
     "version": "1.0.0",
-    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
   },
   "axis": "economic",
   "result": "satisfied",
   "coverage": [
     19,
     21,
-    23,
     24,
     25,
     26
@@ -23,15 +22,15 @@
     "economic",
     "boundary",
     "relation:control",
-    "scheme:lineage",
     "scheme:interaction",
     "scheme:maintenance",
     "scheme:composition"
   ],
+  "dependencyDigest": "0xc1d3aa0c2fe55da8004df915b6409d9a70498a1763d92e34080700e1528145f2",
   "boundaryVersion": 1,
   "manifest": {
     "version": 1,
-    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2"
   },
   "method": {
     "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
@@ -55,11 +54,6 @@
       "basis": "see evidence"
     },
     {
-      "baselineClass": "lineage-resources",
-      "result": "satisfied",
-      "basis": "see evidence"
-    },
-    {
       "baselineClass": "interaction-resources",
       "result": "satisfied",
       "basis": "see evidence"
@@ -79,7 +73,7 @@
     {
       "type": "document",
       "commitment": "0xe9984fba9d157d09f562855ebb88da45f85f3f4012feec42d4c5731b5e1ca5d1",
-      "scope": "accounting, solvency, lineage-resources, interaction-resources, maintenance-resources, composition-resources",
+      "scope": "accounting, solvency, interaction-resources, maintenance-resources, composition-resources",
       "premises": []
     }
   ],
@@ -89,6 +83,7 @@
     "denomination": "USD",
     "disposable": "880.00",
     "due": "310.00",
-    "minimumReplenishment": "505.00"
+    "minimumReplenishment": "505.00",
+    "sharedResources": []
   }
 }

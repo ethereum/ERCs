@@ -36,12 +36,14 @@ library ACCFTypes {
     uint8 internal constant FIRST_EXTENSION_ENTRY = 12;
     uint8 internal constant LAST_ENTRY = 239;
 
-    /// @dev A dependency mask has bit `i` set for manifest entry `i`, bit 254 for the control
-    ///      relation and bit 255 for the boundary. Bits 240..253 are reserved and zero.
+    /// @dev A dependency mask has bit `i` set for manifest entry `i`, bit 253 for the authorization
+    ///      configuration, bit 254 for the controller and bit 255 for the boundary (subject, duties and
+    ///      boundary). Bits 240..252 are reserved and zero.
     uint256 internal constant ENTRY_MASK = (uint256(1) << 240) - 1;
+    uint256 internal constant DEP_AUTHORIZATION = uint256(1) << 253;
     uint256 internal constant DEP_CONTROL = uint256(1) << 254;
     uint256 internal constant DEP_BOUNDARY = uint256(1) << 255;
-    uint256 internal constant DEPENDENCY_MASK = ENTRY_MASK | DEP_CONTROL | DEP_BOUNDARY;
+    uint256 internal constant DEPENDENCY_MASK = ENTRY_MASK | DEP_AUTHORIZATION | DEP_CONTROL | DEP_BOUNDARY;
 
     /// @dev Domain tag of the manifest root.
     bytes32 internal constant MANIFEST_DOMAIN = keccak256("ACCF manifest root v1");
@@ -101,9 +103,11 @@ library ACCFTypes {
     // Operator scopes
     // ---------------------------------------------------------------------
 
-    uint256 internal constant SCOPE_MANIFEST = 1 << 0; // migration, repair, upgrade
-    uint256 internal constant SCOPE_STATE = 1 << 1; // suspension, resumption
-    uint256 internal constant SCOPE_BOUNDARY = 1 << 2; // boundary change
+    /// @dev A transition needs the scope of its kind and the scope of every change it makes: entries
+    ///      need SCOPE_MANIFEST, a new descriptor SCOPE_BOUNDARY, a target operating state SCOPE_STATE.
+    uint256 internal constant SCOPE_MANIFEST = 1 << 0; // migration, repair, upgrade; any entry or relation
+    uint256 internal constant SCOPE_STATE = 1 << 1; // suspension, resumption; any target operating state
+    uint256 internal constant SCOPE_BOUNDARY = 1 << 2; // boundary change; any new descriptor
     uint256 internal constant SCOPE_DERIVE = 1 << 3; // derivation
     uint256 internal constant SCOPE_SUCCEED = 1 << 4; // succession, either side
     uint256 internal constant SCOPE_COMPOSE = 1 << 5; // composition, decomposition
@@ -129,10 +133,12 @@ library ACCFTypes {
         address controller; // account or contract through which the control mechanism acts
         address recovery; // authority of the pre-agreed recovery rule for control changes; zero if none
         bytes32 kind; // open label, for example keccak256("agent") or keccak256("composite")
-        uint8 rank; // composition rank; a member's rank is below its group's
+        uint8 rank; // reference ordering that keeps membership acyclic: a member's rank is below its group's
         OperatingState state;
         uint32 boundaryVersion;
-        uint32 controlVersion;
+        uint32 controlVersion; // advances when the controller changes
+        uint32 authorizationRevision; // advances when recovery, grants, approvals or allowances change
+        uint48 authorizationExpiry; // earliest expiry of a grant made under this control version; 0 if none
         uint32 manifestVersion;
         uint32 generation; // 0 for a registered unit, parent's generation + 1 for a derived unit
         uint48 registeredAt;
@@ -158,6 +164,8 @@ library ACCFTypes {
         string descriptorURI;
         uint8[] entries; // strictly ascending
         bytes32[] entryHashes;
+        uint8[] relationEntries; // entries whose declared dependencies are set, strictly ascending
+        uint256[] relationMasks; // dependency mask each of those entries depends on
         string manifestURI;
         bytes32 lineageCommitment;
         bytes32 detailsHash; // commitment to the Transition Record document of the registration
@@ -167,8 +175,10 @@ library ACCFTypes {
     /// @notice Input of a transition that concerns one unit.
     struct TransitionInput {
         uint8 kind;
-        uint8[] entries; // manifest entries to set, strictly ascending
-        bytes32[] entryHashes; // new commitments; zero removes the entry
+        uint8[] entries; // manifest entries to set or reconfirm, strictly ascending; each advances its revision
+        bytes32[] entryHashes; // new commitments; zero removes the entry; an unchanged value reconfirms it
+        uint8[] relationEntries; // entries whose declared dependencies change, strictly ascending
+        uint256[] relationMasks;
         string manifestURI;
         bytes32 descriptorHash; // zero leaves the boundary unchanged
         string descriptorURI;
@@ -188,7 +198,7 @@ library ACCFTypes {
         uint32 boundaryVersion; // versions after the transition
         uint32 controlVersion;
         uint32 manifestVersion;
-        uint256 changed; // dependency mask of what the transition changed
+        uint256 changed; // dependency mask of what the transition changed or reconfirmed
         bytes32 manifestRoot; // root after the transition
         bytes32 detailsHash;
     }
@@ -259,6 +269,7 @@ library ACCFTypes {
         address source; // registry holding the record
         bytes32 recordId;
         bytes32 commitment; // adapter-defined: expected subject, version or content commitment
+        bool dynamic; // the record has to remain valid for the statement to support a current judgment
     }
 
     struct StatementInput {
@@ -268,6 +279,7 @@ library ACCFTypes {
         Result result;
         uint256 coverage; // bitmap of requirement indices of the profile, all on `axis`
         uint256 dependencies; // dependency mask; includes the minimum of every covered requirement
+        bytes32 expectedDigest; // dependency digest of the state the assessor assessed; issuance fails otherwise
         bytes32 methodId; // method and method version
         uint48 observedFrom; // observation window
         uint48 observedTo;
@@ -294,7 +306,7 @@ library ACCFTypes {
         uint48 revokedAt; // 0: not revoked
         uint256 coverage;
         uint256 dependencies;
-        bytes32 dependencyDigest; // digest of the dependencies at issuance
+        bytes32 dependencyDigest; // digest of the dependencies at issuance, equal to the expected digest
         bytes32 manifestRoot; // root at issuance
         bytes32 methodId;
         bytes32 evidenceHash;
@@ -356,18 +368,20 @@ library ACCFTypes {
     uint32 internal constant FLAG_STATE = 1 << 8; // the operating state is not accepted by the policy
     uint32 internal constant FLAG_NOT_BASELINE = 1 << 9; // the profile does not claim the Baseline Requirements
     uint32 internal constant FLAG_PROFILE_DEPRECATED = 1 << 10; // the profile was deprecated by its publisher
+    uint32 internal constant FLAG_AUTHORIZATION_LAPSED = 1 << 11; // a grant the authorization configuration includes expired
+    uint32 internal constant FLAG_EVIDENCE_UNVERIFIED = 1 << 12; // a dynamic reference was not verified by this evaluation
 
     /// @notice Derived view of one unit under one policy at one timepoint. Nothing in it is stored.
     struct Evaluation {
         Result overall;
         Result[3] axes;
-        bool cellComplete; // overall Satisfied, Baseline profile, operating state accepted
+        bool cellComplete; // overall Satisfied, Baseline profile, operating state accepted, dynamic evidence verified
         bool baseline;
         bool stateAccepted;
         OperatingState state;
         uint32 flags; // bit set of FLAG_*
         uint48 timepoint;
         uint256 open; // requirements without an applicable supporting statement of an accepted assessor
-        bytes32 context; // digest of what was evaluated
+        bytes32 receipt; // commitment to the unit's versions, the policy, the timepoint and every statement read
     }
 }

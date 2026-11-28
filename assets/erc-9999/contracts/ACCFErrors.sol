@@ -46,6 +46,7 @@ interface ACCFErrors {
     // statements and policies
     error UnknownStatement(bytes32 statementId);
     error UnknownPolicy(bytes32 policyId);
+    error InsufficientGas();
     error EmptyCoverage();
     error DependencyOmitted(uint256 required, uint256 given);
     error InvalidDependencies(uint256 dependencies);
@@ -53,6 +54,7 @@ interface ACCFErrors {
     error EntryMissing(uint256 missing);
     error InvalidWindow();
     error WindowPrecedesUnit(uint48 observedFrom, uint48 bornAt);
+    error StateChanged(bytes32 expectedDigest, bytes32 currentDigest);
     error InvalidValidity();
     error TooManyReferences();
     error InvalidSupersedes(bytes32 statementId);

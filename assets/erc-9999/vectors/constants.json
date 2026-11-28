@@ -18,6 +18,7 @@
     "scheme:composition": 11
   },
   "dependencyBits": {
+    "authorization": "0x2000000000000000000000000000000000000000000000000000000000000000",
     "control": "0x4000000000000000000000000000000000000000000000000000000000000000",
     "boundary": "0x8000000000000000000000000000000000000000000000000000000000000000",
     "entryMask": "0x0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -83,7 +84,20 @@
     "probeUndetermined": 128,
     "state": 256,
     "notBaseline": 512,
-    "profileDeprecated": 1024
+    "profileDeprecated": 1024,
+    "authorizationLapsed": 2048,
+    "evidenceUnverified": 4096
+  },
+  "adapterCall": {
+    "gas": 200000,
+    "reserve": 60000,
+    "returnBytes": 64,
+    "maxValidUntil": 281474976710655
+  },
+  "membership": {
+    "none": 0,
+    "member": 1,
+    "memberAffected": 2
   },
   "methods": {
     "example": {

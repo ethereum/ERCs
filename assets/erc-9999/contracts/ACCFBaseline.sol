@@ -6,7 +6,11 @@ import {ACCFTypes as T} from "./interfaces/ACCFTypes.sol";
 /// @title ACCFBaseline
 /// @notice The Baseline class table, version 1: the classes of requirement no profile that claims the
 ///         Baseline Requirements may leave out, with the axis of each class and the minimum dependency
-///         mask of any statement that covers a requirement of the class.
+///         mask of any statement that covers a requirement of the class. Every class depends on the
+///         boundary, which carries the subject, its duties and its boundary: a conclusion about a unit holds
+///         for the duties it was reached for. A minimum is the least an assessment of the class depends on in
+///         every deployment, not the whole dependency graph of a unit; declared relations and the
+///         assessor's own dependencies add to it.
 library ACCFBaseline {
     uint32 internal constant VERSION = 1;
     uint8 internal constant CLASS_COUNT = 27;
@@ -54,6 +58,7 @@ library ACCFBaseline {
     uint256 private constant INTERACTION = uint256(1) << T.SCH_INTERACTION;
     uint256 private constant UPKEEP = uint256(1) << T.SCH_MAINTENANCE;
     uint256 private constant COMPOSITION = uint256(1) << T.SCH_COMPOSITION;
+    uint256 private constant AUTHZ = T.DEP_AUTHORIZATION;
 
     /// @notice Axis and minimum dependency mask of a class. Reverts for an unknown class.
     function classOf(uint8 classId) internal pure returns (uint8 axis, uint256 dependencies) {
@@ -65,7 +70,7 @@ library ACCFBaseline {
             else if (classId == I_STATE) dependencies = STATE;
             else if (classId == I_CAPABILITY) dependencies = CAPABILITY | INTELLIGENCE;
             else if (classId == I_MAINTENANCE) dependencies = MAINTENANCE | STATE;
-            else if (classId == I_CONTROL) dependencies = CONTROL | T.DEP_CONTROL;
+            else if (classId == I_CONTROL) dependencies = CONTROL | T.DEP_CONTROL | AUTHZ;
             else if (classId == I_LINEAGE) dependencies = LINEAGE | EXECUTION | STATE | CAPABILITY | MAINTENANCE;
             else if (classId == I_INTERACTION) dependencies = INTERACTION | EXECUTION | CAPABILITY;
             else if (classId == I_UPKEEP) dependencies = UPKEEP | MAINTENANCE;
@@ -73,21 +78,21 @@ library ACCFBaseline {
         } else if (classId <= P_COMPOSITION) {
             axis = T.AXIS_PROTOCOL;
             if (classId == P_IDENTITY) dependencies = PROTOCOL | T.DEP_BOUNDARY | T.DEP_CONTROL;
-            else if (classId == P_AUTHORITY) dependencies = PROTOCOL | CONTROL | T.DEP_CONTROL;
+            else if (classId == P_AUTHORITY) dependencies = PROTOCOL | CONTROL | T.DEP_CONTROL | AUTHZ;
             else if (classId == P_RULES) dependencies = PROTOCOL | CAPABILITY;
             else if (classId == P_SAFETY) dependencies = PROTOCOL | INTELLIGENCE | CAPABILITY;
             else if (classId == P_CONTINUITY) dependencies = PROTOCOL | T.DEP_BOUNDARY;
-            else if (classId == P_LINEAGE) dependencies = LINEAGE | PROTOCOL | T.DEP_CONTROL;
-            else if (classId == P_INTERACTION) dependencies = INTERACTION | PROTOCOL;
-            else if (classId == P_UPKEEP) dependencies = UPKEEP | PROTOCOL | T.DEP_CONTROL;
-            else dependencies = COMPOSITION | PROTOCOL;
+            else if (classId == P_LINEAGE) dependencies = LINEAGE | PROTOCOL | T.DEP_CONTROL | AUTHZ;
+            else if (classId == P_INTERACTION) dependencies = INTERACTION | PROTOCOL | AUTHZ;
+            else if (classId == P_UPKEEP) dependencies = UPKEEP | PROTOCOL | T.DEP_CONTROL | AUTHZ;
+            else dependencies = COMPOSITION | PROTOCOL | AUTHZ;
         } else {
             axis = T.AXIS_ECONOMIC;
             if (classId == E_BOUNDARY) dependencies = ECONOMIC | T.DEP_BOUNDARY;
             else if (classId == E_SURPLUS) dependencies = ECONOMIC | EXECUTION | INTELLIGENCE | T.DEP_BOUNDARY;
             else if (classId == E_SOLVENCY) dependencies = ECONOMIC | T.DEP_BOUNDARY | T.DEP_CONTROL;
             else if (classId == E_REPLENISHMENT) {
-                dependencies = ECONOMIC | EXECUTION | INTELLIGENCE | CONTROL | T.DEP_CONTROL;
+                dependencies = ECONOMIC | EXECUTION | INTELLIGENCE | CONTROL | T.DEP_CONTROL | AUTHZ;
             } else if (classId == E_LINEAGE) {
                 dependencies = LINEAGE | ECONOMIC | T.DEP_BOUNDARY;
             } else if (classId == E_INTERACTION) {
@@ -98,5 +103,7 @@ library ACCFBaseline {
                 dependencies = COMPOSITION | ECONOMIC | T.DEP_BOUNDARY;
             }
         }
+        // the subject, its duties and its boundary are a coordinate of every Baseline conclusion
+        dependencies |= T.DEP_BOUNDARY;
     }
 }

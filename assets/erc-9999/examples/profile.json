@@ -16,7 +16,8 @@
       "title": "Execution and resource supply",
       "statement": "The unit holds or can keep obtaining the compute, storage, network, energy and, for an embodied unit, the sensors, actuators and working environment its declared duties need.",
       "dependencies": [
-        "execution"
+        "execution",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -28,7 +29,8 @@
       "title": "Intelligence supply",
       "statement": "The model or other inference mechanism is available in the capacity and capability the declared duties need, under stated supply conditions and with a stated path for substitution, degradation or orderly exit.",
       "dependencies": [
-        "intelligence"
+        "intelligence",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -40,7 +42,8 @@
       "title": "State and memory continuity",
       "statement": "Identity-related state, working state and memory are intact, accessible, persisted as the declared state mode says, restorable and migratable.",
       "dependencies": [
-        "state"
+        "state",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -53,7 +56,8 @@
       "statement": "Runtime, harness, skills and tools are present in the committed versions, usable under the current permissions and environment, and actually executable.",
       "dependencies": [
         "capability",
-        "intelligence"
+        "intelligence",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -66,7 +70,8 @@
       "statement": "Monitoring, diagnosis, checkpoints, repair, upgrade, rollback, degradation and termination mechanisms exist and work.",
       "dependencies": [
         "maintenance",
-        "state"
+        "state",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -79,7 +84,9 @@
       "statement": "The technical means to use, protect, change, revoke and recover the control relation and the authorization credentials exist, work and can be restored.",
       "dependencies": [
         "control",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -95,7 +102,8 @@
         "execution",
         "state",
         "capability",
-        "maintenance"
+        "maintenance",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -109,7 +117,8 @@
       "dependencies": [
         "scheme:interaction",
         "execution",
-        "capability"
+        "capability",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -122,7 +131,8 @@
       "statement": "The maintenance scheme's mechanism is feasible end to end: the unit can be suspended or degraded, changed, checked and resumed.",
       "dependencies": [
         "scheme:maintenance",
-        "maintenance"
+        "maintenance",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -135,7 +145,8 @@
       "statement": "The composition scheme's mechanism is feasible end to end: the unit can take a role in a group and leave it.",
       "dependencies": [
         "scheme:composition",
-        "capability"
+        "capability",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -163,7 +174,9 @@
       "dependencies": [
         "protocol",
         "control",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -176,7 +189,8 @@
       "statement": "Every rule set the declared activities call for is bound in a stated version, the bound rule sets are compatible in subject, version, time, authorization and result semantics, and they are enforced on the execution paths they govern.",
       "dependencies": [
         "protocol",
-        "capability"
+        "capability",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -190,7 +204,8 @@
       "dependencies": [
         "protocol",
         "intelligence",
-        "capability"
+        "capability",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -217,7 +232,9 @@
       "dependencies": [
         "scheme:lineage",
         "protocol",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -230,7 +247,9 @@
       "statement": "The interaction scheme states the rules of each stage it uses, including refusal and dispute.",
       "dependencies": [
         "scheme:interaction",
-        "protocol"
+        "protocol",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -244,7 +263,9 @@
       "dependencies": [
         "scheme:maintenance",
         "protocol",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -257,7 +278,9 @@
       "statement": "The composition scheme states how the unit joins, which role and representation it accepts, and how it exits.",
       "dependencies": [
         "scheme:composition",
-        "protocol"
+        "protocol",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 7776000
     },
@@ -315,7 +338,9 @@
         "execution",
         "intelligence",
         "control",
-        "relation:control"
+        "relation:control",
+        "relation:authorization",
+        "boundary"
       ],
       "maxValidity": 3888000
     },
@@ -342,7 +367,8 @@
       "statement": "The unit can settle what the interaction scheme commits it to.",
       "dependencies": [
         "scheme:interaction",
-        "economic"
+        "economic",
+        "boundary"
       ],
       "maxValidity": 3888000
     },
@@ -355,7 +381,8 @@
       "statement": "The cost of maintenance under the maintenance scheme is funded.",
       "dependencies": [
         "scheme:maintenance",
-        "economic"
+        "economic",
+        "boundary"
       ],
       "maxValidity": 3888000
     },

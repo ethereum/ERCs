@@ -27,5 +27,9 @@
   "lineage": {
     "parent": "alpha",
     "disclosure": "public"
+  },
+  "metadata": {
+    "name": "alpha-child-1",
+    "note": "Not committed: the descriptor commitment leaves this member out."
   }
 }

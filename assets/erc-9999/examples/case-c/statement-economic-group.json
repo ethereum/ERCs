@@ -7,7 +7,7 @@
   "profile": {
     "name": "Ethereum reference profile",
     "version": "1.0.0",
-    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
   },
   "axis": "economic",
   "result": "satisfied",
@@ -22,10 +22,11 @@
     "boundary",
     "scheme:composition"
   ],
+  "dependencyDigest": "0x72365acf51ad420be2814ed45bd0bdd56105dae2c878e2779c9e58dcd1fbbc3a",
   "boundaryVersion": 3,
   "manifest": {
     "version": 1,
-    "root": "0x7b9bcecf79f6d4f2a3a72774b4456661f396b7c8347353b7ba3f55d5c06b64b6"
+    "root": "0xd79e6e178163133f5fdcdad5d351e3cd13654b06476760137379b086bcf318d3"
   },
   "method": {
     "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",

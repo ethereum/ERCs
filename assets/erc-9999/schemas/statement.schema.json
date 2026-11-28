@@ -19,7 +19,8 @@
     "validUntil",
     "findings",
     "evidence",
-    "premises"
+    "premises",
+    "dependencyDigest"
   ],
   "properties": {
     "accf": {
@@ -88,7 +89,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control)$"
+        "pattern": "^(execution|intelligence|state|capability|maintenance|protocol|economic|control|scheme:(lineage|interaction|maintenance|composition)|extension:[0-9]{2,3}|boundary|relation:control|relation:authorization)$"
       }
     },
     "boundaryVersion": {
@@ -255,6 +256,10 @@
               "type": "string"
             },
             "description": "What the reference was not checked for."
+          },
+          "dynamic": {
+            "type": "boolean",
+            "description": "The referenced record has to remain valid for the statement to support a current judgment. A dynamic record that an evaluation does not read leaves a snapshot, which is not reported as cell-complete."
           }
         },
         "if": {
@@ -328,7 +333,8 @@
                 "description": "The counterparty is inside the assessed boundary; the item is eliminated."
               }
             }
-          }
+          },
+          "description": "Inflows in the window. An empty list states that there were none; an absent member states nothing, and the surplus result is then undetermined."
         },
         "costs": {
           "type": "array",
@@ -426,7 +432,8 @@
               },
               "capacity": {
                 "type": "string",
-                "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+                "pattern": "^[0-9]+(\\.[0-9]{1,6})?$",
+                "description": "A capacity is not negative."
               },
               "allocations": {
                 "type": "array",
@@ -442,15 +449,22 @@
                     },
                     "amount": {
                       "type": "string",
-                      "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+                      "pattern": "^[0-9]+(\\.[0-9]{1,6})?$",
+                      "description": "An allocation is not negative; a negative entry cannot offset an allocation above capacity."
                     }
                   }
                 }
               }
             }
-          }
+          },
+          "description": "Shared resources of the group and their allocations. An empty list states that there are none; an absent member states nothing, and the sharing result is then undetermined."
         }
       }
+    },
+    "dependencyDigest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "description": "Dependency digest of the state the assessor assessed. The registry records the statement only while the current digest is this one."
     }
   }
 }

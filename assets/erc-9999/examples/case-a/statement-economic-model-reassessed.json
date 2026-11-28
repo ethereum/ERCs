@@ -7,13 +7,14 @@
   "profile": {
     "name": "Ethereum reference profile",
     "version": "1.0.0",
-    "commitment": "0x34a475dbb961d9355f95d78ca71fadfd8f4925e30db28532d78bcfa5fc8a1ea2"
+    "commitment": "0xc88bb90efe96a852918766a35741b63fc6daa3f163a55a0a03670cbedf16ef34"
   },
   "axis": "economic",
   "result": "satisfied",
   "coverage": [
     20,
-    22
+    22,
+    23
   ],
   "dependencies": [
     "economic",
@@ -21,12 +22,15 @@
     "intelligence",
     "boundary",
     "control",
-    "relation:control"
+    "relation:control",
+    "relation:authorization",
+    "scheme:lineage"
   ],
+  "dependencyDigest": "0x512e4e3a9f015497345487f2a566a36b73d03d16d65f437a10e3b7b72b99383a",
   "boundaryVersion": 1,
   "manifest": {
     "version": 2,
-    "root": "0xd033a2193a892609a9d4b5bbe247c1c6de94a5b1dde67b01d8f93f704f5cba7e"
+    "root": "0x5dfd2d7bf46ed84d681b29c17f558d88644881ba472172485ca3f873fd5611f5"
   },
   "method": {
     "id": "0x0211955b8a73651ccd1d71d18920aa95c959d735b2c28eeb70052c03c804f2b4",
@@ -48,13 +52,18 @@
       "baselineClass": "replenishment",
       "result": "satisfied",
       "basis": "see evidence"
+    },
+    {
+      "baselineClass": "lineage-resources",
+      "result": "satisfied",
+      "basis": "see evidence"
     }
   ],
   "evidence": [
     {
       "type": "document",
       "commitment": "0xe9984fba9d157d09f562855ebb88da45f85f3f4012feec42d4c5731b5e1ca5d1",
-      "scope": "surplus, replenishment",
+      "scope": "surplus, replenishment, lineage-resources",
       "premises": []
     }
   ],
@@ -115,6 +124,7 @@
       "executor": "unit",
       "authorization": "spending limit of 600 USD per month set by the controller",
       "fundedFrom": "unit"
-    }
+    },
+    "sharedResources": []
   }
 }

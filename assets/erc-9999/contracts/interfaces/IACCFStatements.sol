@@ -26,12 +26,19 @@ interface IACCFStatements {
         bytes32 supersedes
     );
     event EvidenceReferenced(
-        bytes32 indexed statementId, address indexed adapter, address source, bytes32 recordId, bytes32 commitment
+        bytes32 indexed statementId,
+        address indexed adapter,
+        address source,
+        bytes32 recordId,
+        bytes32 commitment,
+        bool dynamic
     );
     event StatementRevoked(bytes32 indexed statementId, address indexed assessor, bytes32 reasonHash);
     event PolicyRegistered(bytes32 indexed policyId, address indexed owner, bytes32 indexed profileId, ACCFTypes.PolicyInput policy);
 
-    /// @notice Records a statement of the caller about one axis of one unit under one profile.
+    /// @notice Records a statement of the caller about one axis of one unit under one profile. Fails unless the
+    ///         dependency digest the assessor expects is the current one: a statement is about the state it was
+    ///         prepared for and is never reattached to a later one.
     function issue(ACCFTypes.StatementInput calldata input) external returns (bytes32 statementId);
 
     /// @notice Records several statements of the caller.
@@ -51,11 +58,14 @@ interface IACCFStatements {
     function policyOf(bytes32 policyId) external view returns (ACCFTypes.Policy memory);
 
     /// @notice Whether a statement can support a current judgment: not revoked, within its validity, with
-    ///         unchanged dependencies and, when `liveEvidence` is set, with every referenced record still
-    ///         supporting it. `flags` tells why not.
+    ///         unchanged dependencies, with no lapsed grant in an authorization configuration it depends on and,
+    ///         when `liveEvidence` is set, with every referenced record still supporting it. `flags` tells why not.
+    ///         Without `liveEvidence`, a statement with a dynamic reference is reported with
+    ///         `FLAG_EVIDENCE_UNVERIFIED` and is applicable as a snapshot only.
     function applicability(bytes32 statementId, bool liveEvidence) external view returns (bool applicable, uint32 flags);
 
-    /// @notice The derived view of `unitId` under `policyId` at the current timepoint.
+    /// @notice The derived view of `unitId` under `policyId` at the current timepoint. A relying party binds
+    ///         the policy it relies on before it reads the view.
     function evaluate(bytes32 unitId, bytes32 policyId) external view returns (ACCFTypes.Evaluation memory);
 
     /// @notice `evaluate(unitId, policyId).cellComplete`.

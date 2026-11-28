@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {ACCFTypes as T} from "./interfaces/ACCFTypes.sol";
 import {IACCFUnits} from "./interfaces/IACCFUnits.sol";
 import {ACCFErrors} from "./ACCFErrors.sol";
+import {ACCFManifestLib} from "./ACCFManifestLib.sol";
 
 /// @title ACCFUnitRegistry
 /// @notice Reference registry of Cell Records, manifest commitments and Transition Records.
@@ -34,15 +35,21 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         bytes32 termsHash;
     }
 
+    uint8 private constant NOT_MEMBER = 0;
+    uint8 private constant MEMBER = 1;
+    uint8 private constant MEMBER_AFFECTED = 2;
+
     mapping(bytes32 => T.Unit) private _units;
     mapping(bytes32 => mapping(uint8 => bytes32)) private _entries;
+    mapping(bytes32 => mapping(uint8 => uint32)) private _revisions;
+    mapping(bytes32 => mapping(uint8 => uint256)) private _relations;
     mapping(bytes32 => mapping(address => Grant)) private _operators;
     mapping(bytes32 => PendingControl) private _pendingControl;
     mapping(bytes32 => T.Derivation) private _derivations;
     mapping(bytes32 => Proposal) private _proposals;
-    mapping(bytes32 => mapping(bytes32 => bool)) private _members;
+    mapping(bytes32 => mapping(bytes32 => uint8)) private _members;
     mapping(bytes32 => bytes32) private _claims;
-    mapping(bytes32 => mapping(address => bool)) private _approvedAccounts;
+    mapping(bytes32 => mapping(address => uint32)) private _approvedAccounts; // control version of the approval
     mapping(bytes32 => T.Transition) private _transitions;
     mapping(bytes32 => bytes32[]) private _history;
     uint256 private _unitNonce;
@@ -77,7 +84,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             unitId,
             T.KIND_REGISTRATION,
             bytes32(0),
-            _units[unitId].entries | T.DEP_BOUNDARY | T.DEP_CONTROL,
+            _units[unitId].entries | T.DEP_BOUNDARY | T.DEP_CONTROL | T.DEP_AUTHORIZATION,
             input.detailsHash,
             input.detailsURI
         );
@@ -88,6 +95,11 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         uint8 kind = input.kind;
         if (input.detailsHash == bytes32(0)) revert DetailsRequired();
 
+        bool boundary = input.descriptorHash != bytes32(0);
+        T.OperatingState target = input.state;
+        bool touches = input.entries.length != 0 || input.relationEntries.length != 0;
+
+        // the authorization has to cover every change the transition makes, not only its kind
         uint256 scope;
         if (kind == T.KIND_MIGRATION || kind == T.KIND_REPAIR || kind == T.KIND_UPGRADE) {
             scope = T.SCOPE_MANIFEST;
@@ -98,22 +110,31 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         } else if (kind != T.KIND_RETIREMENT && kind < T.FIRST_EXTENSION_KIND) {
             revert InvalidKind(kind);
         }
+        if (scope != 0) {
+            if (touches) scope |= T.SCOPE_MANIFEST;
+            if (boundary) scope |= T.SCOPE_BOUNDARY;
+            if (target != T.OperatingState.None) scope |= T.SCOPE_STATE;
+        }
         _authorize(unitId, u, scope);
 
-        uint256 changed = _setEntries(unitId, u, input.entries, input.entryHashes);
-        bool boundary = input.descriptorHash != bytes32(0);
-        T.OperatingState target = input.state;
+        (uint256 changed, uint256 touched) = _setEntries(unitId, u, input.entries, input.entryHashes);
+        (uint256 related, uint256 relTouched) = _setRelations(unitId, input.relationEntries, input.relationMasks, touched);
+        changed |= related;
+        touched |= relTouched;
 
         if (kind == T.KIND_UPGRADE) {
             if (changed == 0) revert NothingChanged();
         } else if (kind == T.KIND_MIGRATION) {
             if (changed & (uint256(1) << T.SEC_EXECUTION) == 0) revert NothingChanged();
+        } else if (kind == T.KIND_REPAIR) {
+            // a repair restores the committed configuration; it may reconfirm entries, not change them
+            if (changed != 0 || boundary) revert UnexpectedChange();
         } else if (kind == T.KIND_BOUNDARY_CHANGE) {
             if (!boundary) revert DescriptorRequired();
-            if (changed != 0) revert UnexpectedChange();
+            if (touched != 0) revert UnexpectedChange();
         } else if (kind < T.FIRST_EXTENSION_KIND) {
-            // repair, suspension, resumption and retirement leave manifest and boundary as they are
-            if (changed != 0 || boundary) revert UnexpectedChange();
+            // suspension, resumption and retirement leave manifest and boundary as they are
+            if (touched != 0 || boundary) revert UnexpectedChange();
             if (kind == T.KIND_SUSPENSION) {
                 if (
                     target != T.OperatingState.Degraded && target != T.OperatingState.Suspended
@@ -132,16 +153,16 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             if (target == T.OperatingState.Retired && kind != T.KIND_RETIREMENT) revert InvalidState();
             u.state = target;
         }
-        if (changed != 0) {
+        if (touched != 0) {
             u.manifestVersion += 1;
             u.manifestRoot = _root(unitId, u.entries);
             emit ManifestSet(unitId, u.manifestVersion, u.manifestRoot, input.manifestURI);
         }
         if (boundary) {
             _setDescriptor(unitId, u, input.descriptorHash, input.descriptorURI);
-            changed |= T.DEP_BOUNDARY;
+            touched |= T.DEP_BOUNDARY;
         }
-        transitionId = _record(unitId, kind, bytes32(0), changed, input.detailsHash, input.detailsURI);
+        transitionId = _record(unitId, kind, bytes32(0), touched, input.detailsHash, input.detailsURI);
     }
 
     // ---------------------------------------------------------------------
@@ -158,6 +179,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             emit ControlProposalCancelled(unitId);
         }
         emit RecoverySet(unitId, recovery);
+        _reviseAuthorization(unitId, u, 0);
     }
 
     function setOperator(bytes32 unitId, address operator, uint256 scopes, uint48 validUntil) external {
@@ -166,6 +188,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         if (operator == address(0)) revert InvalidAddress();
         _operators[unitId][operator] = Grant({scopes: scopes, validUntil: validUntil, controlVersion: u.controlVersion});
         emit OperatorSet(unitId, operator, scopes, validUntil);
+        _reviseAuthorization(unitId, u, scopes == 0 ? 0 : validUntil);
     }
 
     function proposeControl(
@@ -202,7 +225,10 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         delete _pendingControl[unitId];
         u.controller = msg.sender;
         u.controlVersion += 1;
-        uint256 changed = T.DEP_CONTROL;
+        // every grant and approval ended with the old control version
+        u.authorizationExpiry = 0;
+        _reviseAuthorization(unitId, u, 0);
+        uint256 changed = T.DEP_CONTROL | T.DEP_AUTHORIZATION;
         if (descriptorHash != bytes32(0)) {
             _setDescriptor(unitId, u, descriptorHash, descriptorURI);
             changed |= T.DEP_BOUNDARY;
@@ -231,6 +257,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         if (a.limits & T.LIMIT_COUNT != 0 && a.maxChildren < d.children) revert DerivationLimit(unitId, T.LIMIT_COUNT);
         d.allowance = a;
         emit DerivationAllowanceSet(unitId, a);
+        _reviseAuthorization(unitId, u, 0);
     }
 
     function derive(bytes32 parentId, T.UnitInput calldata child, T.DerivationTerms calldata terms)
@@ -244,18 +271,10 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         T.Derivation storage d = _derivations[parentId];
         T.DerivationAllowance memory a = d.allowance;
         uint32 generation = p.generation + 1;
-        if (!a.enabled) revert DerivationNotPermitted(parentId);
-        if (a.limits & T.LIMIT_COUNT != 0 && d.children >= a.maxChildren) revert DerivationLimit(parentId, T.LIMIT_COUNT);
-        if (a.limits & T.LIMIT_GENERATION != 0 && generation > a.maxGeneration) {
-            revert DerivationLimit(parentId, T.LIMIT_GENERATION);
-        }
-        if (a.limits & T.LIMIT_BUDGET != 0) {
-            // the limit is on the sum of what all children were granted, not on each grant
-            if (d.granted + terms.budget > a.budget) revert DerivationLimit(parentId, T.LIMIT_BUDGET);
-            d.granted += terms.budget;
-        } else if (terms.budget != 0) {
-            revert DerivationLimit(parentId, T.LIMIT_BUDGET);
-        }
+        uint8 refused = _refusal(p, d, terms.budget);
+        if (refused == 255) revert DerivationNotPermitted(parentId);
+        if (refused != 0) revert DerivationLimit(parentId, refused);
+        if (a.limits & T.LIMIT_BUDGET != 0) d.granted += terms.budget;
         d.children += 1;
 
         childId = _create(child, parentId, generation);
@@ -280,7 +299,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             childId,
             T.KIND_DERIVATION,
             parentId,
-            c.entries | T.DEP_BOUNDARY | T.DEP_CONTROL,
+            c.entries | T.DEP_BOUNDARY | T.DEP_CONTROL | T.DEP_AUTHORIZATION,
             child.detailsHash,
             child.detailsURI
         );
@@ -362,7 +381,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         T.Unit storage g = _live(groupId);
         T.Unit storage m = _live(memberId);
         if (m.rank >= g.rank) revert InvalidRank();
-        if (_members[groupId][memberId]) revert AlreadyMember(groupId, memberId);
+        if (_members[groupId][memberId] != NOT_MEMBER) revert AlreadyMember(groupId, memberId);
         if (termsHash == bytes32(0)) revert DetailsRequired();
         if (expiry <= clock()) revert InvalidExpiry();
         uint32 version;
@@ -392,7 +411,7 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         T.Unit storage g = _live(pr.a);
         T.Unit storage m = _live(pr.b);
         if ((pr.byGroup ? g.controlVersion : m.controlVersion) != pr.controlVersion) revert ProposalNotOpen(proposalId);
-        if (_members[pr.a][pr.b]) revert AlreadyMember(pr.a, pr.b);
+        if (_members[pr.a][pr.b] != NOT_MEMBER) revert AlreadyMember(pr.a, pr.b);
         bool affected;
         if (pr.byGroup) {
             _authorize(pr.b, m, T.SCOPE_COMPOSE);
@@ -402,10 +421,10 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             affected = pr.memberAffected;
         }
         delete _proposals[proposalId];
-        _members[pr.a][pr.b] = true;
+        _members[pr.a][pr.b] = affected ? MEMBER_AFFECTED : MEMBER;
         g.memberCount += 1;
         m.groupCount += 1;
-        emit MembershipChanged(pr.a, pr.b, true);
+        emit MembershipChanged(pr.a, pr.b, true, affected);
         transitionId = _recordMembership(pr.a, g, pr.b, m, T.KIND_COMPOSITION, affected, pr.termsHash, "");
     }
 
@@ -419,17 +438,36 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
     ) external returns (bytes32 transitionId) {
         T.Unit storage g = _live(groupId);
         T.Unit storage m = _live(memberId);
-        if (!_members[groupId][memberId]) revert NotMember(groupId, memberId);
+        uint8 status = _members[groupId][memberId];
+        if (status == NOT_MEMBER) revert NotMember(groupId, memberId);
         if (detailsHash == bytes32(0)) revert DetailsRequired();
         if (byGroup) _authorize(groupId, g, T.SCOPE_COMPOSE);
         else _authorize(memberId, m, T.SCOPE_COMPOSE);
-        _members[groupId][memberId] = false;
+        // what the member declared when it joined still holds when the group ends the membership
+        bool affected = status == MEMBER_AFFECTED || (!byGroup && memberAffected);
+        _members[groupId][memberId] = NOT_MEMBER;
         g.memberCount -= 1;
         m.groupCount -= 1;
-        emit MembershipChanged(groupId, memberId, false);
-        transitionId = _recordMembership(
-            groupId, g, memberId, m, T.KIND_DECOMPOSITION, !byGroup && memberAffected, detailsHash, detailsURI
-        );
+        emit MembershipChanged(groupId, memberId, false, affected);
+        transitionId =
+            _recordMembership(groupId, g, memberId, m, T.KIND_DECOMPOSITION, affected, detailsHash, detailsURI);
+    }
+
+    function setMembershipDependency(
+        bytes32 groupId,
+        bytes32 memberId,
+        bool memberAffected,
+        bytes32 detailsHash,
+        string calldata detailsURI
+    ) external returns (bytes32 transitionId) {
+        T.Unit storage m = _live(memberId);
+        if (_members[groupId][memberId] == NOT_MEMBER) revert NotMember(groupId, memberId);
+        if (detailsHash == bytes32(0)) revert DetailsRequired();
+        _authorize(memberId, m, T.SCOPE_COMPOSE);
+        _members[groupId][memberId] = memberAffected ? MEMBER_AFFECTED : MEMBER;
+        _bumpBoundary(memberId, m);
+        emit MembershipChanged(groupId, memberId, true, memberAffected);
+        transitionId = _record(memberId, T.KIND_COMPOSITION, groupId, T.DEP_BOUNDARY, detailsHash, detailsURI);
     }
 
     function cancelProposal(bytes32 proposalId) external {
@@ -446,14 +484,17 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
     // ---------------------------------------------------------------------
 
     function approveAccount(bytes32 unitId, address account, bool approved) external {
-        _authorize(unitId, _live(unitId), T.SCOPE_CLAIM);
-        _approvedAccounts[unitId][account] = approved;
+        T.Unit storage u = _live(unitId);
+        _authorize(unitId, u, T.SCOPE_CLAIM);
+        _approvedAccounts[unitId][account] = approved ? u.controlVersion : 0;
         emit AccountApproved(unitId, account, approved);
+        _reviseAuthorization(unitId, u, 0);
     }
 
     function claimAccount(bytes32 unitId) external {
         T.Unit storage u = _live(unitId);
-        if (msg.sender != u.controller && !_approvedAccounts[unitId][msg.sender]) {
+        // an approval given under an earlier control relation has to be given again
+        if (msg.sender != u.controller && _approvedAccounts[unitId][msg.sender] != u.controlVersion) {
             revert AccountNotApproved(unitId, msg.sender);
         }
         _claim(unitId, u, accountKey(msg.sender));
@@ -494,21 +535,22 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         return _entries[unitId][entry];
     }
 
-    function entriesOf(bytes32 unitId) external view returns (uint8[] memory entries, bytes32[] memory entryHashes) {
-        if (_units[unitId].registeredAt == 0) revert UnknownUnit(unitId);
-        return _collect(unitId, _units[unitId].entries);
+    function revisionOf(bytes32 unitId, uint8 entry) external view returns (uint32) {
+        return _revisions[unitId][entry];
+    }
+
+    function relationOf(bytes32 unitId, uint8 entry) external view returns (uint256) {
+        return _relations[unitId][entry];
+    }
+
+    function dependencyClosure(bytes32 unitId, uint256 mask) external view returns (uint256) {
+        _known(unitId, mask);
+        return ACCFManifestLib.closure(_relations[unitId], mask);
     }
 
     function dependencyDigest(bytes32 unitId, uint256 mask) external view returns (bytes32) {
-        T.Unit storage u = _units[unitId];
-        if (u.registeredAt == 0) revert UnknownUnit(unitId);
-        if (mask & ~T.DEPENDENCY_MASK != 0) revert InvalidEntries();
-        // an absent entry contributes zero, so a digest taken over it changes when the entry is committed
-        (, bytes32[] memory values) = _collect(unitId, mask & T.ENTRY_MASK);
-        bytes32 boundary =
-            mask & T.DEP_BOUNDARY != 0 ? keccak256(abi.encode(u.descriptorHash, u.boundaryVersion)) : bytes32(0);
-        bytes32 control = mask & T.DEP_CONTROL != 0 ? keccak256(abi.encode(u.controller, u.controlVersion)) : bytes32(0);
-        return keccak256(abi.encode(mask, values, boundary, control));
+        _known(unitId, mask);
+        return ACCFManifestLib.digest(_entries[unitId], _revisions[unitId], _relations[unitId], _units[unitId], mask);
     }
 
     function isAuthorized(bytes32 unitId, address account, uint256 scope) public view returns (bool) {
@@ -539,17 +581,16 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         T.Unit storage u = _units[unitId];
         if (u.registeredAt == 0) return false;
         if (u.state != T.OperatingState.Active && u.state != T.OperatingState.Degraded) return false;
-        T.Derivation storage d = _derivations[unitId];
-        T.DerivationAllowance memory a = d.allowance;
-        if (!a.enabled) return false;
-        if (a.limits & T.LIMIT_COUNT != 0 && d.children >= a.maxChildren) return false;
-        if (a.limits & T.LIMIT_GENERATION != 0 && u.generation + 1 > a.maxGeneration) return false;
-        if (a.limits & T.LIMIT_BUDGET != 0) return d.granted + budget <= a.budget;
-        return budget == 0;
+        return _refusal(u, _derivations[unitId], budget) == 0;
     }
 
     function isMember(bytes32 groupId, bytes32 memberId) external view returns (bool) {
-        return _members[groupId][memberId];
+        return _members[groupId][memberId] != NOT_MEMBER;
+    }
+
+    function membershipOf(bytes32 groupId, bytes32 memberId) external view returns (bool member, bool memberAffected) {
+        uint8 status = _members[groupId][memberId];
+        return (status != NOT_MEMBER, status == MEMBER_AFFECTED);
     }
 
     function claimantOf(bytes32 key) external view returns (bytes32) {
@@ -576,20 +617,6 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
         return _history[unitId][index];
     }
 
-    function computeRoot(uint8[] calldata entries, bytes32[] calldata entryHashes) external pure returns (bytes32) {
-        if (entries.length != entryHashes.length) revert InvalidEntries();
-        for (uint256 i = 0; i < entries.length; ++i) {
-            if (entries[i] > T.LAST_ENTRY || (i != 0 && entries[i] <= entries[i - 1]) || entryHashes[i] == bytes32(0)) {
-                revert InvalidEntries();
-            }
-        }
-        return keccak256(abi.encode(T.MANIFEST_DOMAIN, entries, entryHashes));
-    }
-
-    function subjectKeyOf(bytes32 subjectType, bytes calldata subjectData) external pure returns (bytes32) {
-        return keccak256(abi.encode(subjectType, subjectData));
-    }
-
     // ---------------------------------------------------------------------
     // Internals
     // ---------------------------------------------------------------------
@@ -607,6 +634,18 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             if (g.controlVersion == u.controlVersion && g.validUntil >= clock() && g.scopes & scope == scope) return;
         }
         revert NotAuthorized(unitId, msg.sender);
+    }
+
+    /// @dev Why the recorded authorization refuses a derivation granting `budget`: 255 when derivation is not
+    ///      enabled, the limit that refuses it otherwise, 0 when it is permitted. A budget limit is on the sum of
+    ///      what all children were granted, not on each grant.
+    function _refusal(T.Unit storage u, T.Derivation storage d, uint256 budget) private view returns (uint8) {
+        T.DerivationAllowance memory a = d.allowance;
+        if (!a.enabled) return 255;
+        if (a.limits & T.LIMIT_COUNT != 0 && d.children >= a.maxChildren) return T.LIMIT_COUNT;
+        if (a.limits & T.LIMIT_GENERATION != 0 && u.generation + 1 > a.maxGeneration) return T.LIMIT_GENERATION;
+        if (a.limits & T.LIMIT_BUDGET != 0 ? d.granted + budget > a.budget : budget != 0) return T.LIMIT_BUDGET;
+        return 0;
     }
 
     function _controlAuthority(bytes32 unitId, T.Unit storage u) private view {
@@ -653,57 +692,75 @@ contract ACCFUnitRegistry is IACCFUnits, ACCFErrors {
             input.lineageCommitment
         );
         emit DescriptorSet(unitId, 1, input.descriptorHash, input.descriptorURI);
-        _setEntries(unitId, u, input.entries, input.entryHashes);
+        (, uint256 touched) = _setEntries(unitId, u, input.entries, input.entryHashes);
+        _setRelations(unitId, input.relationEntries, input.relationMasks, touched);
         u.manifestRoot = _root(unitId, u.entries);
         emit ManifestSet(unitId, 1, u.manifestRoot, input.manifestURI);
     }
 
-    /// @dev Applies entry commitments and returns the mask of entries whose value changed.
+    /// @dev Applies entry commitments. Returns the entries whose commitment changed and the entries listed;
+    ///      every listed entry advances its revision.
     function _setEntries(bytes32 unitId, T.Unit storage u, uint8[] calldata entries, bytes32[] calldata hashes)
         private
-        returns (uint256 changed)
+        returns (uint256 changed, uint256 touched)
     {
         if (entries.length != hashes.length) revert InvalidEntries();
         uint256 bitmap = u.entries;
         for (uint256 i = 0; i < entries.length; ++i) {
             uint8 e = entries[i];
             if (e > T.LAST_ENTRY || (i != 0 && e <= entries[i - 1])) revert InvalidEntries();
-            if (_entries[unitId][e] == hashes[i]) continue;
-            _entries[unitId][e] = hashes[i];
             uint256 bit = uint256(1) << e;
-            if (hashes[i] == bytes32(0)) bitmap &= ~bit;
-            else bitmap |= bit;
-            changed |= bit;
-            emit EntrySet(unitId, e, hashes[i]);
+            touched |= bit;
+            if (_entries[unitId][e] != hashes[i]) {
+                _entries[unitId][e] = hashes[i];
+                if (hashes[i] == bytes32(0)) bitmap &= ~bit;
+                else bitmap |= bit;
+                changed |= bit;
+            }
+            emit EntrySet(unitId, e, hashes[i], ++_revisions[unitId][e]);
         }
         u.entries = bitmap;
     }
 
-    /// @dev The entries named by `bitmap` in ascending order with their current commitments.
-    function _collect(bytes32 unitId, uint256 bitmap)
+    /// @dev Applies declared relations. A changed relation counts as a change of its entry. Every entry named
+    ///      advances its revision once, whether it was named for its commitment, its relation or both.
+    function _setRelations(bytes32 unitId, uint8[] calldata entries, uint256[] calldata masks, uint256 named)
         private
-        view
-        returns (uint8[] memory entries, bytes32[] memory hashes)
+        returns (uint256 changed, uint256 touched)
     {
-        uint256 count;
-        for (uint256 m = bitmap; m != 0; m >>= 1) {
-            count += m & 1;
-        }
-        entries = new uint8[](count);
-        hashes = new bytes32[](count);
-        uint256 k;
-        for (uint256 i = 0; bitmap >> i != 0; ++i) {
-            if ((bitmap >> i) & 1 == 1) {
-                entries[k] = uint8(i);
-                hashes[k] = _entries[unitId][uint8(i)];
-                ++k;
+        if (entries.length != masks.length) revert InvalidEntries();
+        for (uint256 i = 0; i < entries.length; ++i) {
+            uint8 e = entries[i];
+            if (e > T.LAST_ENTRY || (i != 0 && e <= entries[i - 1]) || masks[i] & ~T.DEPENDENCY_MASK != 0) {
+                revert InvalidEntries();
             }
+            uint256 bit = uint256(1) << e;
+            touched |= bit;
+            if (_relations[unitId][e] != masks[i]) {
+                _relations[unitId][e] = masks[i];
+                changed |= bit;
+                emit RelationSet(unitId, e, masks[i]);
+            }
+            if (named & bit == 0) ++_revisions[unitId][e];
         }
     }
 
+    /// @dev The authorization configuration changed. `validUntil` is the expiry of a grant just made, if any.
+    function _reviseAuthorization(bytes32 unitId, T.Unit storage u, uint48 validUntil) private {
+        u.authorizationRevision += 1;
+        if (validUntil != 0 && (u.authorizationExpiry == 0 || validUntil < u.authorizationExpiry)) {
+            u.authorizationExpiry = validUntil;
+        }
+        emit AuthorizationRevised(unitId, u.authorizationRevision, u.authorizationExpiry);
+    }
+
     function _root(bytes32 unitId, uint256 bitmap) private view returns (bytes32) {
-        (uint8[] memory entries, bytes32[] memory hashes) = _collect(unitId, bitmap);
-        return keccak256(abi.encode(T.MANIFEST_DOMAIN, entries, hashes));
+        return ACCFManifestLib.root(_entries[unitId], bitmap);
+    }
+
+    function _known(bytes32 unitId, uint256 mask) private view {
+        if (_units[unitId].registeredAt == 0) revert UnknownUnit(unitId);
+        if (mask & ~T.DEPENDENCY_MASK != 0) revert InvalidEntries();
     }
 
     function _setDescriptor(bytes32 unitId, T.Unit storage u, bytes32 descriptorHash, string memory uri) private {

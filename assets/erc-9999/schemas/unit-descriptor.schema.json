@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ethereum/ERCs/blob/master/assets/erc-9999/schemas/unit-descriptor.schema.json",
   "title": "ACCF Unit Descriptor",
-  "description": "Who the assessed unit is, what it answers for and how it is controlled. The Cell Record commits to this document.",
+  "description": "Who the assessed unit is, what it answers for and how it is controlled. The Cell Record commits to this document without its metadata member. Subject, duties, boundary and control are the coordinate every conclusion about the unit is reached for.",
   "type": "object",
   "required": [
     "accf",
@@ -147,6 +147,10 @@
           ]
         }
       }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Display names, notes and other material that is not committed: changing it changes no conclusion."
     }
   }
 }

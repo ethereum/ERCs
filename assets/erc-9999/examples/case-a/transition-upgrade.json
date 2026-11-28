@@ -10,30 +10,37 @@
   "reason": "The supplier retires the model in use.",
   "source": {
     "manifestVersion": 1,
-    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac",
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2",
     "state": "active"
   },
   "target": {
     "manifestVersion": 2,
-    "root": "0xd033a2193a892609a9d4b5bbe247c1c6de94a5b1dde67b01d8f93f704f5cba7e",
+    "root": "0x5dfd2d7bf46ed84d681b29c17f558d88644881ba472172485ca3f873fd5611f5",
     "state": "active"
   },
   "changed": [
     "intelligence"
   ],
   "retained": [
-    "statements that do not depend on the intelligence supply section"
+    "statements whose dependencies, closed under the declared relations, do not reach the intelligence supply section"
   ],
   "invalidated": [
-    "statements on intelligence supply, capability execution environment, safety constraints, surplus and replenishment"
+    "Intelligence supply",
+    "Capability execution environment",
+    "Lineage capability: mechanism",
+    "Safety constraints",
+    "Lineage capability: rules",
+    "Full cost and strictly positive surplus",
+    "Executable replenishment path",
+    "Lineage capability: resources"
   ],
   "obligations": "Accepted tasks keep their deadlines; work in progress finishes on the previous model, which stays available for 7 days.",
   "recovery": {
-    "rollback": "previous entitlement kept for 7 days",
+    "rollback": "previous entitlement kept for 7 days; a rollback is a new revision and revives no earlier conclusion",
     "termination": "not applicable"
   },
   "postConditions": [
     "self-check passes on the new model",
-    "the five affected requirements are assessed again before the unit is presented as complete"
+    "the 8 affected requirements are assessed again before the unit is presented as complete"
   ]
 }

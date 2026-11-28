@@ -197,6 +197,9 @@
         "succession": "offer, acceptance, transfer of claims, retirement or new boundary"
       },
       "target": "a registered unit with its own descriptor and manifest, without any conclusion of the parent",
+      "dependsOn": [
+        "intelligence"
+      ],
       "postChecks": [
         "child self-check passes",
         "no credential of the parent present in the child",

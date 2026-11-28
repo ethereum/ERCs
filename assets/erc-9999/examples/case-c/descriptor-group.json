@@ -35,5 +35,9 @@
   "lineage": {
     "parent": null,
     "disclosure": "public"
+  },
+  "metadata": {
+    "name": "group",
+    "note": "Not committed: the descriptor commitment leaves this member out."
   }
 }

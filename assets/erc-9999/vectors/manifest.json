@@ -9,9 +9,16 @@
   "unit": {
     "controller": "0xa11ce00000000000000000000000000000000001",
     "controlVersion": 1,
+    "authorizationRevision": 0,
     "boundaryVersion": 1,
     "descriptorHash": "0x94e290649ed61d33c4e5a319eac993623b924440ac17568afef6fed68fdd6cdd"
   },
+  "relations": [
+    {
+      "index": 8,
+      "mask": "0x0000000000000000000000000000000000000000000000000000000000000002"
+    }
+  ],
   "version1": {
     "entries": [
       {
@@ -48,7 +55,7 @@
       },
       {
         "index": 8,
-        "commitment": "0x706deed71eddcc2ffe6829b964bf9390025e36b6ddf8b3029a3afcd61246e605"
+        "commitment": "0xe8f5fc5bc7f09f48620a2289be0de6d06a93e5a84de8496a4bd9ff4f41a94d95"
       },
       {
         "index": 9,
@@ -63,7 +70,57 @@
         "commitment": "0x7644c21ddb6874f9b0bec66662356b19b5fce946fc7971b4d2fa18f17997af7b"
       }
     ],
-    "root": "0x48a7c85142cbfd13f58d356fdf7950131e0cbaf6ee650ca26536570558defcac"
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2",
+    "revisions": [
+      {
+        "index": 0,
+        "revision": 1
+      },
+      {
+        "index": 1,
+        "revision": 1
+      },
+      {
+        "index": 2,
+        "revision": 1
+      },
+      {
+        "index": 3,
+        "revision": 1
+      },
+      {
+        "index": 4,
+        "revision": 1
+      },
+      {
+        "index": 5,
+        "revision": 1
+      },
+      {
+        "index": 6,
+        "revision": 1
+      },
+      {
+        "index": 7,
+        "revision": 1
+      },
+      {
+        "index": 8,
+        "revision": 1
+      },
+      {
+        "index": 9,
+        "revision": 1
+      },
+      {
+        "index": 10,
+        "revision": 1
+      },
+      {
+        "index": 11,
+        "revision": 1
+      }
+    ]
   },
   "version2": {
     "entries": [
@@ -101,7 +158,7 @@
       },
       {
         "index": 8,
-        "commitment": "0x706deed71eddcc2ffe6829b964bf9390025e36b6ddf8b3029a3afcd61246e605"
+        "commitment": "0xe8f5fc5bc7f09f48620a2289be0de6d06a93e5a84de8496a4bd9ff4f41a94d95"
       },
       {
         "index": 9,
@@ -116,9 +173,113 @@
         "commitment": "0x7644c21ddb6874f9b0bec66662356b19b5fce946fc7971b4d2fa18f17997af7b"
       }
     ],
-    "root": "0xd033a2193a892609a9d4b5bbe247c1c6de94a5b1dde67b01d8f93f704f5cba7e",
+    "root": "0x5dfd2d7bf46ed84d681b29c17f558d88644881ba472172485ca3f873fd5611f5",
     "changed": [
       1
+    ],
+    "revisions": [
+      {
+        "index": 0,
+        "revision": 1
+      },
+      {
+        "index": 1,
+        "revision": 2
+      },
+      {
+        "index": 2,
+        "revision": 1
+      },
+      {
+        "index": 3,
+        "revision": 1
+      },
+      {
+        "index": 4,
+        "revision": 1
+      },
+      {
+        "index": 5,
+        "revision": 1
+      },
+      {
+        "index": 6,
+        "revision": 1
+      },
+      {
+        "index": 7,
+        "revision": 1
+      },
+      {
+        "index": 8,
+        "revision": 1
+      },
+      {
+        "index": 9,
+        "revision": 1
+      },
+      {
+        "index": 10,
+        "revision": 1
+      },
+      {
+        "index": 11,
+        "revision": 1
+      }
+    ]
+  },
+  "rollback": {
+    "note": "Version 3 commits the entries of version 1 again. Its root equals the root of version 1; its digests do not, because the restored entry is at a newer revision.",
+    "root": "0x117731331f7ac376b0f14f2f34deacec5bb07a7f5b4155361f7af8d633862cb2",
+    "revisions": [
+      {
+        "index": 0,
+        "revision": 1
+      },
+      {
+        "index": 1,
+        "revision": 3
+      },
+      {
+        "index": 2,
+        "revision": 1
+      },
+      {
+        "index": 3,
+        "revision": 1
+      },
+      {
+        "index": 4,
+        "revision": 1
+      },
+      {
+        "index": 5,
+        "revision": 1
+      },
+      {
+        "index": 6,
+        "revision": 1
+      },
+      {
+        "index": 7,
+        "revision": 1
+      },
+      {
+        "index": 8,
+        "revision": 1
+      },
+      {
+        "index": 9,
+        "revision": 1
+      },
+      {
+        "index": 10,
+        "revision": 1
+      },
+      {
+        "index": 11,
+        "revision": 1
+      }
     ]
   },
   "digests": [
@@ -128,8 +289,10 @@
         "economic"
       ],
       "mask": "0x0000000000000000000000000000000000000000000000000000000000000040",
-      "version1": "0xa9b11dce7e6c65d43e6e0152476f26ce7986a8f86888aa62913b6244713cb195",
-      "version2": "0xa9b11dce7e6c65d43e6e0152476f26ce7986a8f86888aa62913b6244713cb195"
+      "closure": "0x0000000000000000000000000000000000000000000000000000000000000040",
+      "version1": "0x53c9b09ed05261a0b037b9dfb1b8f964e72ebdc1cbc51a01f674d7743edd19e3",
+      "version2": "0x53c9b09ed05261a0b037b9dfb1b8f964e72ebdc1cbc51a01f674d7743edd19e3",
+      "version3": "0x53c9b09ed05261a0b037b9dfb1b8f964e72ebdc1cbc51a01f674d7743edd19e3"
     },
     {
       "name": "two entries",
@@ -138,8 +301,10 @@
         "economic"
       ],
       "mask": "0x0000000000000000000000000000000000000000000000000000000000000041",
-      "version1": "0x346b27b0c6a91ce07d49e43a8a6397b749801d8b568f8298e5179f2bd8cf16c5",
-      "version2": "0x346b27b0c6a91ce07d49e43a8a6397b749801d8b568f8298e5179f2bd8cf16c5"
+      "closure": "0x0000000000000000000000000000000000000000000000000000000000000041",
+      "version1": "0xc8df0347928bc7ca6dfe90980dbd8467f66850330d58b009790f00aa26681556",
+      "version2": "0xc8df0347928bc7ca6dfe90980dbd8467f66850330d58b009790f00aa26681556",
+      "version3": "0xc8df0347928bc7ca6dfe90980dbd8467f66850330d58b009790f00aa26681556"
     },
     {
       "name": "model-bound",
@@ -148,19 +313,23 @@
         "capability"
       ],
       "mask": "0x000000000000000000000000000000000000000000000000000000000000000a",
-      "version1": "0xa9330a552f265adcfdc6e90f5419942815aa6d15e844706231d0c181bcc9b3b4",
-      "version2": "0x83ed0c203ee6738902c71eb8d2409d2bc9cdd08ee0196343e3cbc005faf67007"
+      "closure": "0x000000000000000000000000000000000000000000000000000000000000000a",
+      "version1": "0xcdeba0ce0b6f427075151331c32e3aedf48d2646ca00e68652994bb2b71fad35",
+      "version2": "0x528bc12475435649a0fd37d1c2ad0532768d0ab67bb5aaa70f54f6db7e1ea9f0",
+      "version3": "0x9e1446388ccbaf00f5d718bbe607881f6b8fc0610ab030f8bfb6d14b2d1be277"
     },
     {
-      "name": "a scheme",
+      "name": "a scheme with a declared relation",
       "dependencies": [
         "scheme:lineage",
         "protocol",
         "relation:control"
       ],
       "mask": "0x4000000000000000000000000000000000000000000000000000000000000120",
-      "version1": "0xfb806f006c311a904e9bf7e4bc4fcc525e45cd67885dc56c5ea184bee31c8fd2",
-      "version2": "0xfb806f006c311a904e9bf7e4bc4fcc525e45cd67885dc56c5ea184bee31c8fd2"
+      "closure": "0x4000000000000000000000000000000000000000000000000000000000000122",
+      "version1": "0x12b27524e687aa7ed02667847787a47e55bae726713063008d16a271b139a842",
+      "version2": "0xebfe69af88e7a1f84195171ee928e0440c6adc91141b1305fbb561f08719e8e0",
+      "version3": "0x4ef8dcca403812235c360b68706dc7c36388da83626e6c3f7678c2eda5435955"
     },
     {
       "name": "boundary only",
@@ -168,8 +337,10 @@
         "boundary"
       ],
       "mask": "0x8000000000000000000000000000000000000000000000000000000000000000",
-      "version1": "0xee8ec7c18fa61f213914098508b92f9e66121e27c1c7633a8be481152ea305c4",
-      "version2": "0xee8ec7c18fa61f213914098508b92f9e66121e27c1c7633a8be481152ea305c4"
+      "closure": "0x8000000000000000000000000000000000000000000000000000000000000000",
+      "version1": "0x816c234c29658335248418ec20e75f64160883f92799a8dd3a4f960e675780b0",
+      "version2": "0x816c234c29658335248418ec20e75f64160883f92799a8dd3a4f960e675780b0",
+      "version3": "0x816c234c29658335248418ec20e75f64160883f92799a8dd3a4f960e675780b0"
     },
     {
       "name": "control only",
@@ -177,19 +348,35 @@
         "relation:control"
       ],
       "mask": "0x4000000000000000000000000000000000000000000000000000000000000000",
-      "version1": "0x81b074afc79c0fbc691ab4358782e7d0dece71830cd96aadb945d0907ff118f2",
-      "version2": "0x81b074afc79c0fbc691ab4358782e7d0dece71830cd96aadb945d0907ff118f2"
+      "closure": "0x4000000000000000000000000000000000000000000000000000000000000000",
+      "version1": "0x8ca6e99b7086c8d470b1c4d72dd0f721b3b42a83621dbc51440531bbef696649",
+      "version2": "0x8ca6e99b7086c8d470b1c4d72dd0f721b3b42a83621dbc51440531bbef696649",
+      "version3": "0x8ca6e99b7086c8d470b1c4d72dd0f721b3b42a83621dbc51440531bbef696649"
     },
     {
-      "name": "boundary and control",
+      "name": "authorization only",
+      "dependencies": [
+        "relation:authorization"
+      ],
+      "mask": "0x2000000000000000000000000000000000000000000000000000000000000000",
+      "closure": "0x2000000000000000000000000000000000000000000000000000000000000000",
+      "version1": "0x0dbe73bcb328bcc0fbcf2d44921d4fb0b64c581dfa2c46d60c71c8a1b22e32c7",
+      "version2": "0x0dbe73bcb328bcc0fbcf2d44921d4fb0b64c581dfa2c46d60c71c8a1b22e32c7",
+      "version3": "0x0dbe73bcb328bcc0fbcf2d44921d4fb0b64c581dfa2c46d60c71c8a1b22e32c7"
+    },
+    {
+      "name": "boundary, control and authorization",
       "dependencies": [
         "economic",
         "boundary",
-        "relation:control"
+        "relation:control",
+        "relation:authorization"
       ],
-      "mask": "0xc000000000000000000000000000000000000000000000000000000000000040",
-      "version1": "0xa5591d029c12e31987e2ec537c1a8a75950e19cfba7ebc909392a6c79c21a3c1",
-      "version2": "0xa5591d029c12e31987e2ec537c1a8a75950e19cfba7ebc909392a6c79c21a3c1"
+      "mask": "0xe000000000000000000000000000000000000000000000000000000000000040",
+      "closure": "0xe000000000000000000000000000000000000000000000000000000000000040",
+      "version1": "0x0de78ced6d175863dff210207c1692e05b0a6188ef4de158aa289075d31f49ee",
+      "version2": "0x0de78ced6d175863dff210207c1692e05b0a6188ef4de158aa289075d31f49ee",
+      "version3": "0x0de78ced6d175863dff210207c1692e05b0a6188ef4de158aa289075d31f49ee"
     },
     {
       "name": "an absent extension entry",
@@ -198,8 +385,10 @@
         "execution"
       ],
       "mask": "0x0000000000000000000000000000000000000000000000000000010000000001",
-      "version1": "0x354d38266da5ba70383e8c68f56c2ca4a7a906db7b8236be22f4f55c207b72a3",
-      "version2": "0x354d38266da5ba70383e8c68f56c2ca4a7a906db7b8236be22f4f55c207b72a3"
+      "closure": "0x0000000000000000000000000000000000000000000000000000010000000001",
+      "version1": "0xfb45beab19aa7263d6cbd5dc05279212078753813947bc36b7f11a59103309be",
+      "version2": "0xfb45beab19aa7263d6cbd5dc05279212078753813947bc36b7f11a59103309be",
+      "version3": "0xfb45beab19aa7263d6cbd5dc05279212078753813947bc36b7f11a59103309be"
     },
     {
       "name": "everything committed",
@@ -217,11 +406,14 @@
         "scheme:maintenance",
         "scheme:composition",
         "boundary",
-        "relation:control"
+        "relation:control",
+        "relation:authorization"
       ],
-      "mask": "0xc000000000000000000000000000000000000000000000000000000000000fff",
-      "version1": "0xc527714f65c340761e117f2f98b8dd7f3ec85a33ee9230537993d18795b493cc",
-      "version2": "0x2988a749ee945ba81cbe11a07898de1938e348213e90686a3e054357be36b20e"
+      "mask": "0xe000000000000000000000000000000000000000000000000000000000000fff",
+      "closure": "0xe000000000000000000000000000000000000000000000000000000000000fff",
+      "version1": "0xef2b84e73081fe369aa19623aae709ffb308fe68c4be9981f18ab0bb9b359cfa",
+      "version2": "0x79a16e02e5e17da5e958f13bad62e5cefc826eedb3469e8cb7086b2d72e6d462",
+      "version3": "0xc98e1974bc1819213978f61c6e47ecfc9783b8109ebaddcc994df1fb229a1a23"
     }
   ]
 }
