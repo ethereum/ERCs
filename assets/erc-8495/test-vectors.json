@@ -1,0 +1,538 @@
+{
+  "$schema": "./test-vectors.schema.json",
+  "erc": 8495,
+  "description": "Test vectors for ERC-8495, the same cases as its Test Cases section. Where the two differ, the text of ERC-8495 applies.",
+  "tests": [
+    {
+      "id": "metadata-uri/base64",
+      "section": "processing-a-metadata-uri",
+      "description": "A base64 data URI.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json;base64,eyJuYW1lIjoiRXhhbXBsZSJ9",
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/base64-fragment",
+      "section": "processing-a-metadata-uri",
+      "description": "A base64 data URI keeps its fragment, and only the payload before it is decoded.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json;base64,eyJuYW1lIjoiRXhhbXBsZSJ9#x",
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/percent-encoded",
+      "section": "processing-a-metadata-uri",
+      "description": "A percent-encoded data URI.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json,%7B%22name%22%3A%22Example%22%7D",
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/any-media-type",
+      "section": "processing-a-metadata-uri",
+      "description": "The body is read whatever media type the data URI declares.",
+      "operation": "processMetadataUri",
+      "input": "data:text/plain,%7B%22name%22%3A%22Example%22%7D",
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/non-ascii-percent-encoded",
+      "section": "processing-a-metadata-uri",
+      "description": "Percent-encoded UTF-8 bytes decode to non-ASCII text.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json,%7B%22name%22%3A%22Zo%C3%AB%22%7D",
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Zoë"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/non-ascii-base64",
+      "section": "processing-a-metadata-uri",
+      "description": "Base64 UTF-8 bytes decode to non-ASCII text.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json;base64,eyJuYW1lIjoiWm/DqyJ9",
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Zoë"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/byte-order-mark",
+      "section": "processing-a-metadata-uri",
+      "description": "UTF-8 decode removes a leading byte order mark.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json,%EF%BB%BF%7B%22name%22%3A%22Example%22%7D",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/invalid-utf-8",
+      "section": "processing-a-metadata-uri",
+      "description": "UTF-8 decode replaces an invalid byte with U+FFFD, so the document is not absent.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json,%7B%22name%22%3A%22Zo%EB%22%7D",
+      "expected": {
+        "all": {
+          "document": {
+            "name": "Zo\uFFFD"
+          }
+        }
+      }
+    },
+    {
+      "id": "metadata-uri/utf8-parameter",
+      "section": "resolving-uris",
+      "description": "An unencoded payload with a parameter that has no value.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json;utf8,{\"name\":\"Example\"}",
+      "producer": "not-conformant",
+      "expected": {
+        "acceptsNonConformingDataUri": {
+          "document": {
+            "name": "Example"
+          }
+        },
+        "otherwise": "absent"
+      }
+    },
+    {
+      "id": "metadata-uri/unencoded-hash",
+      "section": "processing-a-metadata-uri",
+      "description": "A # in an unencoded payload is part of the document, not a fragment.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json;utf8,{\"name\":\"Creature #42\"}",
+      "producer": "not-conformant",
+      "expected": {
+        "acceptsNonConformingDataUri": {
+          "document": {
+            "name": "Creature #42"
+          }
+        },
+        "otherwise": "absent"
+      }
+    },
+    {
+      "id": "metadata-uri/bare-percent",
+      "section": "processing-a-metadata-uri",
+      "description": "A bare % is kept.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json,{\"name\":\"100% done\"}",
+      "producer": "not-conformant",
+      "expected": {
+        "acceptsNonConformingDataUri": {
+          "document": {
+            "name": "100% done"
+          }
+        },
+        "otherwise": "absent"
+      }
+    },
+    {
+      "id": "metadata-uri/decoded-once",
+      "section": "processing-a-metadata-uri",
+      "description": "The payload is decoded once, so a nested URI keeps its own encoding.",
+      "operation": "processMetadataUri",
+      "input": "data:application/json,{\"animation_url\":\"data%3Atext%2Fhtml%2C%253Cp%253Ehi\"}",
+      "producer": "not-conformant",
+      "expected": {
+        "acceptsNonConformingDataUri": {
+          "document": {
+            "animation_url": "data:text/html,%3Cp%3Ehi"
+          }
+        },
+        "otherwise": "absent"
+      }
+    },
+    {
+      "id": "metadata-uri/json-document",
+      "section": "deployed-forms",
+      "description": "A metadata URI that is a JSON document.",
+      "operation": "processMetadataUri",
+      "input": "{\"name\":\"Example\"}",
+      "producer": "deployed-form",
+      "expected": {
+        "acceptsDeployedForm": {
+          "document": {
+            "name": "Example"
+          }
+        },
+        "otherwise": "absent"
+      }
+    },
+    {
+      "id": "uri/ipfs-ipfs",
+      "section": "deployed-forms",
+      "description": "ipfs://ipfs/<cid> is read as ipfs://<cid>.",
+      "operation": "readUri",
+      "input": "ipfs://ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json",
+      "producer": "deployed-form",
+      "expected": {
+        "acceptsDeployedForm": {
+          "uri": "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json"
+        }
+      }
+    },
+    {
+      "id": "uri/gateway-path",
+      "section": "resolving-uris",
+      "description": "A path gateway URL. It conforms, though producers should write the ipfs URI.",
+      "operation": "readUri",
+      "input": "https://gateway.example/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json",
+      "producer": "conforms",
+      "expected": {
+        "readsGatewayUrls": {
+          "uri": "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json"
+        },
+        "otherwise": {
+          "uri": "https://gateway.example/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json"
+        }
+      }
+    },
+    {
+      "id": "uri/gateway-subdomain",
+      "section": "resolving-uris",
+      "description": "A subdomain gateway URL. It conforms, though producers should write the ipfs URI.",
+      "operation": "readUri",
+      "input": "https://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi.ipfs.gateway.example/1.json",
+      "producer": "conforms",
+      "expected": {
+        "readsGatewayUrls": {
+          "uri": "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/1.json"
+        },
+        "otherwise": {
+          "uri": "https://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi.ipfs.gateway.example/1.json"
+        }
+      }
+    },
+    {
+      "id": "uri/erc1155-id",
+      "section": "resolving-uris",
+      "description": "{id} becomes the token ID as 64 lowercase hexadecimal digits.",
+      "operation": "substituteId",
+      "input": {
+        "uri": "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/{id}.json",
+        "tokenId": "314592"
+      },
+      "expected": {
+        "all": {
+          "uri": "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/000000000000000000000000000000000000000000000000000000000004cce0.json"
+        }
+      }
+    },
+    {
+      "id": "document/wrong-type",
+      "section": "fields",
+      "description": "A field of the wrong type is ignored.",
+      "operation": "readDocument",
+      "input": {
+        "name": "Example",
+        "image": 42
+      },
+      "expected": {
+        "recommended": {
+          "fields": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "document/null",
+      "section": "fields",
+      "description": "A null field is absent.",
+      "operation": "readDocument",
+      "input": {
+        "name": "Example",
+        "description": null
+      },
+      "expected": {
+        "all": {
+          "fields": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "document/background-color-hash",
+      "section": "external_url-and-background_color",
+      "description": "A background_color with a leading #.",
+      "operation": "readDocument",
+      "input": {
+        "name": "Example",
+        "background_color": "#E0F2FE"
+      },
+      "producer": "not-conformant",
+      "expected": {
+        "removesLeadingHash": {
+          "fields": {
+            "name": "Example",
+            "background_color": "E0F2FE"
+          }
+        },
+        "recommended": {
+          "fields": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "document/unknown-field",
+      "section": "fields",
+      "description": "An unknown field is ignored.",
+      "operation": "readDocument",
+      "input": {
+        "name": "Example",
+        "glow": {
+          "color": "gold"
+        }
+      },
+      "producer": "conforms",
+      "expected": {
+        "all": {
+          "fields": {
+            "name": "Example"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/trim",
+      "section": "attributes",
+      "description": "Trait types and string values are trimmed.",
+      "operation": "readAttribute",
+      "input": {
+        "trait_type": " Eyes ",
+        "value": "Big "
+      },
+      "expected": {
+        "recommended": {
+          "trait": {
+            "trait_type": "Eyes",
+            "value": "Big"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/no-trait-type",
+      "section": "attributes",
+      "description": "A string trait with no trait type.",
+      "operation": "readAttribute",
+      "input": {
+        "value": "Happy"
+      },
+      "expected": {
+        "all": {
+          "trait": {
+            "value": "Happy"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/string-number",
+      "section": "attributes",
+      "description": "A quoted number is a string trait.",
+      "operation": "readAttribute",
+      "input": {
+        "trait_type": "Level",
+        "value": "5"
+      },
+      "expected": {
+        "all": {
+          "trait": {
+            "trait_type": "Level",
+            "value": "5"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/max-value",
+      "section": "attributes",
+      "description": "A numeric trait, 5 out of 10.",
+      "operation": "readAttribute",
+      "input": {
+        "trait_type": "Level",
+        "value": 5,
+        "max_value": 10
+      },
+      "expected": {
+        "all": {
+          "trait": {
+            "trait_type": "Level",
+            "value": 5,
+            "max_value": 10
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/display-type-text",
+      "section": "attributes",
+      "description": "display_type text reads as absent.",
+      "operation": "readAttribute",
+      "input": {
+        "display_type": "text",
+        "trait_type": "Faction",
+        "value": "Red"
+      },
+      "expected": {
+        "all": {
+          "trait": {
+            "trait_type": "Faction",
+            "value": "Red"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/display-type-unknown",
+      "section": "attributes",
+      "description": "An unknown display_type reads as absent.",
+      "operation": "readAttribute",
+      "input": {
+        "display_type": "sparkle",
+        "trait_type": "Mood",
+        "value": "Calm"
+      },
+      "expected": {
+        "all": {
+          "trait": {
+            "trait_type": "Mood",
+            "value": "Calm"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribute/date-seconds",
+      "section": "attributes",
+      "description": "A date in seconds, beyond the year 9999.",
+      "operation": "readAttribute",
+      "input": {
+        "display_type": "date",
+        "trait_type": "Expires",
+        "value": 253402300800
+      },
+      "expected": {
+        "all": {
+          "trait": {
+            "display_type": "date",
+            "trait_type": "Expires",
+            "value": 253402300800
+          },
+          "date": "10000-01-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "id": "attribute/date-milliseconds",
+      "section": "deployed-forms",
+      "description": "A date in milliseconds.",
+      "operation": "readAttribute",
+      "input": {
+        "display_type": "date",
+        "trait_type": "Registered",
+        "value": 1694173211000
+      },
+      "producer": "deployed-form",
+      "expected": {
+        "acceptsDeployedForm": {
+          "trait": {
+            "display_type": "date",
+            "trait_type": "Registered",
+            "value": 1694173211000
+          },
+          "date": "2023-09-08T11:40:11Z"
+        }
+      }
+    },
+    {
+      "id": "attribute/null-value",
+      "section": "attributes",
+      "description": "An attribute with a null value is ignored.",
+      "operation": "readAttribute",
+      "input": {
+        "trait_type": "Mood",
+        "value": null
+      },
+      "expected": {
+        "recommended": "ignored"
+      }
+    },
+    {
+      "id": "attributes/repeated-trait-type",
+      "section": "attributes",
+      "description": "A repeated trait_type forms one trait with several values.",
+      "operation": "groupTraits",
+      "input": [
+        {
+          "trait_type": "Accessory",
+          "value": "Scarf"
+        },
+        {
+          "trait_type": "Accessory",
+          "value": "Glasses"
+        }
+      ],
+      "expected": {
+        "recommended": {
+          "traits": [
+            {
+              "trait_type": "Accessory",
+              "values": [
+                "Scarf",
+                "Glasses"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
