@@ -1,0 +1,500 @@
+---
+title: Cryptographic Proof Attachment Standard
+description: A minimal, composable interface for attaching cryptographic proofs to arbitrary on-chain assets through bounded DAG dependencies.
+author: Nidhal Ferjani (@nidhal-ferjani)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-cryptographic-proof-attachment-standard/30541
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-27
+requires: 165
+---
+
+## Abstract
+
+This standard defines a minimal interface for attaching cryptographic proofs to arbitrary on-chain assets identified by a `bytes32` value. Proofs accept a bounded `metadata` byte string at attach time (off-chain pointer **or** inline payload). Implementations MUST persist a commitment (`metadataHash`) and a fixed-length `metadataHead` on-chain, and MUST emit the full `metadata` in `ProofAttached` (B-hybrid: cheap storage, indexable logs). Proofs MAY depend on other proofs, forming a bounded directed acyclic graph (DAG). The interface specifies attachment, paginated retrieval, existence checks, and a generic flag bitfield for verification/dispute states, while leaving authorization, verifier semantics, and storage layout to implementers.
+
+This ERC is **local**. It does not specify how a proof binding is recovered or imported on another chain. Remote slot recovery is [ERC-7888](./eip-7888.md). Import of these bindings is **out of scope**.
+
+## Motivation
+
+Ethereum has no shared interface for attaching and composing cryptographic proofs across heterogeneous assets. Each domain has reinvented its own:
+
+- **L2 rollups** expose fraud-proof and validity-proof systems with incompatible ABIs (Optimism `FaultDisputeGame`, Arbitrum `ChallengeManager`, zkSync `Verifier`).
+- **Attestation frameworks** (EAS, Verax, Sign Protocol) target signed assertions about subjects, but do not specify proof-to-proof dependencies, off-chain proof hashes, or DoS-bounded composition graphs.
+- **NFT authenticity, supply-chain provenance and reusable credentials** ship bespoke verifier contracts that cannot be composed across platforms.
+- **Tokenized real-world assets (RWA)** require multi-step verification chains (title deed → appraisal → custody → regulatory compliance) across independent parties (issuers, custodians, auditors), yet each platform builds ad-hoc proof storage with no composability or standard consumer surface.
+
+This standard is **complementary to attestation standards**, not a replacement: attestations describe *who said what about whom*, whereas this interface describes *which cryptographic artifact is bound to an asset, and which other artifacts it depends on*. The two can coexist (an attestation MAY reference a `proofId`, and a proof's `metadata` MAY point to an attestation UID).
+
+This standard is also **complementary to [ERC-7888](./eip-7888.md)**, not a replacement: ERC-7888 recovers remote storage slots and 32-byte broadcast messages via chain-specific `StateProver`s. This ERC does not specify hop routes, rollup state proofs, any cross-chain proving ABI, or how a foreign binding is recorded on a destination chain.
+
+This standard enables:
+
+- A single ABI that wallets, indexers, explorers and aggregators can target to surface proof state for any asset type.
+- Composable proof chains via DAG dependencies (e.g. rollup block `N` proof depends on block `N-1`; a diploma proof depends on per-course proofs; a tokenized property's compliance proof depends on title, appraisal and custody sub-proofs).
+- Inline or pointer payloads at attach time without forcing full-payload `SSTORE`: B-hybrid keeps a commitment + head on-chain and the full bytes in the attachment event.
+- Predictable DoS surface through a fixed cap on dependencies and a per-implementation, immutable, runtime-discoverable cap on `metadata` length.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8179.
+
+### Interface
+
+The ERC-165 interface id of `IERCXXXX` is `0x7118c651`. It is defined as the XOR of the 4-byte selectors of the seven external functions declared below (`attachProof ^ setProofFlags ^ getProof ^ getAssetProofs ^ proofExists ^ getProofCount ^ MAX_METADATA_LEN`), computed with each function's canonical signature and ignoring return types (per the ERC-165 rules). Implementations MUST return `true` from `supportsInterface(0x7118c651)`.
+
+```solidity
+pragma solidity ^0.8.0;
+
+interface IERCXXXX /* is IERC165 */ {
+    /// @dev ERC-165 identifier of this interface: XOR of the 7 external selectors below.
+    ///      IERCXXXX_INTERFACE_ID == 0x7118c651.
+    /// @notice Emitted exactly once per successful `attachProof` call.
+    /// @param assetId       The asset the proof is bound to.
+    /// @param proofId       Unique identifier returned by `attachProof`.
+    /// @param submitter     `msg.sender` of the `attachProof` call (or the meta-tx originator
+    ///                      if the implementation supports trusted forwarders).
+    /// @param metadataHash  `keccak256(metadata)` commitment persisted on-chain.
+    /// @param metadata      Full attach-time payload (log-only; MUST equal the calldata).
+    /// @param dependencies  Array of prerequisite `proofId` values, as supplied.
+    event ProofAttached(
+        bytes32 indexed assetId,
+        bytes32 indexed proofId,
+        address indexed submitter,
+        bytes32 metadataHash,
+        bytes metadata,
+        bytes32[] dependencies
+    );
+
+    /// @notice Emitted whenever the flag bitfield of a proof changes.
+    /// @param proofId  The proof whose flags changed.
+    /// @param updater  Address that triggered the change.
+    /// @param oldFlags Previous flag bitfield.
+    /// @param newFlags New flag bitfield.
+    event ProofFlagsUpdated(
+        bytes32 indexed proofId,
+        address indexed updater,
+        uint256 oldFlags,
+        uint256 newFlags
+    );
+
+    /// @notice Attach a cryptographic proof to an asset.
+    /// @dev MUST revert if `dependencies.length` exceeds the implementation cap
+    ///      (see "Constants"), if any dependency does not exist, or if `metadata`
+    ///      exceeds the implementation maximum length.
+    /// @param assetId      Universal asset identifier (see "assetId" in Definitions).
+    /// @param proofHash    Commitment to the off-chain proof data (typically `keccak256`).
+    /// @param metadata     Bounded additional data — either a pointer (IPFS CID, Arweave URL,
+    ///                     attestation UID) or an inline payload (state/MPT/ZK proof). Capped
+    ///                     by `MAX_METADATA_LEN()` (MUST be `>= 256` and `<= 65535`).
+    /// @param dependencies Array of prerequisite `proofId` values forming the DAG edge set.
+    /// @return proofId     Unique identifier for the newly attached proof.
+    function attachProof(
+        bytes32 assetId,
+        bytes32 proofHash,
+        bytes calldata metadata,
+        bytes32[] calldata dependencies
+    ) external returns (bytes32 proofId);
+
+    /// @notice Update the flag bitfield of an existing proof.
+    /// @dev MUST revert if `proofId` does not exist. Authorization rules over which
+    ///      bits a given caller may set are specified in "Authorization".
+    /// @param proofId The proof to update.
+    /// @param flags   New flag bitfield (replaces the previous value).
+    function setProofFlags(bytes32 proofId, uint256 flags) external;
+
+    /// @notice Retrieve a proof (B-hybrid). MUST revert if `proofId` does not exist.
+    /// @dev Full `metadata` bytes are NOT returned here — reconstruct from `ProofAttached`
+    ///      logs (or an off-chain store keyed by `metadataHash`). `metadataHead` length is
+    ///      word-aligned: `32 * floor(min(METADATA_HEAD_LEN, metadataLen) / 32)` (0, 32, 64, or 96).
+    function getProof(bytes32 proofId)
+        external
+        view
+        returns (
+            bytes32 assetId,
+            address submitter,
+            bytes32 proofHash,
+            bytes32 metadataHash,
+            bytes memory metadataHead,
+            uint16  metadataLen,
+            uint64  timestamp,
+            bytes32[] memory dependencies,
+            uint256 flags
+        );
+
+    /// @notice Paginated list of `proofId` values attached to `assetId`, in insertion order.
+    /// @dev If `offset >= total`, `proofIds` MUST be empty and `total` MUST still be returned.
+    ///      Implementations MUST cap the returned slice at `limit`.
+    function getAssetProofs(bytes32 assetId, uint256 offset, uint256 limit)
+        external
+        view
+        returns (bytes32[] memory proofIds, uint256 total);
+
+    /// @notice Returns `true` iff `proofId` has been successfully attached.
+    /// @dev This standard does not define deletion or garbage-collection of proofs.
+    function proofExists(bytes32 proofId) external view returns (bool);
+
+    /// @notice Total number of proofs ever attached to `assetId`.
+    function getProofCount(bytes32 assetId) external view returns (uint256);
+
+    /// @notice Per-implementation upper bound on `metadata.length` accepted by `attachProof`.
+    /// @dev MUST return a value `>= 256` and `<= 65535`. RECOMMENDED `>= 16384` for
+    ///      implementations intended to host inline state / MPT / ZK proofs rather
+    ///      than only off-chain pointers.
+    function MAX_METADATA_LEN() external view returns (uint256);
+}
+```
+
+### Constants
+
+The following symbols are part of this standard. `IERCXXXX_INTERFACE_ID`, `MAX_DEPENDENCIES`, `METADATA_HEAD_LEN`, and the two reserved flag bits carry **fixed values** that every conforming implementation MUST honour. The metadata cap is **implementation-defined** within a normative range, exposed at runtime through the `MAX_METADATA_LEN()` view (see Interface), so heterogeneous deployments (pointer-only vs. inline-proof) can interoperate via discovery rather than assumption. `MIN_METADATA_LEN` and `MAX_PAGE_SIZE` are OPTIONAL discoverable constants — implementations MAY expose them but MUST NOT rely on them being present in consumers.
+
+| Name                     | Type      | Value                                    | Meaning                                                          |
+| ------------------------ | --------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| `IERCXXXX_INTERFACE_ID`  | `bytes4`  | `0x7118c651` (fixed)                     | ERC-165 identifier of this interface: XOR of the 7 external function selectors declared in "Interface". `supportsInterface(0x7118c651)` MUST return `true`. |
+| `MAX_DEPENDENCIES`       | `uint256` | `16` (fixed)                             | Hard upper bound on `dependencies.length` in `attachProof`.      |
+| `MAX_METADATA_LEN`       | `uint256` | implementation-defined, MUST `>= 256` and MUST `<= 65535` | Per-implementation upper bound on `metadata.length`. MUST fit in `uint16` so `getProof.metadataLen` can represent every accepted length. RECOMMENDED `>= 16384` (and `<= 65535`) to support inline state/MPT/ZK proofs. Exposed via `MAX_METADATA_LEN()`. |
+| `MIN_METADATA_LEN`       | `uint256` | implementation-defined, OPTIONAL         | Per-implementation lower bound on `metadata.length` (typical values: `0` or `32`). If exposed, `attachProof` MUST revert when `metadata.length < MIN_METADATA_LEN`. If not exposed, `MIN_METADATA_LEN` is assumed to be `0` (empty `metadata` is allowed). |
+| `METADATA_HEAD_LEN`      | `uint256` | `96` (fixed, word-aligned)               | Cap in bytes on `metadataHead`. The stored head length is **word-aligned**: `32 * floor(min(METADATA_HEAD_LEN, metadata.length) / 32)`. Valid stored head lengths are therefore `0`, `32`, `64`, or `96`. This keeps `metadataHead` cheap to persist in a fixed 96-byte slot and lets on-chain consumers decode a stable 32-byte type id (and optional extra words) without a dynamic-length blob. |
+| `MAX_PAGE_SIZE`          | `uint256` | implementation-defined, OPTIONAL         | Advisory maximum page size for `getAssetProofs`. If exposed, `getAssetProofs` MUST clamp any `limit` greater than `MAX_PAGE_SIZE` down to `MAX_PAGE_SIZE`; it MUST NOT revert solely because `limit` exceeds the page size. |
+| `FLAG_FLAGGED`           | `uint256` | `1 << 0` (fixed)                         | Bit 0. Proof is disputed / under challenge.                      |
+| `FLAG_VERIFIED`          | `uint256` | `1 << 1` (fixed)                         | Bit 1. Proof has been positively verified by an authorized role. |
+
+Bits `0` and `1` are reserved by this standard (`FLAG_FLAGGED` and `FLAG_VERIFIED`) and MUST NOT be repurposed. Bits `2..255` are available for implementation-defined states.
+
+### Definitions
+
+**assetId** — A `bytes32` identifier for the asset. To prevent cross-context collision attacks, applications MUST construct `assetId` with an explicit domain separator. Recommended patterns:
+
+- ERC-721 / ERC-1155 token: `keccak256(abi.encode(chainId, contractAddress, tokenId))`
+- L2 block: `keccak256(abi.encode(chainId, blockNumber))`
+- User credential: `keccak256(abi.encode(chainId, issuerAddress, subjectAddress, credentialType))`
+- Tokenized real-world asset: `keccak256(abi.encode(chainId, contractAddress, tokenId, jurisdictionId))`
+- Contract bytecode: `keccak256(abi.encode(chainId, contractAddress))`
+
+Trivial casts such as `bytes32(uint256(tokenId))` MUST NOT be used in contexts where the same `assetId` could be produced by more than one issuer.
+
+**proofHash** — A `bytes32` commitment to the proof bytes. Implementations SHOULD use `keccak256(proofData)`; SNARK/STARK systems MAY use the natural commitment of their proving system provided it is collision-resistant.
+
+**proofId** — A `bytes32` identifier unique within the implementation. Implementations MUST derive `proofId` such that no two distinct `attachProof` calls can collide. The RECOMMENDED derivation is:
+
+```solidity
+proofId = keccak256(abi.encode(
+    block.chainid, address(this), assetId, proofHash, submitter, attachNonce
+));
+```
+
+where `attachNonce` is a per-asset or per-contract monotonically increasing counter (typically `getProofCount(assetId)` **before** the current attach is committed). The preimage MUST NOT include `metadata`, `block.timestamp`, or `block.number`: those inputs either duplicate the on-chain state already committed to `proofHash`/`metadataHash` or bind `proofId` to proposer-manipulable values, both of which weaken the invariants below. This derivation guarantees that `proofId` is:
+
+- Cross-chain distinct (`block.chainid` and `address(this)` in the preimage rule out replays between deployments).
+- Precomputable off-chain (clients can compute `proofId` before submitting `attachProof`, which is what makes Test Case 4 — the self-reference check — feasible).
+- Independent of `metadata` and block metadata, so a second `attachProof` in the same block or bundle referencing the first is a well-defined operation.
+
+**metadata** — Bounded byte string carrying off-chain pointers (e.g. IPFS CIDs, attestation UIDs) or inline auxiliary commitments (e.g. MPT proofs, ZK proof payloads). MUST be at most `MAX_METADATA_LEN()` bytes, where `MAX_METADATA_LEN()` is the value returned by the implementation. Empty `metadata` MAY be allowed unless the implementation documents a floor via `MIN_METADATA_LEN` (in which case `metadata.length < MIN_METADATA_LEN` MUST revert; see "Constants"). At attach time the full string is accepted as calldata and MUST be emitted in `ProofAttached`; it MUST NOT be required to be re-stored as a contiguous dynamic `bytes` blob in contract storage.
+
+**metadataHash** — `keccak256(metadata)` (or an equivalent collision-resistant commitment documented by the implementation). MUST be persisted and returned by `getProof`.
+
+**metadataHead** — Prefix of `metadata` persisted for synchronous on-chain consumers that need the leading header (e.g. a 32-byte type id) without reading logs. Its stored length is **word-aligned**: `32 * floor(min(METADATA_HEAD_LEN, metadata.length) / 32)` bytes. Valid stored head lengths are therefore `0`, `32`, `64`, or `96`. This rule keeps `metadataHead` cheap to persist in a fixed 96-byte slot while still exposing the full first `min(METADATA_HEAD_LEN, len)` useful bytes to indexers via `ProofAttached.metadata`.
+
+**metadataLen** — `uint16` length of the original `metadata` at attach time (`metadata.length`). MUST equal `metadata.length` at attach and MUST satisfy `metadataLen <= MAX_METADATA_LEN()`. Because the return type is `uint16`, `MAX_METADATA_LEN()` MUST be `<= 65535` (`type(uint16).max`); otherwise a conforming attach could succeed while `getProof` could not faithfully report the length.
+
+**dependencies** — Array of `proofId` values representing prerequisite proofs. MUST be at most `MAX_DEPENDENCIES` entries.
+
+**flags** — `uint256` bitfield, see "Constants".
+
+### Requirements
+
+Conforming implementations MUST:
+
+- Revert `attachProof` if `dependencies.length > MAX_DEPENDENCIES`.
+- Revert `attachProof` if `metadata.length > MAX_METADATA_LEN()`.
+- Return a value `>= 256` and `<= 65535` from `MAX_METADATA_LEN()` at all times. The value MAY be a Solidity `constant` or any deterministic function of immutables; it MUST NOT depend on storage that admin roles can mutate post-deployment, otherwise consumers cannot rely on the published cap. The upper bound matches `getProof`'s `uint16 metadataLen` field.
+- Revert `attachProof` if any `dependencies[i]` does not satisfy `proofExists(dependencies[i]) == true` at call time.
+- Revert `attachProof` if any `dependencies[i] == proofId` (direct self-reference; only meaningful when `proofId` is deterministic per the RECOMMENDED derivation above).
+- Emit exactly one `ProofAttached` event per successful `attachProof` call, with `metadataHash == keccak256(metadata)`, `metadata` equal to the attach calldata, and `dependencies` matching the input array.
+- Persist at least `metadataHash`, `metadataHead`, and `metadataLen` for every attached proof (B-hybrid). Implementations MUST NOT require consumers to `SLOAD` the full metadata body from storage.
+- Emit `ProofFlagsUpdated` whenever the persisted flags of a proof change, including when set by the implementation itself. This applies to attach-time flag initialization too: an implementation that sets any flags at attach (see "Authorization" for the `FLAG_VERIFIED` derogation) MUST emit `ProofFlagsUpdated(proofId, updater, 0, newFlags)` alongside `ProofAttached`. Cascading invalidations MUST also emit the event.
+- Revert `getProof` if `proofId` does not exist. `getProof` MUST return the B-hybrid fields (`metadataHash`, `metadataHead`, `metadataLen`) and MUST NOT be specified to return the full metadata body.
+- For `getAssetProofs`, return an empty array and the correct `total` when `offset >= total`, and cap the returned slice at `limit`. `limit` values greater than the implementation's page size (see `MAX_PAGE_SIZE` in "Constants") MUST be clamped internally; `getAssetProofs` MUST NOT revert solely because `limit` exceeds that page size.
+- Implement [ERC-165](./eip-165.md) and return `true` for `IERCXXXX_INTERFACE_ID` (`0x7118c651`, see "Constants").
+
+Conforming implementations SHOULD:
+
+- Prevent transitive dependency cycles (`A → B → … → A`) where gas budget permits. Where not enforced on-chain, applications MUST validate acyclicity off-chain before submission.
+- Cascade `FLAG_FLAGGED` from a flagged proof to its descendants, either eagerly (in `setProofFlags`) or lazily (on read). The chosen mode MUST be documented.
+- Keep the full metadata body out of contract storage; rely on `ProofAttached` logs (and optional off-chain mirrors keyed by `metadataHash`) for reconstruction.
+- Use the RECOMMENDED `proofId` derivation given above.
+
+Conforming implementations MAY:
+
+- Define custom flag bits in positions `2..255`.
+- Provide batch variants of `attachProof` and `setProofFlags`.
+- Compose `MAX_DEPENDENCIES > 16` use-cases by attaching a Merkle-root proof (a normal proof whose `proofHash` commits to a batch of prerequisite `proofId`s) and referencing that root `proofId` as a single dependency.
+- Support meta-transactions (e.g. [ERC-2771](./eip-2771.md)). When doing so, `submitter` in `ProofAttached` MUST be the meta-tx originator, not the forwarder.
+
+### Authorization
+
+This standard does not mandate a full access-control model, but it MUST constrain who may set the two reserved flag bits, otherwise the bits carry no meaning across implementations:
+
+- A caller MUST NOT be able to set `FLAG_VERIFIED` on a proof unless the implementation recognizes that caller as an authorized verifier for the proof's `assetId`. Self-verification by the original submitter MUST NOT be possible by default.
+- **Attach-time verification derogation.** An implementation MAY set `FLAG_VERIFIED` on a proof from within the same `attachProof` transaction if and only if an implementation-controlled verifier validates the proof in that same call (e.g. by delegating to a router / verifier contract configured through governance). In this case the implementation, not the submitter, is the authorized verifier: the derogation is compatible with the previous bullet because `msg.sender` is never treated as the authority. Implementations exercising this derogation MUST emit `ProofFlagsUpdated(proofId, updater, 0, FLAG_VERIFIED)` in the same transaction so that indexers observe the state change.
+- A caller MUST NOT be able to clear `FLAG_FLAGGED` unless authorized by the implementation's dispute-resolution policy.
+- Bits `2..255` MAY be freely set by any role chosen by the implementation.
+
+All other authorization decisions (who may call `attachProof`, who may attach to which `assetId`, revocation policy, etc.) are explicitly out of scope and left to implementations.
+
+## Rationale
+
+### Why a new standard, given EAS / Verax / Sign Protocol exist
+
+Attestation standards model statements of the form *"issuer asserts predicate P about subject S"*. They do not specify:
+
+1. A commitment to off-chain proof bytes via a fixed-shape `proofHash` (attestations carry arbitrary schemas).
+2. A bounded, on-chain DAG of proof-to-proof dependencies with mandatory existence and cap checks.
+3. A reserved verification/dispute flag semantics consumable by generic indexers without per-schema knowledge.
+
+This standard targets exactly those three primitives. An implementation MAY back its storage by an attestation registry: in that case `proofHash` is the schema-specific payload hash and `metadata` carries the attestation UID. The two surfaces compose, they do not overlap.
+
+### Related Work
+
+- **EAS, Verax, Sign Protocol** — Attestation registries. Complementary; see the previous subsection.
+- **[ERC-7888](./eip-7888.md) (Crosschain Broadcaster)** — Trustless remote slot / 32-byte message verification via pluggable `StateProver`s (including MPT and sparse Merkle / ZK state provers). This ERC does not compete with it. It does not specify how those slots are turned into an import record of a local `IERCXXXX` binding.
+- **Rollup dispute / validity verifiers** (Optimism `FaultDisputeGame`, Arbitrum `ChallengeManager`, zkSync `Verifier`) — Domain-specific proving systems. Each MAY expose a thin facade of this ERC so wallets and indexers can discover attached artifacts without learning each ABI.
+
+### `bytes32` identifiers
+
+Using `bytes32` (rather than `uint256` token IDs) lets the same standard cover NFTs, block hashes, content hashes, credential digests and arbitrary domain-separated identifiers with a single ABI.
+
+### `MAX_DEPENDENCIES = 16` (fixed)
+
+The value is a deliberate tradeoff. With Solidity 0.8 and warm storage:
+
+- Existence check (`SLOAD`) per dependency: ~2,100 gas cold, ~100 gas warm.
+- 16 dependencies bounds the worst-case dependency-validation cost at well under 50k gas, leaving ~80% of a default-block gas target for the implementation's own logic.
+- Use-cases requiring more dependencies (e.g. Merkle batches of thousands of leaves) compose naturally by passing a single Merkle root as a dependency.
+
+This cap is fixed because cross-implementation interop assumes a uniform worst-case dependency-validation cost.
+
+### B-hybrid metadata (commitment + head in storage, full bytes in logs)
+
+Storing up to 16 KiB of `metadata` in contract storage per attach is economically and DoS-hostile: cold `SSTORE` of a 16 KiB blob dominates attach gas and permanently expands state. Indexers already consume `ProofAttached`; putting the full payload in that event (~8 gas/byte) is roughly two orders of magnitude cheaper than persisting the same bytes.
+
+Therefore this standard mandates a **B-hybrid** layout:
+
+1. **Calldata in** — `attachProof` still accepts the full `metadata` so verifiers can validate inline proofs in the same transaction.
+2. **Storage** — persist `metadataHash`, a `METADATA_HEAD_LEN`-capped `metadataHead`, and `metadataLen` (plus the other proof fields).
+3. **Logs** — emit the full `metadata` (and its hash) in `ProofAttached` so archive nodes and indexers can reconstruct without an `eth_getStorage` of a dynamic blob.
+4. **`getProof`** — returns the hybrid fields only; it is NOT a full-payload download API.
+
+`METADATA_HEAD_LEN = 96` is fixed so heterogeneous consumers can decode a stable header (32-byte type id + optional 32-byte pin/commitment + 32-byte spare) without per-deployment discovery.
+
+### `MAX_METADATA_LEN` is implementation-defined
+
+Earlier drafts mandated `MAX_METADATA_LEN = 256`, which suffices for pointer-only payloads (IPFS CIDv1: 36 bytes, Arweave TX ID: 43 bytes, attestation UID + short JSON pointer). However, this excludes a category of implementations central to the standard's value proposition: registries that accept the proof body **inline at attach time** (validated in-call) rather than via an off-chain pointer only.
+
+Concretely:
+
+- Light-client / state proofs (Merkle-Patricia and sparse Merkle tries on Ethereum L1 and L2 rollups) range from 1 KB to 8 KB.
+- ZK proof payloads (Groth16: ~256 B; PLONK: ~1 KB; zkVM / STARK receipts: 1-3 KB).
+- Cross-chain message proofs combining (chain_id, block_number, payload) routinely exceed 4 KB.
+
+A fixed 256 B cap would force every such implementation to store its proof body off-chain and submit only a pointer — defeating the purpose of an on-chain proof attachment standard for verifiable state.
+
+Therefore the standard makes the cap **implementation-defined within a normative range**:
+
+- A floor of `256` bytes ensures that *any* conforming implementation can carry a pointer payload, preserving baseline interop with attestation-style consumers.
+- A RECOMMENDED `>= 16384` bytes accommodates the heaviest realistic single-proof payload (an MPT proof against a deep storage trie).
+- Mandatory exposure via `MAX_METADATA_LEN()` lets clients discover the cap before submission, instead of relying on out-of-band documentation or repeated revert-probing.
+- Each implementation absorbs the gas cost it has chosen for its own use case; the standard does not need to pick a single point on the curve.
+
+DoS robustness is preserved because the cap is **per-implementation immutable**: it can be a Solidity `constant` or `immutable`, and consumers can refuse to route to deployments whose cap exceeds their tolerance. What the standard forbids is a mutable cap that could be raised by an admin to inflate already-stored metadata costs after the fact.
+
+### Flag bitfield rather than enum
+
+A `uint256` bitfield encodes orthogonal states (`FLAGGED` and `VERIFIED` can be set simultaneously while a dispute is being resolved) without forcing interface changes when new states are introduced by implementations.
+
+### Why only `MAX_METADATA_LEN()` is a function
+
+The earlier draft exposed `MAX_DEPENDENCIES()`, `FLAG_FLAGGED()` and `FLAG_VERIFIED()` as functions. They were removed because their values are uniform across implementations: a function call buys nothing over a documented constant.
+
+`MAX_METADATA_LEN()` is the exception: its value is intentionally heterogeneous (see `MAX_METADATA_LEN` rationale), so consumers genuinely need a runtime probe. Keeping the ABI surface limited to this single discoverable constant minimizes overhead while preserving cross-implementation routing.
+
+### Deterministic `proofId` derivation
+
+The recommended preimage `(chainId, address(this), assetId, proofHash, submitter, attachNonce)` was chosen to eliminate three categories of foot-guns that appeared in earlier proof registries:
+
+- Including `attachNonce` (typically `getProofCount(assetId)` before commit) guarantees `proofId` is computable *before* persistence. This is what makes the direct-self-reference check ("a proof may not list itself as a dependency") well-defined and cheap — Test Case 4 is only constructible because clients can precompute the id.
+- **Excluding `metadata`** — `metadata` is already committed to via `proofHash` (for the proving-system payload) and `metadataHash` (for auxiliary bytes / off-chain pointers). Hashing it a third time into `proofId` would (a) prevent clients from precomputing `proofId` from a `metadata` template whose exact bytes are not yet known and (b) turn every metadata edit into a full re-derivation, breaking dependency references that had been quoted off-chain.
+- **Excluding `block.timestamp` / `block.number`** — proposer-manipulable, and would gratuitously couple `proofId` to block ordering. Two `attachProof` calls in the same block or bundle must be able to reference each other by precomputed id; timestamp/number in the preimage would defeat that.
+
+`address(this)` and `chainId` are included so that the same `(assetId, proofHash, submitter, nonce)` cannot collide across deployments or chains.
+
+### Cascading `FLAG_FLAGGED`
+
+A proof's validity is only as strong as the validity of its dependencies. By recommending (not mandating) flag cascading, the standard gives integrators a uniform expectation while leaving implementations free to pick the eager-vs-lazy tradeoff that matches their gas profile.
+
+### Pagination
+
+Assets may accumulate thousands of proofs (e.g. rolling fraud-proof history for an L2). Pagination in `getAssetProofs` keeps reads bounded and makes the interface usable by indexers and explorers without bespoke RPCs.
+
+## Backwards Compatibility
+
+No backwards compatibility issues found. This standard introduces a new interface that does not collide with [ERC-165](./eip-165.md), [ERC-721](./eip-721.md), [ERC-1155](./eip-1155.md), attestation registries, or [ERC-7888](./eip-7888.md): it operates on opaque `bytes32` identifiers and never touches token transfer semantics or cross-chain message broadcast.
+
+Existing contracts MAY add this interface incrementally by deploying a satellite registry that maps their internal IDs to `assetId` values, without modifying the original token contract.
+
+## Test Cases
+
+Conforming implementations MUST pass the following test cases:
+
+1. **Happy path** — `attachProof` with `dependencies.length == 0` succeeds, emits `ProofAttached` with `metadataHash == keccak256(metadata)` and the full `metadata`, `proofExists(proofId) == true`, `getProofCount(assetId) == 1`, `getProof(proofId)` returns matching `proofHash` / `metadataHash` / `metadataHead` / `metadataLen` (not the full body).
+2. **Dependency cap** — `attachProof` with `dependencies.length == 17` MUST revert.
+3. **Dependency existence** — `attachProof` with one non-existent dependency MUST revert.
+4. **Self-reference** — under the recommended deterministic `proofId`, the client precomputes `proofId = keccak256(abi.encode(block.chainid, address(registry), assetId, proofHash, submitter, expectedAttachNonce))` and passes that value as a `dependencies` entry. `attachProof` MUST revert. Because the RECOMMENDED preimage excludes `metadata` / `block.timestamp` / `block.number`, this precomputation is exact.
+5. **Metadata cap** — let `M = MAX_METADATA_LEN()`. `attachProof` with `metadata.length == M` MUST succeed; `attachProof` with `metadata.length == M + 1` MUST revert. `M` MUST be `>= 256` and `M` MUST be `<= 65535`.
+6. **Pagination boundaries** — for an asset with `N` proofs: `getAssetProofs(asset, 0, N) == all`, `getAssetProofs(asset, N, 10) == []` and `total == N`, `getAssetProofs(asset, 0, N+5)` returns exactly `N` entries.
+7. **Flag authorization** — calling `setProofFlags(proofId, FLAG_VERIFIED)` from an unauthorized account MUST revert; calling from an authorized verifier MUST succeed and emit `ProofFlagsUpdated(proofId, updater, 0, FLAG_VERIFIED)`.
+8. **Non-existent proof reads** — `getProof(unknown)` MUST revert; `proofExists(unknown) == false`.
+9. **ERC-165** — `supportsInterface(type(IERCXXXX).interfaceId) == true`.
+
+## Reference Implementation
+
+The interface is provided in [`IERCXXXX.sol`](../assets/erc-draft_proof_attachment/IERCXXXX.sol) and a minimal MIT reference implementation is provided in [`ProofRegistry.sol`](../assets/erc-draft_proof_attachment/ProofRegistry.sol).
+
+A minimal sketch of the B-hybrid attach path:
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+import {IERC165} from "./IERC165.sol";
+
+contract MinimalProofRegistry is IERCXXXX, IERC165 {
+    uint256 internal constant _MAX_DEPENDENCIES = 16;
+    uint256 internal constant _MAX_METADATA_LEN = 16384; // implementation choice; MUST be >= 256
+    uint256 internal constant FLAG_FLAGGED = 1 << 0;
+    uint256 internal constant FLAG_VERIFIED = 1 << 1;
+
+    function MAX_METADATA_LEN() external pure override returns (uint256) {
+        return _MAX_METADATA_LEN;
+    }
+
+    uint256 internal constant _METADATA_HEAD_LEN = 96;
+
+    struct Proof {
+        bytes32 assetId;
+        address submitter;
+        bytes32 proofHash;
+        bytes32 metadataHash;
+        bytes32[3] metadataHeadWords; // illustrative packing of 96-byte head
+        uint16  metadataLen;
+        uint64  timestamp;
+        uint256 flags;
+        bytes32[] dependencies;
+        bool exists;
+    }
+
+    mapping(bytes32 => Proof) internal _proofs;
+    mapping(bytes32 => bytes32[]) internal _byAsset;
+
+    function attachProof(
+        bytes32 assetId,
+        bytes32 proofHash,
+        bytes calldata metadata,
+        bytes32[] calldata dependencies
+    ) external override returns (bytes32 proofId) {
+        require(dependencies.length <= _MAX_DEPENDENCIES, "deps>max");
+        require(metadata.length <= _MAX_METADATA_LEN, "meta>max");
+
+        uint256 nonce = _byAsset[assetId].length; // getProofCount before commit
+        proofId = keccak256(abi.encode(
+            block.chainid, address(this), assetId, proofHash, msg.sender, nonce
+        ));
+
+        for (uint256 i; i < dependencies.length; ++i) {
+            require(dependencies[i] != proofId, "self-ref");
+            require(_proofs[dependencies[i]].exists, "missing dep");
+        }
+
+        bytes32 metaHash = keccak256(metadata);
+        Proof storage p = _proofs[proofId];
+        p.assetId = assetId;
+        p.submitter = msg.sender;
+        p.proofHash = proofHash;
+        p.metadataHash = metaHash;
+        p.metadataLen = uint16(metadata.length);
+        p.timestamp = uint64(block.timestamp);
+        p.dependencies = dependencies;
+        p.exists = true;
+        // copy word-aligned 32 * floor(min(96, len) / 32) bytes into metadataHeadWords — omitted for brevity
+
+        _byAsset[assetId].push(proofId);
+        emit ProofAttached(assetId, proofId, msg.sender, metaHash, metadata, dependencies);
+    }
+
+    // ... setProofFlags / getProof (returns hash+head+len) / getAssetProofs / proofExists / getProofCount
+    // ... supportsInterface returning true for type(IERCXXXX).interfaceId and 0x01ffc9a7
+}
+```
+
+### Gas profile (reference `ProofRegistry`, Solc 0.8.24, EVM `cancun`, optimizer 200)
+
+Measured via `forge snapshot` on `test/ProofRegistry.gas.t.sol` (order of magnitude; exact figures in that snapshot).
+
+| Operation | Gas (order of magnitude) |
+| --- | --- |
+| `attachProof`, 0 deps, 0 B meta | ~1.8×10⁵ |
+| `attachProof`, 16 deps, 256 B meta | ~6.9×10⁵ |
+| `setProofFlags` | ~3×10⁴ |
+| `getProof` / `getAssetProofs` | view, free on L2 |
+
+Persisting a 16 KiB body with `SSTORE` costs on the order of **~11M gas**; emitting the same bytes in `ProofAttached` is roughly two orders of magnitude cheaper. That delta is the reason B-hybrid is normative.
+
+## Security Considerations
+
+### Dependency validation
+
+Implementations MUST verify that every `dependencies[i]` exists at the moment of attachment. Skipping this check allows attackers to build phantom DAGs that later "appear" when a colliding proof is independently attached.
+
+### Cycle prevention
+
+Direct self-reference is cheap to check (`O(n)` with `n ≤ 16`) and is mandated. Transitive cycles (`A → B → … → A`) require traversing the full graph; the standard makes detection a SHOULD because deep hierarchies make it gas-prohibitive. Applications requiring strict acyclicity MUST validate off-chain before submission. Without such validation, a malicious submitter MAY construct flag-cascading loops that never terminate during eager invalidation; implementations using eager cascading MUST bound their traversal depth.
+
+### DoS via dependencies
+
+The `MAX_DEPENDENCIES = 16` cap is a hard bound on the cost of dependency validation per `attachProof`. Implementations MUST enforce it; allowing larger arrays trivially breaks the gas profile guarantees of this standard.
+
+### DoS via metadata
+
+Each implementation publishes its own `MAX_METADATA_LEN()` cap. Three invariants protect consumers:
+
+1. **The cap MUST be enforced on-chain in `attachProof`.** Off-chain validation is insufficient because a malicious caller bypasses it trivially.
+2. **The value returned by `MAX_METADATA_LEN()` MUST be immutable post-deployment** (Solidity `constant` or `immutable`). A mutable published cap would break gas-cost guarantees consumers relied on at routing time.
+3. **Full metadata MUST NOT be required in contract storage.** B-hybrid (hash + head + event) bounds permanent state growth to a fixed per-proof footprint independent of `metadata.length` (beyond the head).
+
+Consumers (wallets, indexers, bridges) electing to integrate a given implementation SHOULD read `MAX_METADATA_LEN()` once and refuse to call `attachProof` against deployments whose cap exceeds their per-call gas tolerance.
+
+### Authorization on reserved flags
+
+`FLAG_VERIFIED` is the only signal generic consumers (wallets, indexers) can rely on across implementations. If an implementation allowed submitters to self-set `FLAG_VERIFIED`, downstream consumers would treat unverified proofs as verified — silently breaking every integrator. The Authorization section MUST be honoured.
+
+### Proof reuse and `assetId` collisions
+
+`proofHash` MAY be reused across distinct assets when the same off-chain proof legitimately applies to several assets, because `proofId` carries `assetId` in its derivation. The genuine risk is at the application layer: `assetId` values that omit a domain separator (chain ID + issuer/contract address) can collide across contexts, enabling cross-context replay. The recommended `assetId` patterns mitigate this; applications MUST follow them.
+
+### Front-running
+
+`attachProof` is observably ordered on-chain. If proof ordering matters (e.g. first-to-attach wins a bounty), implementations SHOULD provide a commit-reveal extension or otherwise neutralize ordering, on top of the base interface.
+
+### Timestamp manipulation
+
+`timestamp` returned by `getProof` is the block timestamp at attachment, manipulable by proposers within standard slack. Critical logic MUST NOT rely on its sub-minute precision; use `block.number` for ordering when ordering matters.
+
+### Meta-transactions
+
+Implementations supporting [ERC-2771](./eip-2771.md) or similar trusted-forwarder patterns MUST validate calldata length and decode the originator strictly per [ERC-2771](./eip-2771.md). A compromised forwarder accepting short calldata can otherwise pass `msg.sender == forwarder` as `submitter`, enabling impersonation and false `FLAG_VERIFIED` authorization.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
