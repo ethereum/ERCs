@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-key-context.schema.json",
+  "title": "FHEIF key context",
+  "description": "How a key is controlled, who can decrypt under it, where its material is kept and what can be converted. Its canonical form is hashed into the key context.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "key-context/1"
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "control": {
+      "type": "string",
+      "minLength": 1
+    },
+    "access": {
+      "type": "object",
+      "properties": {
+        "structure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shares": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "structure",
+        "rule"
+      ]
+    },
+    "custody": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "material": {
+      "type": "object",
+      "properties": {
+        "public": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "secret": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "public",
+        "secret"
+      ]
+    },
+    "enforcement": {
+      "type": "object",
+      "description": "By what each boundary is enforced: separate keys, threshold shares, a restricted cryptographic capability, a trusted executor, or admission only.",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "required": [
+        "decryption",
+        "evaluation"
+      ]
+    }
+  },
+  "required": [
+    "fheif",
+    "profile",
+    "control",
+    "access",
+    "custody",
+    "conversion",
+    "enforcement"
+  ]
+}

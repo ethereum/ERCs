@@ -1,0 +1,12 @@
+{
+  "fheif": "key-access/1",
+  "structure": "threshold",
+  "shares": "additive",
+  "threshold": 3,
+  "holders": [
+    "0x34736512141426b515D7aA0E907A395A91725666",
+    "0xC3fE75dACADE0d7732acE669AdB5a2595fd8fC14",
+    "0x5D3a2eF2311d9843f6d78e44a8167E4dE5d4F916"
+  ],
+  "lead": "0x34736512141426b515D7aA0E907A395A91725666"
+}

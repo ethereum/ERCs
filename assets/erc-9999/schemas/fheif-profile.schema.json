@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-profile.schema.json",
+  "title": "FHEIF crypto profile",
+  "description": "The semantic contract of one way of computing on protected objects. Its canonical form is hashed into the profile identifier.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "profile/1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluationClass": {
+      "enum": [
+        "fheif.evaluation.homomorphic",
+        "fheif.evaluation.mixed",
+        "fheif.evaluation.test-only"
+      ]
+    },
+    "warning": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scheme": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "variant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "library": {
+          "type": "string",
+          "minLength": 1
+        },
+        "libraryVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "family"
+      ]
+    },
+    "data": {
+      "type": "object",
+      "description": "Numeric semantics: exact or approximate, encoding, range, modular behaviour, meaning of error.",
+      "properties": {
+        "semantics": {
+          "enum": [
+            "exact",
+            "approximate"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "encoding": {
+          "type": "string",
+          "minLength": 1
+        },
+        "range": {
+          "type": "object"
+        },
+        "outOfRange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "error": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "semantics",
+        "type",
+        "encoding"
+      ]
+    },
+    "operations": {
+      "type": "object",
+      "properties": {
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "programs": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "programs"
+      ]
+    },
+    "correctness": {
+      "type": "object",
+      "description": "Conditions under which the stated relation holds, and what is known about failure. Separate from numeric semantics.",
+      "properties": {
+        "relation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "failure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "undetected": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "relation",
+        "conditions",
+        "failure"
+      ]
+    },
+    "limits": {
+      "type": "object"
+    },
+    "stages": {
+      "type": "array",
+      "description": "Required for the mixed evaluation class: each stage with what is visible to whom.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evaluation": {
+            "enum": [
+              "homomorphic",
+              "plaintext"
+            ]
+          },
+          "visibleTo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trust": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "evaluation",
+          "visibleTo"
+        ]
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "type": "object"
+        },
+        "ciphertexts": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decryptionRelease": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputProofs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "circuitPrivacy": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "ciphertexts",
+        "decryptionRelease"
+      ]
+    },
+    "compatibility": {
+      "type": "object",
+      "properties": {
+        "keyModes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "objectFormat": {
+          "type": "string",
+          "minLength": 1
+        },
+        "combines": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unknown": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "combines",
+        "unknown"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "mechanism": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]+$"
+          },
+          "comparison": {
+            "type": "string",
+            "minLength": 1
+          },
+          "equivalence": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "mechanism"
+        ]
+      }
+    }
+  },
+  "required": [
+    "fheif",
+    "name",
+    "evaluationClass",
+    "data",
+    "operations",
+    "correctness",
+    "security",
+    "compatibility"
+  ]
+}

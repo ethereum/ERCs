@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-scope.schema.json",
+  "title": "FHEIF activity scope",
+  "description": "What an activity scope is for and what it exposes, surface by surface.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "scope/1"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subjects": {
+      "type": "string",
+      "minLength": 1
+    },
+    "interaction": {
+      "type": "object",
+      "properties": {
+        "sharedState": {
+          "type": "boolean"
+        },
+        "rounds": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "exposure": {
+      "type": "object",
+      "description": "Each surface is declared on its own. There is no single switch.",
+      "properties": {
+        "participants": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "intermediateState": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outputs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "programs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timingAndLinkage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "releases": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "participants",
+        "inputs",
+        "intermediateState",
+        "outputs",
+        "programs",
+        "timingAndLinkage"
+      ]
+    },
+    "records": {
+      "enum": [
+        "fheif.record.open",
+        "fheif.record.committed"
+      ]
+    },
+    "release": {
+      "type": "object",
+      "properties": {
+        "finality": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "description": "Optional references to objects of other systems, such as a group or a task."
+    }
+  },
+  "required": [
+    "fheif",
+    "purpose",
+    "exposure",
+    "records"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "fheif": "scope/1",
+  "purpose": "private matching of two supplier quotes against a client cap",
+  "subjects": "accounts of any kind; in the example they are agents",
+  "interaction": {
+    "sharedState": true,
+    "rounds": "best quote, cap check, views"
+  },
+  "exposure": {
+    "participants": "public: accounts appear in ledger records",
+    "inputs": "protected",
+    "intermediateState": "protected",
+    "outputs": "protected until released under a view to a named audience",
+    "programs": "public",
+    "timingAndLinkage": "public: which account requested, executed, approved or attested what, and when",
+    "releases": "public: that a view was released to an audience; the released content is not on the ledger"
+  },
+  "records": "fheif.record.open",
+  "release": {
+    "finality": "a holder contributes only when the block of its own attestation is final under the rule of the chain"
+  }
+}

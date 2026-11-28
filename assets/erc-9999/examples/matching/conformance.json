@@ -1,0 +1,79 @@
+{
+  "fheif": "conformance/1",
+  "implementation": "reference registry, ledger and example backend of this proposal",
+  "base": {
+    "objects": [
+      "profile",
+      "key context",
+      "key epoch",
+      "scope",
+      "policy version",
+      "view",
+      "protected object",
+      "operation",
+      "disclosure",
+      "evidence",
+      "anchor"
+    ],
+    "failureSemantics": "every refusal names its reason; nothing proceeds on an unknown or mismatched profile, key context, key epoch, view or policy version",
+    "tested": "ledger and registry by the test suite; backend by its conformance cases"
+  },
+  "enforcement": [
+    {
+      "action": "submit input, request operation, submit result, accept result, request disclosure, approve disclosure",
+      "by": "the ledger, on the answer of the authorizer"
+    },
+    {
+      "action": "decrypt",
+      "by": "threshold shares: every holder of the epoch contributes or nothing is decrypted"
+    },
+    {
+      "action": "evaluate",
+      "by": "admission only: computing on public ciphertexts cannot be prevented; an unadmitted result is not an object"
+    },
+    {
+      "action": "receive a view",
+      "by": "holders contribute only to recorded, standing disclosures, and seal their contribution to the delivery key of the audience"
+    }
+  ],
+  "evidence": [
+    {
+      "proposition": "fheif.proposition.input-well-formed",
+      "mechanisms": [
+        "fheif.mechanism.self-declared"
+      ],
+      "status": "declared, not verified"
+    },
+    {
+      "proposition": "fheif.proposition.operation-correct",
+      "mechanisms": [
+        "fheif.mechanism.re-execution"
+      ],
+      "status": "verified by an account other than the executor before acceptance"
+    },
+    {
+      "proposition": "fheif.proposition.decryption-correct",
+      "mechanisms": [
+        "fheif.mechanism.none"
+      ],
+      "status": "no evidence"
+    },
+    {
+      "proposition": "fheif.proposition.disclosure-authorized",
+      "mechanisms": [
+        "fheif.mechanism.ledger-state"
+      ],
+      "status": "the ledger record itself"
+    }
+  ],
+  "records": {
+    "mode": "fheif.record.open",
+    "onLedger": "requests, approvals, attestations and releases with their accounts and identifiers; commitments of objects",
+    "offLedger": "ciphertexts, keys, shares, released content",
+    "completeness": "a release outside the recorded path would need every holder to contribute outside it; the ledger cannot show that this did not happen"
+  },
+  "deployment": {
+    "roles": "each role is a separate operating-system process on one machine, reading its own files only",
+    "limits": "no separation by host or network; no proof of well-formed inputs; no proof of correct partial decryption"
+  }
+}

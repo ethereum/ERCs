@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-view-output.schema.json",
+  "title": "FHEIF disclosure view output",
+  "description": "The complete content of a release under a view. Its canonical form is hashed into the output hash of the view.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "view-output/1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "program": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputClasses": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "layout": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "contains": {
+      "type": "string",
+      "minLength": 1
+    },
+    "excludes": {
+      "type": "string",
+      "minLength": 1
+    },
+    "form": {
+      "type": "string",
+      "minLength": 1
+    },
+    "precision": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "fheif",
+    "name",
+    "program",
+    "layout",
+    "contains",
+    "form"
+  ]
+}

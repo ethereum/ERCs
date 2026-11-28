@@ -1,0 +1,14 @@
+{
+  "fheif": "view-output/1",
+  "name": "supplier-a",
+  "program": "view-supplier-a",
+  "inputClasses": [
+    "fheif.example.class.state.match"
+  ],
+  "layout": [
+    "won"
+  ],
+  "contains": "whether supplier A won a deal",
+  "excludes": "the other quote; the cap; whether a deal was made when A did not win it",
+  "form": "one ciphertext; plaintext coefficients beyond the layout are zero when the inputs are well formed"
+}

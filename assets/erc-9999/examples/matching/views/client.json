@@ -1,0 +1,16 @@
+{
+  "fheif": "view-output/1",
+  "name": "client",
+  "program": "view-client",
+  "inputClasses": [
+    "fheif.example.class.state.match"
+  ],
+  "layout": [
+    "deal",
+    "dealAndAWon",
+    "price[0..16)"
+  ],
+  "contains": "whether a deal was made, which supplier won it, and the winning price",
+  "excludes": "the losing quote; the cap; anything at all when no deal was made",
+  "form": "one ciphertext; plaintext coefficients beyond the layout are zero when the inputs are well formed"
+}

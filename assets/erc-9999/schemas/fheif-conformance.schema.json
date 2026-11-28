@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fheif-conformance.schema.json",
+  "title": "FHEIF conformance statement",
+  "description": "What an implementation states about itself, in four dimensions that are not levels of one another.",
+  "type": "object",
+  "properties": {
+    "fheif": {
+      "const": "conformance/1"
+    },
+    "implementation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base": {
+      "type": "object",
+      "properties": {
+        "objects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "failureSemantics": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tested": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "objects",
+        "failureSemantics"
+      ]
+    },
+    "enforcement": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "minLength": 1
+          },
+          "by": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "action",
+          "by"
+        ]
+      },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "proposition": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]+$"
+          },
+          "mechanisms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9.-]+$"
+            }
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "proposition",
+          "mechanisms",
+          "status"
+        ]
+      }
+    },
+    "records": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "onLedger": {
+          "type": "string",
+          "minLength": 1
+        },
+        "offLedger": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completeness": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "mode",
+        "completeness"
+      ]
+    },
+    "deployment": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "fheif",
+    "implementation",
+    "base",
+    "enforcement",
+    "evidence",
+    "records"
+  ]
+}

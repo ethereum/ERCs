@@ -1,0 +1,18 @@
+{
+  "fheif": "program/1",
+  "name": "view-supplier-a",
+  "version": "1",
+  "profile": "openfhe-threshold-bfv-bits",
+  "bits": 16,
+  "inputs": [
+    "fheif.example.class.state.match"
+  ],
+  "output": {
+    "class": "fheif.example.class.view-output",
+    "layout": [
+      "won"
+    ]
+  },
+  "semantics": "won = deal and aIsLower; packed into one ciphertext",
+  "depth": 12
+}

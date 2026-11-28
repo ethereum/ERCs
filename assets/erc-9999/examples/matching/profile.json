@@ -1,0 +1,77 @@
+{
+  "fheif": "profile/1",
+  "name": "openfhe-threshold-bfv-bits",
+  "evaluationClass": "fheif.evaluation.homomorphic",
+  "scheme": {
+    "family": "BFV",
+    "variant": "RNS",
+    "library": "OpenFHE",
+    "libraryVersion": "1.6.1"
+  },
+  "data": {
+    "semantics": "exact",
+    "type": "unsigned integer",
+    "encoding": "one ciphertext per bit, least significant bit first; the bit is the constant coefficient of the plaintext",
+    "plaintextModulus": 2,
+    "range": {
+      "bits": 16
+    },
+    "outOfRange": "refused at encryption"
+  },
+  "operations": {
+    "gates": [
+      "xor",
+      "and",
+      "not",
+      "pack"
+    ],
+    "programs": "identified by the keccak256 hash of the canonical form of the program document"
+  },
+  "correctness": {
+    "relation": "the decryption of an output equals the program applied to the decryptions of the inputs",
+    "conditions": [
+      "every input ciphertext encrypts a constant polynomial that is 0 or 1",
+      "the multiplicative depth of the program does not exceed the limit of this profile",
+      "inputs and evaluation key belong to the same key context and key epoch"
+    ],
+    "failure": "the probability of an incorrect decryption is not quantified by this profile; parameters are those the library generates for the stated depth",
+    "undetected": "an executor that deviates from the program is not detected by the scheme; see evidence"
+  },
+  "limits": {
+    "multiplicativeDepth": 12,
+    "refresh": "none",
+    "conversion": "none"
+  },
+  "security": {
+    "parameters": {
+      "ringDimension": 16384,
+      "level": "HEStd_128_classic",
+      "multipartyMode": "NOISE_FLOODING_MULTIPARTY"
+    },
+    "ciphertexts": "IND-CPA",
+    "decryptionRelease": "partial decryptions carry flooding noise; results leave the key holders only through recorded disclosures of whole view outputs",
+    "inputProofs": "none: a submitter is not proven to have encrypted a well-formed value",
+    "circuitPrivacy": "none: an output may reveal how it was computed to whoever can decrypt it"
+  },
+  "compatibility": {
+    "keyModes": [
+      "threshold, additive shares, all holders"
+    ],
+    "objectFormat": "FHEIFOBJ1: count, then length-prefixed serialized ciphertexts",
+    "combines": "objects of one key context and one key epoch",
+    "unknown": "an object of another profile, key context or key epoch is refused, not converted"
+  },
+  "evidence": {
+    "operationCorrect": {
+      "mechanism": "fheif.mechanism.re-execution",
+      "comparison": "the object bytes",
+      "equivalence": "identical bytes under the same library version, context, evaluation key, inputs and program"
+    },
+    "decryptionCorrect": {
+      "mechanism": "fheif.mechanism.none"
+    },
+    "inputWellFormed": {
+      "mechanism": "fheif.mechanism.self-declared"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "fheif": "key-context/1",
+  "profile": "openfhe-threshold-bfv-bits",
+  "control": "the key is generated jointly by the holders of an epoch; no party holds or ever computes the whole key",
+  "access": {
+    "structure": "threshold",
+    "shares": "additive",
+    "rule": "all holders of the epoch"
+  },
+  "custody": "each holder keeps its own share; the controller of the key context holds no share",
+  "conversion": "none",
+  "material": {
+    "public": [
+      "context",
+      "joint public key",
+      "joint evaluation key"
+    ],
+    "secret": [
+      "one share per holder, never published"
+    ]
+  },
+  "enforcement": {
+    "decryption": "threshold shares: a release needs a contribution of every holder",
+    "evaluation": "admission only: anybody can compute on the ciphertexts with the public evaluation key; only an admitted and accepted result becomes an object of the scope",
+    "history": "a holder of a later epoch holds no share of an earlier one",
+    "exit": "a holder that leaves keeps its share of the epochs it was in; a later epoch is generated without it"
+  }
+}

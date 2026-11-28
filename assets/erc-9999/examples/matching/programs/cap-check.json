@@ -1,0 +1,21 @@
+{
+  "fheif": "program/1",
+  "name": "cap-check",
+  "version": "1",
+  "profile": "openfhe-threshold-bfv-bits",
+  "bits": 16,
+  "inputs": [
+    "fheif.example.class.state.best-quote",
+    "fheif.example.class.cap"
+  ],
+  "output": {
+    "class": "fheif.example.class.state.match",
+    "layout": [
+      "deal",
+      "aIsLower",
+      "lower[0..16)"
+    ]
+  },
+  "semantics": "deal = 1 if lower <= cap else 0; aIsLower and lower are carried over",
+  "depth": 11
+}
