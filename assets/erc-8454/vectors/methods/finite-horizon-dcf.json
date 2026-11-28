@@ -1,0 +1,48 @@
+{
+  "auf": "1.0",
+  "kind": "method",
+  "name": "auf:method:finite-horizon-dcf@1",
+  "version": "1.0.0",
+  "summary": "Finite-horizon discounted cash flow with a fixed per-period discount rate and an explicit terminal value received at the end of the last period.",
+  "inputs": {
+    "type": "object",
+    "required": ["denomination", "cashflows", "rate", "terminalValue", "attribution"],
+    "properties": {
+      "denomination": { "type": "string" },
+      "cashflows": { "type": "array", "items": { "type": "string" }, "description": "net cash flows at the end of periods 1..n" },
+      "rate": { "type": "string", "description": "per-period discount rate as a decimal fraction" },
+      "terminalValue": { "type": "string" },
+      "periodLength": { "type": "string", "description": "ISO 8601 duration of one period" },
+      "attribution": { "type": "string", "description": "which interest the cash flows belong to" },
+      "scenario": { "type": "string" }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "required": ["kind", "value", "denomination"],
+    "properties": {
+      "kind": { "const": "monetary" },
+      "value": { "type": "string" },
+      "denomination": { "type": "string" }
+    }
+  },
+  "algorithm": {
+    "description": "value = sum over t = 1..n of c_t / (1 + r)^t, plus T / (1 + r)^n. Linear in the cash flows only while r and n are fixed.",
+    "formula": "value = sum_{t=1..n} c_t / (1+r)^t + T / (1+r)^n",
+    "implementation": { "uri": "AUFValuationLib.sol#finiteHorizonDCF", "hash": "" }
+  },
+  "assumptions": [
+    "Cash flows are forecasts attributed to the valued interest; their basis is recorded under inputs of the receipt.",
+    "A single per-period rate applies to all periods."
+  ],
+  "applicability": {
+    "roles": ["source", "container", "conductor"],
+    "interests": ["auf:interest:whole@1", "auf:interest:revenue-right@1", "auf:interest:usage-right@1"],
+    "structures": ["auf:structure:simple@1", "auf:structure:composite@1", "auf:structure:chip@1"]
+  },
+  "composability": {
+    "mode": "conditional",
+    "conditions": "Additive across parts only when the parts' cash flows are attributed without overlap, internal transfers are removed, and the same rate and horizon are used; otherwise context-dependent."
+  },
+  "publisher": "AIFi Unit Framework reference profiles"
+}

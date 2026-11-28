@@ -1,0 +1,64 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Hosting payables as recorded by two systems",
+    "summary": "A bookkeeper lists a hosting invoice and a payables ledger entry, each a debt of USD 100 to the same provider, without establishing whether the ledger entry records that invoice or a second one. The pair is unresolved: read as one obligation the net equity contribution is -100, read as two it is -200, so the interval runs from -200 to -100.",
+    "tags": [
+      "liabilities",
+      "interval-vector"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "financial-position",
+      "ref": "urn:x:invoice:hosting:2026-11",
+      "label": "Hosting invoice for November (USD 100, payable to the hosting provider)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "urn:x:ledger:payables:2026-11-07",
+      "label": "Payables ledger entry of 7 November (USD 100, hosting provider)"
+    }
+  ],
+  "relations": [
+    {
+      "type": "owes",
+      "from": "unit",
+      "to": "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+      "quantity": {
+        "amount": "100",
+        "unit": "USD"
+      },
+      "scope": "due 2026-11-30",
+      "counterparty": "eip155:11155111:0x00000000000000000000000000000000000000c7"
+    },
+    {
+      "type": "owes",
+      "from": "unit",
+      "to": "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040",
+      "quantity": {
+        "amount": "100",
+        "unit": "USD"
+      },
+      "scope": "booked 2026-11-07",
+      "counterparty": "eip155:11155111:0x00000000000000000000000000000000000000c7"
+    }
+  ],
+  "ports": [
+    {
+      "id": "hosting-out",
+      "direction": "out",
+      "class": "funds",
+      "template": "auf:port:funds-out@1",
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "conditions": "settlement of hosting payables"
+    }
+  ],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000d4"
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}

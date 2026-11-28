@@ -1,0 +1,19 @@
+{
+  "input": {
+    "kind": "unit-definition",
+    "auf": "1.0",
+    "unit": {
+      "name": "Vector Unit"
+    },
+    "elements": [],
+    "relations": [],
+    "ports": [],
+    "authorities": {
+      "definitionController": "none"
+    }
+  },
+  "canonical": "{\"auf\":\"1.0\",\"authorities\":{\"definitionController\":\"none\"},\"elements\":[],\"kind\":\"unit-definition\",\"ports\":[],\"relations\":[],\"unit\":{\"name\":\"Vector Unit\"}}",
+  "canonicalHex": "0x7b22617566223a22312e30222c22617574686f726974696573223a7b22646566696e6974696f6e436f6e74726f6c6c6572223a226e6f6e65227d2c22656c656d656e7473223a5b5d2c226b696e64223a22756e69742d646566696e6974696f6e222c22706f727473223a5b5d2c2272656c6174696f6e73223a5b5d2c22756e6974223a7b226e616d65223a22566563746f7220556e6974227d7d",
+  "boundaryHash": "0xf77f708fc500b49c5471a1e6b9f268ccb7d26fb805a7cdf5b4a33a81b93d5be5",
+  "note": "boundaryHash = keccak256(UTF-8(RFC 8785 canonical JSON))"
+}

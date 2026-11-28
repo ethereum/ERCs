@@ -1,0 +1,27 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 13,
+    "version": 1,
+    "boundaryHash": "0x9be7cb89e0e581556cbaff05f61001f4b3cb1caa0d8f9c8c1cd35b2ad6c976f9"
+  },
+  "roles": [
+    {
+      "role": "container",
+      "scope": {
+        "type": "unit"
+      },
+      "mechanism": "rights",
+      "conditions": "two 40% entitlements to the fee stream, held under two instruments"
+    }
+  ],
+  "structure": {
+    "profile": "auf:structure:composite@1"
+  },
+  "knowledge": {
+    "status": "classified",
+    "notes": "The distinct-claim declaration is made by the fund with both source agreements as basis; it is claimed until the obligor endorses either position."
+  }
+}

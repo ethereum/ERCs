@@ -1,0 +1,55 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Combined revenue holdings as seen by a second analyst (references silent)",
+    "summary": "A second analyst lists the token position without an underlying and the assignment under a different URI, with an underlying that names the fee stream under yet another URI, and declares nothing about their relation. No overlap candidate is detected. The pair is an unresolved pair nevertheless: nothing states that the two positions are distinct claims, so a point-valued sum is not admissible.",
+    "tags": [
+      "composite",
+      "additivity-vector"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111/erc20:0x00000000000000000000000000000000000000dd",
+      "label": "RST revenue-share tokens (no underlying declared)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "https://fund-f.example/agreements/summarizer-fee-assignment",
+      "label": "Assigned right to 40% of the Summarizer fee stream (agreement referenced by URL)",
+      "underlying": {
+        "ref": "https://skills.example/summarizer/v3#license-fees",
+        "share": "0.4",
+        "basis": [
+          "https://fund-f.example/agreements/summarizer-fee-assignment"
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "type": "holds",
+      "from": "unit",
+      "to": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+      "quantity": {
+        "amount": "400",
+        "unit": "RST"
+      }
+    },
+    {
+      "type": "holds",
+      "from": "unit",
+      "to": "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2",
+      "share": "0.4"
+    }
+  ],
+  "ports": [],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000d3"
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}

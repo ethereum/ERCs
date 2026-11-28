@@ -1,0 +1,63 @@
+{
+  "auf": "1.0",
+  "kind": "observation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 7,
+    "version": 1,
+    "boundaryHash": "0xf34213a491b9e655c353ad0dddec49f97b8d995671dd64d228ade79a2d7bb5ba"
+  },
+  "window": {
+    "from": "2026-10-01T00:00:00Z",
+    "to": "2026-10-31T23:59:59Z"
+  },
+  "snapshotAt": "2026-10-31T23:59:59Z",
+  "assets": [
+    {
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "opening": "0",
+      "closing": "65",
+      "inflow": "100",
+      "outflow": "35",
+      "minted": "0",
+      "burned": "0",
+      "adjustments": [],
+      "transfers": [
+        {
+          "port": "revenue-in",
+          "direction": "in",
+          "amount": "100",
+          "counterparty": "paying clients"
+        },
+        {
+          "port": "compute-out",
+          "direction": "out",
+          "amount": "30",
+          "counterparty": "compute provider"
+        },
+        {
+          "port": "compute-out",
+          "direction": "out",
+          "amount": "5",
+          "counterparty": "payment rail fees"
+        }
+      ]
+    }
+  ],
+  "nonCash": [
+    {
+      "subject": "0xc70f576d20b3931b3a23e9d85488fc95edaf64dd8a58fc4c1d742877597fec97",
+      "kind": "quota-consumption",
+      "from": "500 GPU-hours reserved",
+      "to": "380 GPU-hours remaining"
+    }
+  ],
+  "coverage": {
+    "observed": [
+      "treasury account"
+    ],
+    "missing": [],
+    "method": "indexer",
+    "source": "urn:x:indexer:example"
+  }
+}
