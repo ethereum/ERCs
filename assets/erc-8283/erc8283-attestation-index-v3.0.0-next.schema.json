@@ -1,0 +1,42 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "version": "3.0.0-next",
+    "type": "object",
+    "description": "ERC-8283 attestation index schema, paired with the ERC-7730 v3 draft. This is the mutable '-next' draft: it changes frequently and without notice, and consumers MUST NOT rely on its stability — see ERC-8283 'Index file schemas and versioning'.",
+    "required": ["$schema", "entries"],
+    "additionalProperties": false,
+
+    "properties": {
+
+        "$schema": {
+            "title": "Schema",
+            "type": "string",
+            "format": "uri-reference",
+            "pattern": "(^|/)erc8283-attestation-index-v3\\.0\\.0-next\\.schema\\.json$",
+            "description": "The schema this index conforms to, identified by a URI whose last path segment is this schema's file name. Its version is identical to the ERC-7730 descriptor schema version this index is paired with. A consumer MUST treat a file naming a version it does not implement as invalid."
+        },
+
+        "entries": {
+            "title": "Attestation entries",
+            "type": "object",
+            "description": "Maps each descriptorHash to its renditions.",
+            "propertyNames": {
+                "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "additionalProperties": {
+                "title": "Attestation renditions",
+                "type": "object",
+                "description": "Maps each rendition's attestationFormatId to the absolute URI of its signed attestation blob.",
+                "propertyNames": {
+                    "pattern": "^0x[0-9a-fA-F]{64}$"
+                },
+                "additionalProperties": {
+                    "title": "Attestation blob URI",
+                    "type": "string",
+                    "format": "uri",
+                    "description": "An absolute URI using the identical scheme that was used to successfully fetch this index.json itself — see 'Index file schemas and versioning' in ERC-8283. Never a relative path."
+                }
+            }
+        }
+    }
+}
