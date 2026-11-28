@@ -82,6 +82,12 @@ contract EIP3009Auth is IPaymentAuth, ReentrancyGuard {
 
     bytes4 public constant AUTH_TYPE_ID = bytes4(keccak256("EIP3009Auth"));
 
+    address public immutable bnplContract;
+
+    constructor(address _bnplContract) {
+        bnplContract = _bnplContract;
+    }
+
     // ============ IPaymentAuth ============
 
     function authType() external pure override returns (bytes4) {
@@ -117,6 +123,8 @@ contract EIP3009Auth is IPaymentAuth, ReentrancyGuard {
         uint256 amount,
         bytes calldata authData
     ) external override nonReentrant returns (bool) {
+        require(msg.sender == bnplContract, "EIP3009Auth: only BNPL contract");
+
         (
             uint256 validAfter,
             uint256 validBefore,

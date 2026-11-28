@@ -151,7 +151,8 @@ contract MerkleScheduleAuth is IPaymentAuth, ReentrancyGuard {
     /**
      * @notice Pull an installment amount verified against the committed schedule.
      *
-     * @dev The `amount` parameter supplied by the caller is validated against
+     * @dev MUST only be callable by the BNPL contract.
+     *      The `amount` parameter supplied by the caller is validated against
      *      the leaf amount. Callers SHOULD pass amount = 0 as a sentinel.
      *      A non-zero amount that differs from the leaf amount causes a revert.
      *
@@ -170,6 +171,8 @@ contract MerkleScheduleAuth is IPaymentAuth, ReentrancyGuard {
         uint256 amount,
         bytes calldata authData
     ) external override nonReentrant returns (bool) {
+        require(msg.sender == bnplContract, "MerkleScheduleAuth: only BNPL contract");
+
         (
             bytes32 orderId,
             uint256 installmentIndex,
