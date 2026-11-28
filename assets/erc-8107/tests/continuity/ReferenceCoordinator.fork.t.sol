@@ -85,7 +85,7 @@ contract ReferenceCoordinatorForkTest is BoundaryRecorder {
     function setUp() public {
         // Needs a mainnet fork at the pinned block; skipped in a plain local run
         if (block.chainid != 1 || block.number != PINNED_BLOCK) vm.skip(true);
-        registry = new TrustRegistry(ENS, NAME_WRAPPER);
+        registry = new TrustRegistry(ENS, NAME_WRAPPER, 50_000);
         (G, M, T, P, X) = (_name2LD(G_LABEL), _name2LD(M_LABEL), _name2LD(T_LABEL), _name2LD(P_LABEL), _name2LD(X_LABEL));
         S = _nameBelow(P, "agent");
         assertTrue(BASE.available(_id(T_LABEL)), "label unused at the pinned block");

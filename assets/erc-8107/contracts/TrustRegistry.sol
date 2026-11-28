@@ -76,9 +76,6 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     ///      raise the nonce floor
     uint64 internal constant MAX_NONCE_JUMP = 2 ** 32;
 
-    /// @dev Gas forwarded to a node's resolver in `resolveAgent`
-    uint256 internal constant RESOLVE_GAS = 50_000;
-
     // ═══════════════════════════════════════════════════════════════════════════
     // STORAGE
     // ═══════════════════════════════════════════════════════════════════════════
@@ -89,6 +86,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @notice The NameWrapper this instance unwraps against, or address(0) on
     ///         networks with no deployment
     address public immutable nameWrapper;
+
+    /// @dev Gas forwarded to a node's resolver in `resolveAgent`, chosen at deployment
+    uint256 internal immutable resolveGas;
 
     /// @dev One storage slot. Endorsement (level, expiry, setAt) and denial are
     ///      independent: every write names its fields, so no operation on one
@@ -121,9 +121,12 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @param nameWrapper_ The ENS NameWrapper, or address(0) where none is deployed.
     ///        MUST be pinned at deployment: a hostile contract here could claim
     ///        control of every wrapped name.
-    constructor(address ensRegistry, address nameWrapper_) EIP712("TrustRegistry", "1") {
+    /// @param resolveGas_ The gas forwarded to a resolver's `addr`. The reference tests
+    ///        use 50,000; a deployment picks a bound suited to its network's gas schedule.
+    constructor(address ensRegistry, address nameWrapper_, uint256 resolveGas_) EIP712("TrustRegistry", "1") {
         ens = IENS(ensRegistry);
         nameWrapper = nameWrapper_;
+        resolveGas = resolveGas_;
     }
 
     /// @inheritdoc IERC165
@@ -490,11 +493,12 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         // short or dirty return data) or burn 63/64 of the caller's gas, either of
         // which aborts a coordinator looping over every participant of an intent.
         bytes memory data = abi.encodeWithSelector(IAddrResolver.addr.selector, node);
+        uint256 gasBound = resolveGas; // immutables are not readable in assembly
         bool ok;
         uint256 word;
         uint256 size;
         assembly ("memory-safe") {
-            ok := staticcall(RESOLVE_GAS, resolver, add(data, 0x20), mload(data), 0, 0x20)
+            ok := staticcall(gasBound, resolver, add(data, 0x20), mload(data), 0, 0x20)
             size := returndatasize()
             word := mload(0)
         }

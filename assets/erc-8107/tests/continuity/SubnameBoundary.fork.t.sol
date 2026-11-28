@@ -71,7 +71,7 @@ contract SubnameBoundaryForkTest is BoundaryRecorder {
 
     function setUp() public {
         if (block.chainid != 1 || block.number != PINNED_BLOCK) vm.skip(true);
-        registry = new TrustRegistry(ENS, NAME_WRAPPER);
+        registry = new TrustRegistry(ENS, NAME_WRAPPER, 50_000);
         G = _name2LD(G_LABEL);
         M = _name2LD(M_LABEL);
         P = _name2LD(P_LABEL);

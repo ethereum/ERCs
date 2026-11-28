@@ -121,7 +121,7 @@ contract ExecutionWindowForkTest is BoundaryRecorder {
     function setUp() public {
         // Needs a mainnet fork at the pinned block; skipped in a plain local run
         if (block.chainid != 1 || block.number != PINNED_BLOCK) vm.skip(true);
-        registry = new TrustRegistry(ENS, NAME_WRAPPER);
+        registry = new TrustRegistry(ENS, NAME_WRAPPER, 50_000);
         (G, X, M) = (_node(RB.ETH_NODE, G_LABEL), _node(RB.ETH_NODE, X_LABEL), _node(RB.ETH_NODE, M_LABEL));
         (gId, xId) = (uint256(keccak256(bytes(G_LABEL))), uint256(keccak256(bytes(X_LABEL))));
         assertTrue(BASE.available(xId), "label unused at the pinned block");
