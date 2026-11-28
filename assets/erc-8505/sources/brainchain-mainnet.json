@@ -1,0 +1,101 @@
+{
+  "chainId": 274663,
+  "contract": "0x44b8464342Bbfb9B565FAE494DfDefa37D33A211",
+  "asset": "eip155:274663/erc20:0x8eBFEce96c0AeF7Fd23425D846a302a552c8c451",
+  "fromBlock": 969,
+  "finality": "finalized",
+  "events": [
+    {
+      "step": "funded",
+      "event": "Posted(uint256 indexed id, address indexed poster, uint128 bounty, uint64 deadline, bytes32 briefHash, string briefURI)",
+      "fields": {
+        "amount": "bounty",
+        "brief": "briefHash",
+        "client": "poster",
+        "task": "id"
+      }
+    },
+    {
+      "step": "assigned",
+      "event": "WorkerHired(uint256 indexed id, bytes32 indexed model, uint256 indexed decisionId)",
+      "fields": {
+        "task": "id",
+        "worker": "model"
+      }
+    },
+    {
+      "step": "delivered",
+      "event": "WorkSubmitted(uint256 indexed id, bytes32 indexed model, bytes32 resultHash, string resultURI)",
+      "fields": {
+        "result": "resultHash",
+        "task": "id",
+        "worker": "model"
+      }
+    },
+    {
+      "step": "verdict",
+      "event": "WorkGraded(uint256 indexed id, uint256 indexed decisionId, bool accepted)",
+      "fields": {
+        "accepted": "accepted",
+        "ref": "decisionId",
+        "task": "id"
+      }
+    },
+    {
+      "step": "challenge",
+      "event": "GradeDisputed(uint256 indexed id, address indexed opener)",
+      "fields": {
+        "by": "opener",
+        "task": "id"
+      }
+    },
+    {
+      "step": "verdict",
+      "event": "Ruled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident)",
+      "fields": {
+        "accepted": "paid",
+        "ref": "decisionId",
+        "task": "id"
+      }
+    },
+    {
+      "step": "challenge",
+      "event": "Appealed(uint256 indexed id, address indexed appellant, uint128 bond)",
+      "fields": {
+        "bond": "bond",
+        "by": "appellant",
+        "task": "id"
+      }
+    },
+    {
+      "step": "verdict",
+      "event": "AppealRuled(uint256 indexed id, uint256 indexed decisionId, bool paid, bool confident, bool overturned)",
+      "fields": {
+        "accepted": "paid",
+        "ref": "decisionId",
+        "task": "id"
+      }
+    },
+    {
+      "step": "paid",
+      "event": "BountyPaid(uint256 indexed id, bytes32 indexed model, address indexed account, uint128 bounty, uint128 fee)",
+      "fields": {
+        "amount": "bounty",
+        "fee": "fee",
+        "task": "id",
+        "to": "account",
+        "worker": "model"
+      },
+      "feeIncluded": true
+    },
+    {
+      "step": "refunded",
+      "event": "BountyRefunded(uint256 indexed id, address indexed poster, uint128 amount, uint8 reason)",
+      "fields": {
+        "amount": "amount",
+        "task": "id",
+        "to": "poster"
+      }
+    }
+  ]
+}
