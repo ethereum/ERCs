@@ -26,7 +26,9 @@ interface IEIP3009 {
         uint256 validAfter,
         uint256 validBefore,
         bytes32 nonce,
-        bytes calldata signature
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external;
 
     /**
@@ -52,8 +54,6 @@ interface IEIP3009 {
  *      Token support: USDC v2+, EURC, and other EIP-3009 tokens.
  *      Not compatible with USDT, WETH, or tokens lacking EIP-3009 support.
  *
- *      EIP-3009 remains in Draft status. Monitor for spec changes.
- *
  *      IMPORTANT: receiveWithAuthorization requires msg.sender == to at the
  *      token contract level. Since this contract calls the token directly,
  *      the `to` field in the signed authorization MUST equal this contract's
@@ -65,7 +65,9 @@ interface IEIP3009 {
  *          uint256 validAfter,    // timestamp after which auth is valid (0 = immediately)
  *          uint256 validBefore,   // timestamp before which auth is valid (use deadline)
  *          bytes32 nonce,         // random 32-byte nonce, unique per authorization
- *          bytes   signature      // EIP-712 sig over ReceiveWithAuthorization struct
+ *          uint8   v,             // signature v component
+ *          bytes32 r,             // signature r component
+ *          bytes32 s              // signature s component
  *      )
  *
  * ReceiveWithAuthorization EIP-712 type string:
@@ -97,14 +99,16 @@ contract EIP3009Auth is IPaymentAuth, ReentrancyGuard {
      *          uint256 validAfter,
      *          uint256 validBefore,
      *          bytes32 nonce,
-     *          bytes   signature
+     *          uint8   v,
+     *          bytes32 r,
+     *          bytes32 s
      *      )
      *
      * @param payer      Address that signed the authorization (the `from` field).
      * @param recipient  Address receiving tokens (merchant). Tokens are forwarded here.
      * @param token      EIP-3009 token address (e.g. USDC).
      * @param amount     Exact transfer amount — must match the `value` in the authorization.
-     * @param authData   ABI-encoded (validAfter, validBefore, nonce, signature).
+     * @param authData   ABI-encoded (validAfter, validBefore, nonce, v, r, s).
      */
     function pullPayment(
         address payer,
@@ -117,8 +121,10 @@ contract EIP3009Auth is IPaymentAuth, ReentrancyGuard {
             uint256 validAfter,
             uint256 validBefore,
             bytes32 nonce,
-            bytes memory signature
-        ) = abi.decode(authData, (uint256, uint256, bytes32, bytes));
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        ) = abi.decode(authData, (uint256, uint256, bytes32, uint8, bytes32, bytes32));
 
         // receiveWithAuthorization requires msg.sender == to.
         // The authorization's `to` field must be this contract's address.
@@ -130,7 +136,9 @@ contract EIP3009Auth is IPaymentAuth, ReentrancyGuard {
             validAfter,
             validBefore,
             nonce,
-            signature
+            v,
+            r,
+            s
         );
 
         // Forward tokens to the actual recipient (merchant)
