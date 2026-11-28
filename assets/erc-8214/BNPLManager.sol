@@ -612,18 +612,29 @@ contract BNPLManager is IBNPL, IOperatorManager, ReentrancyGuard {
      * @notice Shared installment amount + late fee calculation.
      * @dev Used by both collectInstallment and getNextInstallment to guarantee
      *      that displayed amounts always match collected amounts.
+     *
+     *      Uses actualRemaining = totalAmount - paidAmount, which correctly
+     *      handles partial refunds. When both totalAmount and paidAmount
+     *      decrease by refundAmount, actualRemaining is unchanged and
+     *      installment amounts stay the same.
      */
     function _calculateNextInstallment(Order storage o)
         private view
         returns (uint256 principal, uint256 lateFee)
     {
+        // Calculate actual remaining balance and remaining installments
+        uint256 actualRemaining = o.totalAmount - o.paidAmount;
+        uint256 remainingInstallments = o.installments - o.paidInstallments;
+
+        require(remainingInstallments > 0, "BNPL: no installments remaining");
+
         // Dust-aware installment amount
-        principal = _installmentAmount(
-            o.totalAmount,
-            o.downPaymentBps,
-            o.installments,
-            o.paidInstallments   // 0-based index of the installment being collected
-        );
+        uint256 baseAmount = actualRemaining / remainingInstallments;
+        uint256 dust = actualRemaining % remainingInstallments;
+
+        // Dust is applied to the final installment
+        bool isFinal = (remainingInstallments == 1);
+        principal = isFinal ? baseAmount + dust : baseAmount;
 
         // Late fee applies if past due but still within grace period
         lateFee = 0;
